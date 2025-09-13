@@ -3,6 +3,7 @@ import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
+import { Logo } from '../ui';
 
 // Navigation items configuration
 const navigationItems = [
@@ -25,9 +26,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-blue-600">
-                Buete Consulting
-              </span>
+              <Logo size="md" showText={true} />
             </a>
           </div>
 
@@ -76,9 +75,7 @@ const Header: React.FC = () => {
             
             {/* Mobile menu header */}
             <div className="flex items-center justify-between mb-8">
-              <span className="text-xl font-bold text-blue-600">
-                Buete Consulting
-              </span>
+              <Logo size="sm" showText={true} />
               <Dialog.Close asChild>
                 <button className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100">
                   <XMarkIcon className="h-6 w-6" />

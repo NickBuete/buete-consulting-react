@@ -1,4 +1,5 @@
 import React from 'react';
+import { Logo } from '../ui';
 
 const Footer: React.FC = () => {
     return (
@@ -7,10 +8,8 @@ const Footer: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Column 1: Logo */}
                     <div className="md:col-span-1">
-                        <div className="flex items-center mb-4">
-                            <span className="text-2xl font-bold text-white">
-                                Buete Consulting
-                            </span>
+                        <div className="mb-4">
+                            <Logo size="md" showText={true} className="text-white" />
                         </div>
                         <p className="text-accent-400 text-sm font-medium mb-4">Healthcare Solutions
                         </p>
@@ -93,21 +92,10 @@ const Footer: React.FC = () => {
                         <ul className="space-y-3">
                             <li className="text-neutral-300 text-sm">
                                 <span className="block">Email:</span>
-                                <a href="mailto:info@bueteconsulting.com" 
+                                <a href="mailto:nickbuete@bueteconsulting.au" 
                                 className="text-accent-400 hover:text-accent-300 transition-colors duration-200">
-                                    info@bueteconsulting.com
+                                    nickbuete@bueteconsulting.au
                                 </a>
-                            </li>
-                            <li className="text-neutral-300 text-sm">
-                                <span className="block">Phone:</span>
-                                <a href="tel:+1234567890" 
-                                className="text-accent-400 hover:text-accent-300 transition-colors duration-200">
-                                    (123) 456-7890
-                                </a>
-                            </li>
-                            <li className="text-neutral-300 text-sm">
-                                <span className="block">Address:</span>
-                                <span>123 Healthcare Ave<br />Medical City, MC 12345</span>
                             </li>
                         </ul>
                     </div>
