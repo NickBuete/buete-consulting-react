@@ -1,4 +1,13 @@
 // Common utility functions used across the application
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Utility for combining class names with Tailwind CSS
+ */
+export const cn = (...inputs: ClassValue[]) => {
+  return twMerge(clsx(inputs));
+};
 
 /**
  * Format currency values

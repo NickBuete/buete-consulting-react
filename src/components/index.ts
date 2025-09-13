@@ -1,6 +1,6 @@
 // Re-export all components for easy importing
 // This barrel file allows importing components like:
-// import { Button, Card } from '@/components'
+// import { Button, Card, Header } from '@/components'
 
 // Layout components
 export * from './layout';
