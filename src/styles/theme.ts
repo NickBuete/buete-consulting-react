@@ -115,10 +115,10 @@ export const commonStyles = {
   // Buttons
   button: {
     base: 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2',
-    primary: 'bg-primary-900 text-white hover:bg-primary-800 focus:ring-primary-500',
-    secondary: 'bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-400',
-    outline: 'border border-primary-900 text-primary-900 hover:bg-primary-50 focus:ring-primary-500',
-    ghost: 'text-primary-900 hover:bg-primary-50 focus:ring-primary-500',
+    primary: 'bg-brand-900 text-white hover:bg-brand-800 focus:ring-brand-500',
+    secondary: 'bg-orange-500 text-white hover:bg-orange-600 focus:ring-orange-400',
+    outline: 'border border-brand-900 text-brand-900 hover:bg-brand-50 focus:ring-brand-500',
+    ghost: 'text-brand-900 hover:bg-brand-50 focus:ring-brand-500',
     sizes: {
       sm: 'px-3 py-1.5 text-sm rounded-md font-caption',
       base: 'px-4 py-2 text-base rounded-lg font-caption',
@@ -144,10 +144,10 @@ export const commonStyles = {
   // Text styles
   text: {
     heading: {
-      h1: 'text-4xl lg:text-5xl font-bold text-primary-900 font-title',
-      h2: 'text-3xl lg:text-4xl font-bold text-primary-900 font-title',
-      h3: 'text-2xl lg:text-3xl font-semibold text-primary-900 font-title',
-      h4: 'text-xl lg:text-2xl font-semibold text-primary-900 font-title',
+      h1: 'text-4xl lg:text-5xl font-bold text-brand-900 font-title',
+      h2: 'text-3xl lg:text-4xl font-bold text-brand-900 font-title',
+      h3: 'text-2xl lg:text-3xl font-semibold text-brand-900 font-title',
+      h4: 'text-xl lg:text-2xl font-semibold text-brand-900 font-title',
     },
     body: {
       large: 'text-lg text-neutral-700 font-body',

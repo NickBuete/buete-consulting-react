@@ -6,7 +6,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: {
+        // Brand colors (renamed to avoid conflicts)
+        brand: {
           50: '#f0f4ff',
           100: '#e0e8ff',
           200: '#c7d6ff',
@@ -18,7 +19,7 @@ module.exports = {
           800: '#0c1423',
           900: '#14213d',
         },
-        accent: {
+        orange: {
           50: '#fffbf0',
           100: '#fff6e0',
           200: '#ffecb8',
@@ -42,7 +43,46 @@ module.exports = {
           800: '#262626',
           900: '#171717',
         },
-      }
+        // shadcn/ui semantic color system
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      fontFamily: {
+        'heading': ['Merriweather', 'serif'],
+        'body': ['Nunito', 'sans-serif'],
+        'brand': ['Proxima Nova', 'Nunito', 'sans-serif'],
+      },
     },
   },
 }

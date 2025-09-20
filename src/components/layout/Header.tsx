@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import Button from '../ui/Button';
-import { Logo } from '../ui';
+import { Button } from '../ui/Button';
+import Logo from '../ui/Logo';
+import { ROUTES } from '../../router/routes';
 
 // Navigation items configuration
 const navigationItems = [
-  { label: 'Home', href: '/' },
-  { label: 'Website Templates', href: '/templates' },
-  { label: 'Pharmacy Tools', href: '/pharmacy-tools' },
-  { label: 'HMR System', href: '/hmr-system' },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+  { label: 'Home', href: ROUTES.HOME },
+  { label: 'Website Templates', href: ROUTES.TEMPLATES },
+  { label: 'Pharmacy Tools', href: ROUTES.PHARMACY_TOOLS },
+  { label: 'HMR Templates', href: ROUTES.HMR_TEMPLATES },
+  { label: 'About', href: ROUTES.ABOUT },
+  { label: 'Contact', href: ROUTES.CONTACT },
 ];
 
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <header className="bg-white shadow-lg border-b border-gray-200">
@@ -25,9 +28,9 @@ const Header: React.FC = () => {
           
           {/* Logo */}
           <div className="flex-shrink-0">
-            <a href="/" className="flex items-center">
+            <Link to={ROUTES.HOME} className="flex items-center">
               <Logo size="md" showText={true} />
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
@@ -36,11 +39,17 @@ const Header: React.FC = () => {
               <NavigationMenu.List className="flex space-x-8">
                 {navigationItems.map((item) => (
                   <NavigationMenu.Item key={item.label}>
-                    <NavigationMenu.Link
-                      href={item.href}
-                      className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors duration-200"
-                    >
-                      {item.label}
+                    <NavigationMenu.Link asChild>
+                      <Link
+                        to={item.href}
+                        className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                          location.pathname === item.href
+                            ? 'text-brand-600 border-b-2 border-brand-600'
+                            : 'text-gray-700 hover:text-brand-600'
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
                     </NavigationMenu.Link>
                   </NavigationMenu.Item>
                 ))}
@@ -50,7 +59,7 @@ const Header: React.FC = () => {
 
           {/* Desktop CTA Button */}
           <div className="hidden md:block">
-            <Button variant="primary" size="sm">
+            <Button variant="default" size="sm">
               Get Started
             </Button>
           </div>
@@ -86,22 +95,31 @@ const Header: React.FC = () => {
             {/* Mobile navigation items */}
             <nav className="flex flex-col space-y-4">
               {navigationItems.map((item) => (
-                <a
+                <Link
                   key={item.label}
-                  href={item.href}
-                  className="text-gray-700 hover:text-blue-600 px-3 py-3 text-base font-medium border-b border-gray-100 transition-colors duration-200"
+                  to={item.href}
+                  className={`px-3 py-3 text-base font-medium border-b border-gray-100 transition-colors duration-200 ${
+                    location.pathname === item.href
+                      ? 'text-brand-600 bg-brand-50'
+                      : 'text-gray-700 hover:text-brand-600 hover:bg-gray-50'
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
               
               {/* Mobile CTA */}
-              <div className="pt-4">
-                <Button variant="primary" className="w-full">
-                  Get Started
-                </Button>
-              </div>
+                          {/* Mobile CTA button */}
+            <div className="pt-4 border-t border-gray-200">
+              <Link
+                to={ROUTES.CONTACT}
+                className="w-full bg-brand-600 text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-brand-700 transition-colors duration-200 text-center inline-block"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Get Started
+              </Link>
+            </div>
             </nav>
 
           </Dialog.Content>

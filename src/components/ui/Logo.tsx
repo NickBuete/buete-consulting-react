@@ -43,7 +43,7 @@ const Logo: React.FC<LogoProps> = ({
       
       {/* Logo Text */}
       {showText && (
-        <span className={`${currentSize.text} font-bold text-primary-600`}>
+        <span className={`${currentSize.text} font-bold text-brand-600`}>
           Buete Consulting
         </span>
       )}

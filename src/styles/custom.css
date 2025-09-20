@@ -12,6 +12,29 @@
   font-style: normal;
 }
 
+/* shadcn/ui CSS Variables - mapped to your brand colors */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221 83% 16%; /* Your brand-600 color #14213d */
+  --primary-foreground: 0 0% 100%; /* Pure white for contrast */
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 33 100% 50%; /* Your orange-500 color #fca311 */
+  --accent-foreground: 0 0% 100%; /* Pure white for contrast */
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%; /* Pure white for contrast */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221 83% 16%;
+}
+
 /* Custom animations */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -126,4 +149,187 @@ html {
   .no-print {
     display: none !important;
   }
+}
+
+/* Device Mockup Styles */
+/* Desktop/Laptop Mockup */
+.device-mockup-desktop {
+  position: relative;
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-radius: 12px;
+  padding: 24px 24px 32px 24px;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.device-mockup-desktop::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: #4a5568;
+  border-radius: 2px;
+}
+
+.device-mockup-desktop .screen {
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Tablet Mockup */
+.device-mockup-tablet {
+  position: relative;
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  border-radius: 20px;
+  padding: 60px 40px;
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 5px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.device-mockup-tablet::before {
+  content: '';
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border: 2px solid #4a5568;
+  border-radius: 50%;
+}
+
+.device-mockup-tablet .screen {
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile/Phone Mockup */
+.device-mockup-mobile {
+  position: relative;
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  border-radius: 30px;
+  padding: 60px 20px;
+  box-shadow: 
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 5px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  width: 280px;
+  margin: 0 auto;
+}
+
+.device-mockup-mobile::before {
+  content: '';
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 4px;
+  background: #4a5568;
+  border-radius: 2px;
+}
+
+.device-mockup-mobile::after {
+  content: '';
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  border: 2px solid #4a5568;
+  border-radius: 50%;
+}
+
+.device-mockup-mobile .screen {
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 9/16;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Device Mockup Container */
+.device-mockup-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-radius: 12px;
+}
+
+/* Responsive Device Grid */
+.device-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+@media (min-width: 768px) {
+  .device-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .device-grid {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}
+
+/* Device Mockup Hover Effects */
+.device-mockup-desktop:hover,
+.device-mockup-tablet:hover,
+.device-mockup-mobile:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 30px 60px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* Template Image Styles */
+.template-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Device-specific template image adjustments */
+.device-mockup-mobile .template-image {
+  object-fit: cover;
+  height: 100%;
+}
+
+.device-mockup-tablet .template-image {
+  object-fit: cover;
+  height: 100%;
+}
+
+.device-mockup-desktop .template-image {
+  object-fit: cover;
+  height: 100%;
+  min-height: 300px;
 }
