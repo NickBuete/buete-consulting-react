@@ -1,7 +1,7 @@
 import React from 'react'
 import { Zap } from 'lucide-react'
 import { Filter, Search } from 'lucide-react'
-import { HealthcareCategory, TemplateFeature } from '../../types/template'
+import { HealthcareCategory } from '../../types/template'
 import { useState } from 'react'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
