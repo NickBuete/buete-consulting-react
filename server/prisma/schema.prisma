@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id               Int             @id @default(autoincrement())
+  name             String          @db.VarChar(100)
+  contactEmail     String          @unique @map("contact_email") @db.VarChar(150)
+  contactPhone     String?         @map("contact_phone") @db.VarChar(30)
+  businessDetails  String?         @map("business_details")
+  createdAt        DateTime?       @default(now()) @map("created_at") @db.Timestamp(6)
+  hostingInfo      HostingInfo[]
+  subscriptions    Subscription[]
+  patients         Patient[]
+
+  @@map("clients")
+}
+
+model HostingInfo {
+  id          Int      @id @default(autoincrement())
+  clientId    Int?     @map("client_id")
+  domain      String   @db.VarChar(255)
+  provider    String   @db.VarChar(255)
+  credentials String
+  notes       String?
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hosting_info_client_id_fkey")
+
+  @@map("hosting_info")
+}
+
+model Subscription {
+  id           Int       @id(map: "subscrrptions_pkey") @default(autoincrement())
+  clientId     Int?      @map("client_id")
+  plan         String    @db.VarChar(100)
+  status       String    @db.VarChar(50)
+  startDate    DateTime  @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  renewalInfo  String?   @map("renewal_info")
+  client       Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "subscrrptions_client_id_fkey")
+
+  @@map("subscriptions")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique @db.VarChar(50)
+  email        String    @unique @db.VarChar(100)
+  passwordHash String    @map("password_hash") @db.VarChar(100)
+  role         String    @db.VarChar(50)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  assignedActionItems HmrActionItem[] @relation("ActionItemAssignee")
+  uploadedAttachments HmrAttachment[] @relation("AttachmentUploader")
+  auditLogs          HmrAuditLog[]    @relation("AuditLogUser")
+
+  @@map("users")
+}
+
+enum HmrReviewStatus {
+  PENDING
+  ACCEPTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CLAIMED
+  CANCELLED
+}
+
+enum LivingArrangement {
+  ALONE
+  WITH_FAMILY
+  WITH_CARER
+  RESIDENTIAL_AGED_CARE
+  OTHER
+}
+
+enum SymptomType {
+  DIZZINESS
+  FALLS
+  DROWSINESS
+  NAUSEA
+  HEADACHE
+  PAIN
+  MOBILITY
+  OTHER
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ActionStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MedicationStatus {
+  CURRENT
+  CEASED
+  NEEDS_REVIEW
+  OTC
+}
+
+model Clinic {
+  id            Int        @id @default(autoincrement())
+  name          String     @db.VarChar(150)
+  contactEmail  String?    @map("contact_email") @db.VarChar(150)
+  contactPhone  String?    @map("contact_phone") @db.VarChar(50)
+  addressLine1  String?    @map("address_line1") @db.VarChar(255)
+  addressLine2  String?    @map("address_line2") @db.VarChar(255)
+  suburb        String?    @db.VarChar(100)
+  state         String?    @db.VarChar(100)
+  postcode      String?    @db.VarChar(10)
+  notes         String?
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  prescribers   Prescriber[]
+  hmrReviews    HmrReview[]
+
+  @@map("clinics")
+}
+
+model Prescriber {
+  id            Int         @id @default(autoincrement())
+  clinicId      Int?        @map("clinic_id")
+  honorific     String?     @db.VarChar(30)
+  firstName     String      @map("first_name") @db.VarChar(100)
+  lastName      String      @map("last_name") @db.VarChar(100)
+  providerNumber String?    @map("provider_number") @db.VarChar(50)
+  contactEmail  String?     @map("contact_email") @db.VarChar(150)
+  contactPhone  String?     @map("contact_phone") @db.VarChar(50)
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  clinic        Clinic?     @relation(fields: [clinicId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  hmrReviews    HmrReview[]
+
+  @@map("prescribers")
+  @@index([clinicId])
+}
+
+model Patient {
+  id                     Int               @id @default(autoincrement())
+  clientId               Int?              @map("client_id")
+  firstName              String            @map("first_name") @db.VarChar(100)
+  lastName               String            @map("last_name") @db.VarChar(100)
+  preferredName          String?           @map("preferred_name") @db.VarChar(100)
+  dateOfBirth            DateTime?         @map("date_of_birth") @db.Date
+  contactEmail           String?           @map("contact_email") @db.VarChar(150)
+  contactPhone           String?           @map("contact_phone") @db.VarChar(50)
+  addressLine1           String?           @map("address_line1") @db.VarChar(255)
+  addressLine2           String?           @map("address_line2") @db.VarChar(255)
+  suburb                 String?           @db.VarChar(100)
+  state                  String?           @db.VarChar(100)
+  postcode               String?           @db.VarChar(10)
+  emergencyContactName   String?           @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactPhone  String?           @map("emergency_contact_phone") @db.VarChar(50)
+  medicareNumber         String?           @map("medicare_number") @db.VarChar(50)
+  livesAlone             Boolean?          @map("lives_alone")
+  livingArrangement      LivingArrangement? @map("living_arrangement")
+  usesWebster            Boolean?          @map("uses_webster")
+  otherSupports          String?           @map("other_supports")
+  notes                  String?
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
+  client                 Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  hmrReviews             HmrReview[]
+
+  @@map("patients")
+  @@index([clientId])
+}
+
+model Medication {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique @db.VarChar(150)
+  form        String?         @db.VarChar(100)
+  strength    String?         @db.VarChar(100)
+  route       String?         @db.VarChar(100)
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrEntries  HmrMedication[]
+
+  @@map("medications")
+}
+
+model HmrReview {
+  id                  Int               @id @default(autoincrement())
+  patientId           Int               @map("patient_id")
+  prescriberId        Int?              @map("prescriber_id")
+  clinicId            Int?              @map("clinic_id")
+  referredBy          String?           @map("referred_by") @db.VarChar(150)
+  referralDate        DateTime?         @map("referral_date") @db.Date
+  referralReason      String?           @map("referral_reason")
+  referralNotes       String?           @map("referral_notes")
+  status              HmrReviewStatus   @default(PENDING)
+  acceptedAt          DateTime?         @map("accepted_at")
+  scheduledAt         DateTime?         @map("scheduled_at")
+  calendarEventId     String?           @map("calendar_event_id") @db.VarChar(255)
+  visitLocation       String?           @map("visit_location") @db.VarChar(255)
+  visitNotes          String?           @map("visit_notes")
+  assessmentSummary   String?           @map("assessment_summary")
+  pastMedicalHistory  String?           @map("past_medical_history")
+  allergies           String?
+  pathology           String?
+  medicalGoals        String?           @map("medical_goals")
+  goalBarriers        String?           @map("goal_barriers")
+  livingArrangement   LivingArrangement? @map("living_arrangement")
+  usesWebster         Boolean?          @map("uses_webster")
+  livesAlone          Boolean?          @map("lives_alone")
+  otherSupports       String?           @map("other_supports")
+  followUpDueAt       DateTime?         @map("follow_up_due_at") @db.Date
+  claimedAt           DateTime?         @map("claimed_at")
+  reportUrl           String?           @map("report_url") @db.VarChar(255)
+  reportBody          String?           @map("report_body")
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
+  patient             Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  prescriber          Prescriber?       @relation(fields: [prescriberId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  clinic              Clinic?           @relation(fields: [clinicId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  medications         HmrMedication[]
+  symptoms            HmrSymptom[]
+  actionItems         HmrActionItem[]
+  attachments         HmrAttachment[]
+  auditLogs           HmrAuditLog[]
+
+  @@map("hmr_reviews")
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([clinicId])
+}
+
+model HmrMedication {
+  id               Int              @id @default(autoincrement())
+  hmrReviewId      Int              @map("hmr_review_id")
+  medicationId     Int?             @map("medication_id")
+  name             String           @db.VarChar(255)
+  dose             String?          @db.VarChar(255)
+  frequency        String?          @db.VarChar(255)
+  indication       String?
+  status           MedicationStatus @default(CURRENT)
+  isNew            Boolean?         @map("is_new")
+  isChanged        Boolean?         @map("is_changed")
+  notes            String?
+  verificationRequired Boolean?     @map("verification_required")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview        HmrReview        @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  medication       Medication?      @relation(fields: [medicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("hmr_medications")
+  @@index([hmrReviewId])
+  @@index([medicationId])
+}
+
+model HmrSymptom {
+  id          Int         @id @default(autoincrement())
+  hmrReviewId Int         @map("hmr_review_id")
+  symptom     SymptomType
+  present     Boolean     @default(false)
+  severity    String?     @db.VarChar(50)
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview   HmrReview   @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("hmr_symptoms")
+  @@unique([hmrReviewId, symptom])
+}
+
+model HmrActionItem {
+  id               Int          @id @default(autoincrement())
+  hmrReviewId      Int          @map("hmr_review_id")
+  title            String       @db.VarChar(255)
+  description      String?
+  priority         ActionPriority @default(MEDIUM)
+  status           ActionStatus   @default(OPEN)
+  dueDate          DateTime?     @map("due_date")
+  assignedToUserId Int?          @map("assigned_to_user_id")
+  resolutionNotes  String?       @map("resolution_notes")
+  completedAt      DateTime?     @map("completed_at")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview        HmrReview     @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignee         User?         @relation("ActionItemAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("hmr_action_items")
+  @@index([hmrReviewId])
+  @@index([assignedToUserId])
+}
+
+model HmrAttachment {
+  id               Int       @id @default(autoincrement())
+  hmrReviewId      Int       @map("hmr_review_id")
+  fileName         String    @map("file_name") @db.VarChar(255)
+  mimeType         String?   @map("mime_type") @db.VarChar(150)
+  storagePath      String    @map("storage_path") @db.VarChar(500)
+  uploadedByUserId Int?      @map("uploaded_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  hmrReview        HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploadedBy       User?     @relation("AttachmentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("hmr_attachments")
+  @@index([hmrReviewId])
+  @@index([uploadedByUserId])
+}
+
+model HmrAuditLog {
+  id              Int       @id @default(autoincrement())
+  hmrReviewId     Int       @map("hmr_review_id")
+  changedByUserId Int?      @map("changed_by_user_id")
+  changeType      String    @map("change_type") @db.VarChar(150)
+  oldValue        Json?     @map("old_value")
+  newValue        Json?     @map("new_value")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  hmrReview       HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  changedBy       User?     @relation("AuditLogUser", fields: [changedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("hmr_audit_logs")
+  @@index([hmrReviewId])
+  @@index([changedByUserId])
+}
