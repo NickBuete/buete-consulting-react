@@ -54,39 +54,38 @@ const TemplateHero: React.FC<TemplateHeroProps> = ({
           </div>
         </div>
         {/* Search section */}
-        <div>
-          <div>
-            <div>
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative w-full max-w-3xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-300 z-10" />
             <Input
               type="text"
+              placeholderClassName="placeholder-white placeholder-opacity-100"
               placeholder="Search templates by name, feature or specialty."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
                 onSearch?.(e.target.value)
               }}
-              className="w-full pl-12 pr-4 py-4 text-lg bg-white/10 backdrop-blur-sm border-white/20 text-white placeholder-white/70 focus:bg-white/20 focus:border-white/40"
+              className="w-full pl-12 pr-4 py-4 text-lg bg-white/10 backdrop-blur-sm border border-white/30 text-white rounded-xl focus:bg-white/20 focus:border-white/50 transition"
             />
           </div>
-        </div>
-        {/* Quick filters */}
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => onCategoryFilter?.('all')}
-            className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50"
-          >
-            All Templates
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => onCategoryFilter?.(HealthcareCategory.PHARMACY)}
-            className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50"
-          >
-            Pharmacy Templates
-          </Button>
+          {/* Quick filters */}
+          <div className="flex flex-wrap justify-center gap-4 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => onCategoryFilter?.('all')}
+              className="bg-white/10 border-white/30 text-white font-semibold px-6 py-3 rounded-xl shadow-sm hover:bg-white/20 hover:border-white/50 transition"
+            >
+              All Templates
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onCategoryFilter?.(HealthcareCategory.PHARMACY)}
+              className="bg-white/10 border-white/30 text-white font-semibold px-6 py-3 rounded-xl shadow-sm hover:bg-white/20 hover:border-white/50 transition"
+            >
+              Pharmacy Templates
+            </Button>
+          </div>
         </div>
         {/* Statistics */}
       </div>
