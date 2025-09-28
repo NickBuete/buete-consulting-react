@@ -43,8 +43,9 @@ const handlePrismaError = (error: unknown, res: Response) => {
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const prescribers = await listPrescribers();
+  asyncHandler(async (req, res) => {
+    const ownerId = req.user!.id;
+    const prescribers = await listPrescribers(ownerId);
     res.json(prescribers);
   }),
 );
@@ -55,7 +56,12 @@ router.post(
     const payload = prescriberCreateSchema.parse(req.body);
 
     try {
-      const prescriber = await createPrescriber(payload);
+      const ownerId = req.user!.id;
+      const prescriber = await createPrescriber(ownerId, payload);
+      if (!prescriber) {
+        return res.status(404).json({ message: 'Clinic not found' });
+      }
+
       res.status(201).json(prescriber);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -71,7 +77,8 @@ router.get(
       return res.status(400).json({ message: 'Invalid prescriber id' });
     }
 
-    const prescriber = await getPrescriberById(id);
+    const ownerId = req.user!.id;
+    const prescriber = await getPrescriberById(ownerId, id);
     if (!prescriber) {
       return res.status(404).json({ message: 'Prescriber not found' });
     }
@@ -91,7 +98,12 @@ router.patch(
     const payload = prescriberUpdateSchema.parse(req.body);
 
     try {
-      const prescriber = await updatePrescriber(id, payload);
+      const ownerId = req.user!.id;
+      const prescriber = await updatePrescriber(ownerId, id, payload);
+      if (!prescriber) {
+        return res.status(404).json({ message: 'Prescriber not found' });
+      }
+
       res.json(prescriber);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -108,7 +120,12 @@ router.delete(
     }
 
     try {
-      await deletePrescriber(id);
+      const ownerId = req.user!.id;
+      const deleted = await deletePrescriber(ownerId, id);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Prescriber not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);

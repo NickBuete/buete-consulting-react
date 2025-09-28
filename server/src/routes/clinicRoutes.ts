@@ -40,8 +40,9 @@ const handlePrismaError = (error: unknown, res: Response) => {
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const clinics = await listClinics();
+  asyncHandler(async (req, res) => {
+    const ownerId = req.user!.id;
+    const clinics = await listClinics(ownerId);
     res.json(clinics);
   }),
 );
@@ -52,7 +53,8 @@ router.post(
     const payload = clinicCreateSchema.parse(req.body);
 
     try {
-      const clinic = await createClinic(payload);
+      const ownerId = req.user!.id;
+      const clinic = await createClinic(ownerId, payload);
       res.status(201).json(clinic);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -68,7 +70,8 @@ router.get(
       return res.status(400).json({ message: 'Invalid clinic id' });
     }
 
-    const clinic = await getClinicById(id);
+    const ownerId = req.user!.id;
+    const clinic = await getClinicById(ownerId, id);
     if (!clinic) {
       return res.status(404).json({ message: 'Clinic not found' });
     }
@@ -88,7 +91,12 @@ router.patch(
     const payload = clinicUpdateSchema.parse(req.body);
 
     try {
-      const clinic = await updateClinic(id, payload);
+      const ownerId = req.user!.id;
+      const clinic = await updateClinic(ownerId, id, payload);
+      if (!clinic) {
+        return res.status(404).json({ message: 'Clinic not found' });
+      }
+
       res.json(clinic);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -105,7 +113,12 @@ router.delete(
     }
 
     try {
-      await deleteClinic(id);
+      const ownerId = req.user!.id;
+      const deleted = await deleteClinic(ownerId, id);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Clinic not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);

@@ -75,7 +75,18 @@ class ApiService {
       const response = await fetchWithTimeout(url, requestConfig);
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let message = `HTTP ${response.status}: ${response.statusText}`;
+
+        try {
+          const errorBody = await response.json();
+          if (errorBody && typeof errorBody.message === 'string') {
+            message = errorBody.message;
+          }
+        } catch (parseError) {
+          // ignore JSON parse failures and fall back to default message
+        }
+
+        throw new Error(message);
       }
 
       const data = await response.json();

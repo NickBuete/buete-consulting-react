@@ -1,5 +1,5 @@
 import { Prisma } from '../generated/prisma';
-import { prisma } from '../db/prisma';
+import { withTenantContext } from '../db/tenant';
 import type { PatientCreateInput, PatientUpdateInput } from '../validators/patientSchemas';
 
 export type ListPatientsOptions = {
@@ -28,24 +28,28 @@ export const listPatients = async (ownerId: number, options: ListPatientsOptions
 
   const where: Prisma.PatientWhereInput = { AND: conditions };
 
-  return prisma.patient.findMany({
-    where,
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    include: { client: true },
-  });
+  return withTenantContext(ownerId, (tx) =>
+    tx.patient.findMany({
+      where,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      include: { client: true },
+    }),
+  );
 };
 
 export const getPatientById = async (ownerId: number, id: number) => {
-  return prisma.patient.findFirst({
-    where: { id, ownerId },
-    include: {
-      client: true,
-      hmrReviews: {
-        orderBy: { createdAt: 'desc' },
-        include: { prescriber: true, clinic: true },
+  return withTenantContext(ownerId, (tx) =>
+    tx.patient.findFirst({
+      where: { id, ownerId },
+      include: {
+        client: true,
+        hmrReviews: {
+          orderBy: { createdAt: 'desc' },
+          include: { prescriber: true, clinic: true },
+        },
       },
-    },
-  });
+    }),
+  );
 };
 
 export const createPatient = async (ownerId: number, data: PatientCreateInput) => {
@@ -77,18 +81,15 @@ export const createPatient = async (ownerId: number, data: PatientCreateInput) =
 
   createData.owner = { connect: { id: ownerId } };
 
-  return prisma.patient.create({
-    data: createData,
-    include: { client: true },
-  });
+  return withTenantContext(ownerId, (tx) =>
+    tx.patient.create({
+      data: createData,
+      include: { client: true },
+    }),
+  );
 };
 
 export const updatePatient = async (ownerId: number, id: number, data: PatientUpdateInput) => {
-  const existing = await prisma.patient.findFirst({ where: { id, ownerId } });
-  if (!existing) {
-    return null;
-  }
-
   const updatePayload: Prisma.PatientUpdateInput = {};
 
   if (typeof data.clientId !== 'undefined') {
@@ -154,14 +155,23 @@ export const updatePatient = async (ownerId: number, id: number, data: PatientUp
     updatePayload.notes = data.notes ?? null;
   }
 
-  return prisma.patient.update({
-    where: { id },
-    data: updatePayload,
-    include: { client: true },
+  return withTenantContext(ownerId, async (tx) => {
+    const existing = await tx.patient.findFirst({ where: { id, ownerId } });
+    if (!existing) {
+      return null;
+    }
+
+    return tx.patient.update({
+      where: { id },
+      data: updatePayload,
+      include: { client: true },
+    });
   });
 };
 
 export const deletePatient = async (ownerId: number, id: number) => {
-  const deleted = await prisma.patient.deleteMany({ where: { id, ownerId } });
-  return deleted.count > 0;
+  return withTenantContext(ownerId, async (tx) => {
+    const deleted = await tx.patient.deleteMany({ where: { id, ownerId } });
+    return deleted.count > 0;
+  });
 };

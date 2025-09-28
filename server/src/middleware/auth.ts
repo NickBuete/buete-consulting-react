@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { UserRole } from '../generated/prisma';
 import { verifyToken } from '../utils/jwt';
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
@@ -15,10 +16,14 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
+  if (!Object.values(UserRole).includes(payload.role as UserRole)) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   req.user = {
     id: payload.sub,
     email: payload.email,
-    role: payload.role,
+    role: payload.role as UserRole,
   };
 
   return next();

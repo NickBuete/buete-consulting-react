@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { UserRole } from '../generated/prisma';
 import { env } from '../config/env';
 
 interface TokenPayload {
   sub: number;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export const signToken = (payload: TokenPayload, expiresIn: string = '12h') => {

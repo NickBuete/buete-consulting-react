@@ -93,7 +93,8 @@ router.get(
       options.search = search;
     }
 
-    const reviews = await listHmrReviews(options);
+    const ownerId = req.user!.id;
+    const reviews = await listHmrReviews(ownerId, options);
 
     res.json(reviews);
   }),
@@ -105,7 +106,12 @@ router.post(
     const payload = hmrReviewCreateSchema.parse(req.body);
 
     try {
-      const review = await createHmrReview(payload);
+      const ownerId = req.user!.id;
+      const review = await createHmrReview(ownerId, payload);
+      if (!review) {
+        return res.status(404).json({ message: 'Related record not found' });
+      }
+
       res.status(201).json(review);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -121,7 +127,8 @@ router.get(
       return res.status(400).json({ message: 'Invalid review id' });
     }
 
-    const review = await getHmrReviewById(id);
+    const ownerId = req.user!.id;
+    const review = await getHmrReviewById(ownerId, id);
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
@@ -141,7 +148,12 @@ router.patch(
     const payload = hmrReviewUpdateSchema.parse(req.body);
 
     try {
-      const review = await updateHmrReview(id, payload);
+      const ownerId = req.user!.id;
+      const review = await updateHmrReview(ownerId, id, payload);
+      if (!review) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.json(review);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -160,7 +172,12 @@ router.post(
     const payload = hmrMedicationCreateSchema.parse(req.body);
 
     try {
-      const medication = await addMedicationToReview(id, payload);
+      const ownerId = req.user!.id;
+      const medication = await addMedicationToReview(ownerId, id, payload);
+      if (!medication) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.status(201).json(medication);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -179,7 +196,12 @@ router.patch(
     const payload = hmrMedicationUpdateSchema.parse(req.body);
 
     try {
-      const medication = await updateMedicationForReview(medicationId, payload);
+      const ownerId = req.user!.id;
+      const medication = await updateMedicationForReview(ownerId, medicationId, payload);
+      if (!medication) {
+        return res.status(404).json({ message: 'Medication not found' });
+      }
+
       res.json(medication);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -196,7 +218,12 @@ router.delete(
     }
 
     try {
-      await removeMedicationFromReview(medicationId);
+      const ownerId = req.user!.id;
+      const deleted = await removeMedicationFromReview(ownerId, medicationId);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Medication not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);
@@ -215,7 +242,12 @@ router.post(
     const payload = hmrSymptomUpsertSchema.parse(req.body);
 
     try {
-      const symptom = await upsertSymptomForReview(id, payload);
+      const ownerId = req.user!.id;
+      const symptom = await upsertSymptomForReview(ownerId, id, payload);
+      if (!symptom) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.status(201).json(symptom);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -240,7 +272,12 @@ router.delete(
     }
 
     try {
-      await deleteSymptomFromReview(id, symptom);
+      const ownerId = req.user!.id;
+      const deleted = await deleteSymptomFromReview(ownerId, id, symptom);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Symptom not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);
@@ -259,7 +296,12 @@ router.post(
     const payload = hmrActionItemCreateSchema.parse(req.body);
 
     try {
-      const actionItem = await createActionItemForReview(id, payload);
+      const ownerId = req.user!.id;
+      const actionItem = await createActionItemForReview(ownerId, id, payload);
+      if (!actionItem) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.status(201).json(actionItem);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -278,7 +320,12 @@ router.patch(
     const payload = hmrActionItemUpdateSchema.parse(req.body);
 
     try {
-      const actionItem = await updateActionItemForReview(actionItemId, payload);
+      const ownerId = req.user!.id;
+      const actionItem = await updateActionItemForReview(ownerId, actionItemId, payload);
+      if (!actionItem) {
+        return res.status(404).json({ message: 'Action item not found' });
+      }
+
       res.json(actionItem);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -295,7 +342,12 @@ router.delete(
     }
 
     try {
-      await deleteActionItemFromReview(actionItemId);
+      const ownerId = req.user!.id;
+      const deleted = await deleteActionItemFromReview(ownerId, actionItemId);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Action item not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);
@@ -314,7 +366,12 @@ router.post(
     const payload = hmrAttachmentCreateSchema.parse(req.body);
 
     try {
-      const attachment = await createAttachmentForReview(id, payload);
+      const ownerId = req.user!.id;
+      const attachment = await createAttachmentForReview(ownerId, id, payload);
+      if (!attachment) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.status(201).json(attachment);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -333,7 +390,12 @@ router.post(
     const payload = hmrAuditLogCreateSchema.parse(req.body);
 
     try {
-      const auditLog = await recordAuditLog(id, payload);
+      const ownerId = req.user!.id;
+      const auditLog = await recordAuditLog(ownerId, id, payload);
+      if (!auditLog) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
       res.status(201).json(auditLog);
     } catch (error) {
       return handlePrismaError(error, res);

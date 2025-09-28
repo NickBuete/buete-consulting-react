@@ -1,5 +1,6 @@
 //react app router.ts
 import React from 'react';
+import type { UserRole } from '../types/auth';
 
 // Placeholder components (we'll replace these with actual page components later)
 const HomePage = React.lazy(() => import('../pages/home'));
@@ -11,6 +12,9 @@ const HMRTemplatesPage = React.lazy(() => import('../pages/hmr-templates'));
 const HMRDashboardPage = React.lazy(() => import('../pages/hmr'));
 const AboutPage = React.lazy(() => import('../pages/about'));
 const ContactPage = React.lazy(() => import('../pages/contact'));
+const LoginPage = React.lazy(() => import('../pages/auth/Login'));
+const RegisterPage = React.lazy(() => import('../pages/auth/Register'));
+const UnauthorizedPage = React.lazy(() => import('../pages/auth/Unauthorized'));
 
 // 1. Route path constants
 export const ROUTES = {
@@ -23,6 +27,9 @@ export const ROUTES = {
     HMR_DASHBOARD: '/hmr',
     ABOUT: '/about',
     CONTACT: '/contact',
+    LOGIN: '/login',
+    REGISTER: '/register',
+    UNAUTHORIZED: '/unauthorized',
 } as const
 
 //2. Route interface
@@ -31,6 +38,7 @@ export interface RouteConfig {
     component: React.ComponentType;
     title: string;
     protected?: boolean; // if the route requires authentication
+    roles?: UserRole[];
 }
 
 // 3. Route configurations array
@@ -75,7 +83,8 @@ export const routes: RouteConfig[] = [
         path: ROUTES.HMR_DASHBOARD,
         component: HMRDashboardPage,
         title: 'HMR Dashboard - Buete Consulting',
-        protected: false
+        protected: true,
+        roles: ['PRO', 'ADMIN']
     },
     {
         path: ROUTES.ABOUT,
@@ -87,6 +96,24 @@ export const routes: RouteConfig[] = [
         path: ROUTES.CONTACT,
         component: ContactPage,
         title: 'Contact - Buete Consulting',
+        protected: false
+    },
+    {
+        path: ROUTES.LOGIN,
+        component: LoginPage,
+        title: 'Login - Buete Consulting',
+        protected: false
+    },
+    {
+        path: ROUTES.REGISTER,
+        component: RegisterPage,
+        title: 'Register - Buete Consulting',
+        protected: false
+    },
+    {
+        path: ROUTES.UNAUTHORIZED,
+        component: UnauthorizedPage,
+        title: 'Access Denied - Buete Consulting',
         protected: false
     }
 ];

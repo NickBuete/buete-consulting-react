@@ -1,10 +1,68 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { UserRole } from '../generated/prisma';
 import { prisma } from '../db/prisma';
 import { signToken } from '../utils/jwt';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
+
+const registrationSchema = z.object({
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.nativeEnum(UserRole).default(UserRole.BASIC).refine(
+    (value) => [UserRole.BASIC, UserRole.PRO].includes(value),
+    { message: 'Invalid role' },
+  ),
+});
+
+router.post('/register', async (req, res) => {
+  try {
+    const payload = registrationSchema.parse(req.body ?? {});
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: payload.email }, { username: payload.username }],
+      },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ message: 'User already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(payload.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        username: payload.username,
+        email: payload.email,
+        passwordHash,
+        role: payload.role,
+      },
+    });
+
+    const token = signToken({ sub: user.id, email: user.email, role: user.role });
+
+    return res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid registration payload', issues: error.flatten() });
+    }
+
+    console.error(error); // eslint-disable-line no-console
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body ?? {};

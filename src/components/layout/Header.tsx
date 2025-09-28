@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../ui/Button';
 import Logo from '../ui/Logo';
 import { ROUTES } from '../../router/routes';
+import { useAuth } from '../../context/AuthContext';
 
-// Navigation items configuration
-const navigationItems = [
+const baseNavigationItems = [
   { label: 'Home', href: ROUTES.HOME },
   { label: 'Website Templates', href: ROUTES.TEMPLATES },
   { label: 'Pharmacy Tools', href: ROUTES.PHARMACY_TOOLS },
@@ -21,20 +21,26 @@ const navigationItems = [
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const navigationItems = useMemo(() => baseNavigationItems, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.HOME);
+  };
 
   return (
     <header className="bg-white shadow-lg border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          
-          {/* Logo */}
           <div className="flex-shrink-0">
             <Link to={ROUTES.HOME} className="flex items-center">
               <Logo size="md" showText={true} />
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:block">
             <NavigationMenu.Root className="relative">
               <NavigationMenu.List className="flex space-x-8">
@@ -58,18 +64,33 @@ const Header: React.FC = () => {
             </NavigationMenu.Root>
           </div>
 
-          {/* Desktop CTA Button */}
-          <div className="hidden md:block">
-            <Button variant="default" size="sm">
-              Get Started
-            </Button>
+          <div className="hidden md:flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="text-sm text-gray-600">Hi, {user.username}</span>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={ROUTES.HMR_DASHBOARD}>Dashboard</Link>
+                </Button>
+                <Button variant="default" size="sm" onClick={handleLogout}>
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to={ROUTES.LOGIN}>Log in</Link>
+                </Button>
+                <Button variant="default" size="sm" asChild>
+                  <Link to={ROUTES.REGISTER}>Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
 
-          {/* Mobile menu button */}
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors duration-200"
+              className="p-2 rounded-md text-gray-700 hover:text-brand-600 hover:bg-gray-100 transition-colors duration-200"
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
@@ -77,23 +98,19 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation Dialog */}
       <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40" />
           <Dialog.Content className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl z-50 p-6">
-            
-            {/* Mobile menu header */}
             <div className="flex items-center justify-between mb-8">
               <Logo size="sm" showText={true} />
               <Dialog.Close asChild>
-                <button className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100">
+                <button className="p-2 rounded-md text-gray-700 hover:text-brand-600 hover:bg-gray-100">
                   <XMarkIcon className="h-6 w-6" />
                 </button>
               </Dialog.Close>
             </div>
 
-            {/* Mobile navigation items */}
             <nav className="flex flex-col space-y-4">
               {navigationItems.map((item) => (
                 <Link
@@ -109,20 +126,49 @@ const Header: React.FC = () => {
                   {item.label}
                 </Link>
               ))}
-              
-              {/* Mobile CTA */}
-                          {/* Mobile CTA button */}
-            <div className="pt-4 border-t border-gray-200">
-              <Link
-                to={ROUTES.CONTACT}
-                className="w-full bg-brand-600 text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-brand-700 transition-colors duration-200 text-center inline-block"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Get Started
-              </Link>
-            </div>
-            </nav>
 
+              <div className="pt-6 border-t border-gray-200 space-y-3">
+                {user ? (
+                  <>
+                    <div className="text-left text-sm text-gray-600">Signed in as {user.username}</div>
+                    <Link
+                      to={ROUTES.HMR_DASHBOARD}
+                      className="block w-full bg-brand-600 text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-brand-700 transition-colors duration-200 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Go to Dashboard
+                    </Link>
+                    <button
+                      type="button"
+                      className="w-full border border-gray-300 text-gray-700 px-6 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-colors"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                    >
+                      Log out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to={ROUTES.LOGIN}
+                      className="block w-full border border-gray-300 text-gray-700 px-6 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-colors duration-200 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      to={ROUTES.REGISTER}
+                      className="block w-full bg-brand-600 text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-brand-700 transition-colors duration-200 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
+              </div>
+            </nav>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

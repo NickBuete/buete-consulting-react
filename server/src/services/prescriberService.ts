@@ -1,5 +1,5 @@
 import { Prisma } from '../generated/prisma';
-import { prisma } from '../db/prisma';
+import { withTenantContext } from '../db/tenant';
 import type {
   PrescriberCreateInput,
   PrescriberUpdateInput,
@@ -7,6 +7,7 @@ import type {
 import type { ClinicCreateInput } from '../validators/clinicSchemas';
 
 const buildClinicCreateRelation = (
+  ownerId: number,
   clinic: ClinicCreateInput,
 ): Prisma.ClinicCreateNestedOneWithoutPrescribersInput => ({
   create: {
@@ -19,24 +20,30 @@ const buildClinicCreateRelation = (
     state: clinic.state ?? null,
     postcode: clinic.postcode ?? null,
     notes: clinic.notes ?? null,
+    owner: { connect: { id: ownerId } },
   },
 });
 
-export const listPrescribers = async () => {
-  return prisma.prescriber.findMany({
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    include: { clinic: true },
-  });
+export const listPrescribers = async (ownerId: number) => {
+  return withTenantContext(ownerId, (tx) =>
+    tx.prescriber.findMany({
+      where: { ownerId },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      include: { clinic: true },
+    }),
+  );
 };
 
-export const getPrescriberById = async (id: number) => {
-  return prisma.prescriber.findUnique({
-    where: { id },
-    include: { clinic: true, hmrReviews: true },
-  });
+export const getPrescriberById = async (ownerId: number, id: number) => {
+  return withTenantContext(ownerId, (tx) =>
+    tx.prescriber.findFirst({
+      where: { id, ownerId },
+      include: { clinic: true, hmrReviews: true },
+    }),
+  );
 };
 
-export const createPrescriber = async (data: PrescriberCreateInput) => {
+export const createPrescriber = async (ownerId: number, data: PrescriberCreateInput) => {
   const createData: Prisma.PrescriberCreateInput = {
     honorific: data.honorific ?? null,
     firstName: data.firstName,
@@ -47,19 +54,27 @@ export const createPrescriber = async (data: PrescriberCreateInput) => {
     notes: data.notes ?? null,
   };
 
-  if (data.clinicId) {
-    createData.clinic = { connect: { id: data.clinicId } };
-  } else if (data.clinic) {
-    createData.clinic = buildClinicCreateRelation(data.clinic);
-  }
+  createData.owner = { connect: { id: ownerId } };
 
-  return prisma.prescriber.create({
-    data: createData,
-    include: { clinic: true },
+  return withTenantContext(ownerId, async (tx) => {
+    if (data.clinicId) {
+      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+      if (!clinic) {
+        return null;
+      }
+      createData.clinic = { connect: { id: clinic.id } };
+    } else if (data.clinic) {
+      createData.clinic = buildClinicCreateRelation(ownerId, data.clinic);
+    }
+
+    return tx.prescriber.create({
+      data: createData,
+      include: { clinic: true },
+    });
   });
 };
 
-export const updatePrescriber = async (id: number, data: PrescriberUpdateInput) => {
+export const updatePrescriber = async (ownerId: number, id: number, data: PrescriberUpdateInput) => {
   const updatePayload: Prisma.PrescriberUpdateInput = {};
 
   if (typeof data.honorific !== 'undefined') {
@@ -83,25 +98,41 @@ export const updatePrescriber = async (id: number, data: PrescriberUpdateInput) 
   if (typeof data.notes !== 'undefined') {
     updatePayload.notes = data.notes ?? null;
   }
-  if (typeof data.clinicId !== 'undefined') {
-    updatePayload.clinic = data.clinicId
-      ? { connect: { id: data.clinicId } }
-      : { disconnect: true };
-  } else if (typeof data.clinic !== 'undefined') {
-    if (data.clinic) {
-      updatePayload.clinic = buildClinicCreateRelation(data.clinic);
-    } else {
-      updatePayload.clinic = { disconnect: true };
+  return withTenantContext(ownerId, async (tx) => {
+    const existing = await tx.prescriber.findFirst({ where: { id, ownerId } });
+    if (!existing) {
+      return null;
     }
-  }
 
-  return prisma.prescriber.update({
-    where: { id },
-    data: updatePayload,
-    include: { clinic: true },
+    if (typeof data.clinicId !== 'undefined') {
+      if (data.clinicId) {
+        const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+        if (!clinic) {
+          return null;
+        }
+        updatePayload.clinic = { connect: { id: clinic.id } };
+      } else {
+        updatePayload.clinic = { disconnect: true };
+      }
+    } else if (typeof data.clinic !== 'undefined') {
+      if (data.clinic) {
+        updatePayload.clinic = buildClinicCreateRelation(ownerId, data.clinic);
+      } else {
+        updatePayload.clinic = { disconnect: true };
+      }
+    }
+
+    return tx.prescriber.update({
+      where: { id },
+      data: updatePayload,
+      include: { clinic: true },
+    });
   });
 };
 
-export const deletePrescriber = async (id: number) => {
-  await prisma.prescriber.delete({ where: { id } });
+export const deletePrescriber = async (ownerId: number, id: number) => {
+  return withTenantContext(ownerId, async (tx) => {
+    const deleted = await tx.prescriber.deleteMany({ where: { id, ownerId } });
+    return deleted.count > 0;
+  });
 };

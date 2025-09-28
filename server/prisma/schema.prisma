@@ -52,7 +52,7 @@ model User {
   username     String    @unique @db.VarChar(50)
   email        String    @unique @db.VarChar(100)
   passwordHash String    @map("password_hash") @db.VarChar(100)
-  role         String    @db.VarChar(50)
+  role         UserRole  @default(BASIC)
   createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
   assignedActionItems HmrActionItem[] @relation("ActionItemAssignee")
   uploadedAttachments HmrAttachment[] @relation("AttachmentUploader")
@@ -112,6 +112,12 @@ enum MedicationStatus {
   CEASED
   NEEDS_REVIEW
   OTC
+}
+
+enum UserRole {
+  BASIC
+  PRO
+  ADMIN
 }
 
 model Clinic {

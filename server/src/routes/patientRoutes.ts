@@ -54,7 +54,8 @@ router.get(
       options.clientId = clientIdValue;
     }
 
-    const patients = await listPatients(options);
+    const ownerId = req.user!.id;
+    const patients = await listPatients(ownerId, options);
     res.json(patients);
   }),
 );
@@ -65,7 +66,8 @@ router.post(
     const payload = patientCreateSchema.parse(req.body);
 
     try {
-      const patient = await createPatient(payload);
+      const ownerId = req.user!.id;
+      const patient = await createPatient(ownerId, payload);
       res.status(201).json(patient);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -81,7 +83,8 @@ router.get(
       return res.status(400).json({ message: 'Invalid patient id' });
     }
 
-    const patient = await getPatientById(id);
+    const ownerId = req.user!.id;
+    const patient = await getPatientById(ownerId, id);
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found' });
     }
@@ -101,7 +104,12 @@ router.patch(
     const payload = patientUpdateSchema.parse(req.body);
 
     try {
-      const patient = await updatePatient(id, payload);
+      const ownerId = req.user!.id;
+      const patient = await updatePatient(ownerId, id, payload);
+      if (!patient) {
+        return res.status(404).json({ message: 'Patient not found' });
+      }
+
       res.json(patient);
     } catch (error) {
       return handlePrismaError(error, res);
@@ -118,7 +126,12 @@ router.delete(
     }
 
     try {
-      await deletePatient(id);
+      const ownerId = req.user!.id;
+      const deleted = await deletePatient(ownerId, id);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Patient not found' });
+      }
+
       res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);

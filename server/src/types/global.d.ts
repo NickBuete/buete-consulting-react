@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../generated/prisma';
+import type { PrismaClient, UserRole } from '../generated/prisma';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -10,7 +10,7 @@ declare namespace Express {
     user?: {
       id: number;
       email: string;
-      role: string;
+      role: UserRole;
     };
   }
 }

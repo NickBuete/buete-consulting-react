@@ -6,7 +6,7 @@ import {
   Prisma,
   SymptomType,
 } from '../generated/prisma';
-import { prisma } from '../db/prisma';
+import { withTenantContext } from '../db/tenant';
 import type {
   HmrActionItemCreateInput,
   HmrActionItemUpdateInput,
@@ -178,8 +178,10 @@ const applyReviewCoreFields = (
   }
 };
 
-export const listHmrReviews = async (options: ListHmrReviewsOptions = {}) => {
+export const listHmrReviews = async (ownerId: number, options: ListHmrReviewsOptions = {}) => {
   const filters: Prisma.HmrReviewWhereInput[] = [];
+
+  filters.push({ ownerId });
 
   if (typeof options.status !== 'undefined') {
     filters.push({ status: options.status });
@@ -208,23 +210,27 @@ export const listHmrReviews = async (options: ListHmrReviewsOptions = {}) => {
     });
   }
 
-  const where: Prisma.HmrReviewWhereInput = filters.length ? { AND: filters } : {};
+  const where: Prisma.HmrReviewWhereInput = { AND: filters };
 
-  return prisma.hmrReview.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: baseInclude,
-  });
+  return withTenantContext(ownerId, (tx) =>
+    tx.hmrReview.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: baseInclude,
+    }),
+  );
 };
 
-export const getHmrReviewById = async (id: number) => {
-  return prisma.hmrReview.findUnique({
-    where: { id },
-    include: baseInclude,
-  });
+export const getHmrReviewById = async (ownerId: number, id: number) => {
+  return withTenantContext(ownerId, (tx) =>
+    tx.hmrReview.findFirst({
+      where: { id, ownerId },
+      include: baseInclude,
+    }),
+  );
 };
 
-export const createHmrReview = async (data: HmrReviewCreateInput) => {
+export const createHmrReview = async (ownerId: number, data: HmrReviewCreateInput) => {
   const createData: Prisma.HmrReviewCreateInput = {
     patient: { connect: { id: data.patientId } },
     referredBy: data.referredBy ?? null,
@@ -253,6 +259,8 @@ export const createHmrReview = async (data: HmrReviewCreateInput) => {
     reportBody: data.reportBody ?? null,
   };
 
+  createData.owner = { connect: { id: ownerId } };
+
   if (data.prescriberId) {
     createData.prescriber = { connect: { id: data.prescriberId } };
   }
@@ -276,36 +284,94 @@ export const createHmrReview = async (data: HmrReviewCreateInput) => {
     createData.actionItems = { create: data.actionItems.map(mapActionItemCreate) };
   }
 
-  return prisma.hmrReview.create({
-    data: createData,
-    include: baseInclude,
+  return withTenantContext(ownerId, async (tx) => {
+    const patient = await tx.patient.findFirst({ where: { id: data.patientId, ownerId } });
+    if (!patient) {
+      return null;
+    }
+
+    if (data.prescriberId) {
+      const prescriber = await tx.prescriber.findFirst({ where: { id: data.prescriberId, ownerId } });
+      if (!prescriber) {
+        return null;
+      }
+    }
+
+    if (data.clinicId) {
+      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+      if (!clinic) {
+        return null;
+      }
+    }
+
+    return tx.hmrReview.create({
+      data: createData,
+      include: baseInclude,
+    });
   });
 };
 
-export const updateHmrReview = async (id: number, data: HmrReviewUpdateInput) => {
+export const updateHmrReview = async (ownerId: number, id: number, data: HmrReviewUpdateInput) => {
   const updatePayload: Prisma.HmrReviewUpdateInput = {};
   applyReviewCoreFields(data, updatePayload);
 
-  return prisma.hmrReview.update({
-    where: { id },
-    data: updatePayload,
-    include: baseInclude,
+  return withTenantContext(ownerId, async (tx) => {
+    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } });
+    if (!existing) {
+      return null;
+    }
+
+    if (typeof data.prescriberId !== 'undefined' && data.prescriberId !== null) {
+      const prescriber = await tx.prescriber.findFirst({ where: { id: data.prescriberId, ownerId } });
+      if (!prescriber) {
+        return null;
+      }
+    }
+
+    if (typeof data.clinicId !== 'undefined' && data.clinicId !== null) {
+      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+      if (!clinic) {
+        return null;
+      }
+    }
+
+    if (typeof data.patientId !== 'undefined') {
+      const patient = await tx.patient.findFirst({ where: { id: data.patientId, ownerId } });
+      if (!patient) {
+        return null;
+      }
+    }
+
+    return tx.hmrReview.update({
+      where: { id },
+      data: updatePayload,
+      include: baseInclude,
+    });
   });
 };
 
 export const addMedicationToReview = async (
+  ownerId: number,
   hmrReviewId: number,
   input: HmrMedicationCreateInput,
 ) => {
-  return prisma.hmrMedication.create({
-    data: {
-      ...mapMedicationCreate(input),
-      hmrReview: { connect: { id: hmrReviewId } },
-    },
+  return withTenantContext(ownerId, async (tx) => {
+    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    if (!review) {
+      return null;
+    }
+
+    return tx.hmrMedication.create({
+      data: {
+        ...mapMedicationCreate(input),
+        hmrReview: { connect: { id: hmrReviewId } },
+      },
+    });
   });
 };
 
 export const updateMedicationForReview = async (
+  ownerId: number,
   medicationId: number,
   input: HmrMedicationUpdateInput,
 ) => {
@@ -344,17 +410,32 @@ export const updateMedicationForReview = async (
     updatePayload.verificationRequired = input.verificationRequired ?? null;
   }
 
-  return prisma.hmrMedication.update({
-    where: { id: medicationId },
-    data: updatePayload,
+  return withTenantContext(ownerId, async (tx) => {
+    const medication = await tx.hmrMedication.findFirst({
+      where: { id: medicationId, hmrReview: { ownerId } },
+    });
+    if (!medication) {
+      return null;
+    }
+
+    return tx.hmrMedication.update({
+      where: { id: medicationId },
+      data: updatePayload,
+    });
   });
 };
 
-export const removeMedicationFromReview = async (medicationId: number) => {
-  await prisma.hmrMedication.delete({ where: { id: medicationId } });
+export const removeMedicationFromReview = async (ownerId: number, medicationId: number) => {
+  return withTenantContext(ownerId, async (tx) => {
+    const deleted = await tx.hmrMedication.deleteMany({
+      where: { id: medicationId, hmrReview: { ownerId } },
+    });
+    return deleted.count > 0;
+  });
 };
 
 export const upsertSymptomForReview = async (
+  ownerId: number,
   hmrReviewId: number,
   input: HmrSymptomUpsertInput,
 ) => {
@@ -369,52 +450,71 @@ export const upsertSymptomForReview = async (
     updateData.notes = input.notes ?? null;
   }
 
-  return prisma.hmrSymptom.upsert({
-    where: {
-      hmrReviewId_symptom: {
-        hmrReviewId,
-        symptom: input.symptom,
+  return withTenantContext(ownerId, async (tx) => {
+    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    if (!review) {
+      return null;
+    }
+
+    return tx.hmrSymptom.upsert({
+      where: {
+        hmrReviewId_symptom: {
+          hmrReviewId,
+          symptom: input.symptom,
+        },
       },
-    },
-    update: updateData,
-    create: {
-      hmrReview: { connect: { id: hmrReviewId } },
-      symptom: input.symptom,
-      present: input.present ?? false,
-      severity: input.severity ?? null,
-      notes: input.notes ?? null,
-    },
+      update: updateData,
+      create: {
+        hmrReview: { connect: { id: hmrReviewId } },
+        symptom: input.symptom,
+        present: input.present ?? false,
+        severity: input.severity ?? null,
+        notes: input.notes ?? null,
+      },
+    });
   });
 };
 
 export const deleteSymptomFromReview = async (
+  ownerId: number,
   hmrReviewId: number,
   symptom: SymptomType,
 ) => {
-  await prisma.hmrSymptom.delete({
-    where: {
-      hmrReviewId_symptom: {
+  return withTenantContext(ownerId, async (tx) => {
+    const deleted = await tx.hmrSymptom.deleteMany({
+      where: {
         hmrReviewId,
         symptom,
+        hmrReview: { ownerId },
       },
-    },
+    });
+    return deleted.count > 0;
   });
 };
 
 export const createActionItemForReview = async (
+  ownerId: number,
   hmrReviewId: number,
   input: HmrActionItemCreateInput,
 ) => {
-  return prisma.hmrActionItem.create({
-    data: {
-      ...mapActionItemCreate(input),
-      hmrReview: { connect: { id: hmrReviewId } },
-    },
-    include: { assignee: true },
+  return withTenantContext(ownerId, async (tx) => {
+    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    if (!review) {
+      return null;
+    }
+
+    return tx.hmrActionItem.create({
+      data: {
+        ...mapActionItemCreate(input),
+        hmrReview: { connect: { id: hmrReviewId } },
+      },
+      include: { assignee: true },
+    });
   });
 };
 
 export const updateActionItemForReview = async (
+  ownerId: number,
   actionItemId: number,
   input: HmrActionItemUpdateInput,
 ) => {
@@ -446,18 +546,40 @@ export const updateActionItemForReview = async (
     updatePayload.resolutionNotes = input.resolutionNotes ?? null;
   }
 
-  return prisma.hmrActionItem.update({
-    where: { id: actionItemId },
-    data: updatePayload,
-    include: { assignee: true },
+  return withTenantContext(ownerId, async (tx) => {
+    const actionItem = await tx.hmrActionItem.findFirst({
+      where: { id: actionItemId, hmrReview: { ownerId } },
+    });
+    if (!actionItem) {
+      return null;
+    }
+
+    if (typeof input.assignedToUserId !== 'undefined' && input.assignedToUserId) {
+      const user = await tx.user.findFirst({ where: { id: input.assignedToUserId } });
+      if (!user) {
+        return null;
+      }
+    }
+
+    return tx.hmrActionItem.update({
+      where: { id: actionItemId },
+      data: updatePayload,
+      include: { assignee: true },
+    });
   });
 };
 
-export const deleteActionItemFromReview = async (actionItemId: number) => {
-  await prisma.hmrActionItem.delete({ where: { id: actionItemId } });
+export const deleteActionItemFromReview = async (ownerId: number, actionItemId: number) => {
+  return withTenantContext(ownerId, async (tx) => {
+    const deleted = await tx.hmrActionItem.deleteMany({
+      where: { id: actionItemId, hmrReview: { ownerId } },
+    });
+    return deleted.count > 0;
+  });
 };
 
 export const createAttachmentForReview = async (
+  ownerId: number,
   hmrReviewId: number,
   input: HmrAttachmentCreateInput,
 ) => {
@@ -472,10 +594,18 @@ export const createAttachmentForReview = async (
     createData.uploadedBy = { connect: { id: input.uploadedByUserId } };
   }
 
-  return prisma.hmrAttachment.create({ data: createData });
+  return withTenantContext(ownerId, async (tx) => {
+    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    if (!review) {
+      return null;
+    }
+
+    return tx.hmrAttachment.create({ data: createData });
+  });
 };
 
 export const recordAuditLog = async (
+  ownerId: number,
   hmrReviewId: number,
   input: HmrAuditLogCreateInput,
 ) => {
@@ -494,5 +624,12 @@ export const recordAuditLog = async (
     createData.changedBy = { connect: { id: input.changedByUserId } };
   }
 
-  return prisma.hmrAuditLog.create({ data: createData });
+  return withTenantContext(ownerId, async (tx) => {
+    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    if (!review) {
+      return null;
+    }
+
+    return tx.hmrAuditLog.create({ data: createData });
+  });
 };
