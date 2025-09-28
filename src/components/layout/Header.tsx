@@ -12,6 +12,7 @@ const navigationItems = [
   { label: 'Home', href: ROUTES.HOME },
   { label: 'Website Templates', href: ROUTES.TEMPLATES },
   { label: 'Pharmacy Tools', href: ROUTES.PHARMACY_TOOLS },
+  { label: 'HMR Dashboard', href: ROUTES.HMR_DASHBOARD },
   { label: 'HMR Templates', href: ROUTES.HMR_TEMPLATES },
   { label: 'About', href: ROUTES.ABOUT },
   { label: 'Contact', href: ROUTES.CONTACT },

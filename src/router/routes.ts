@@ -8,6 +8,7 @@ const TemplateDetailPage = React.lazy(() => import('../pages/templates/TemplateD
 const TemplatePreviewPage = React.lazy(() => import('../pages/templates/preview/TemplatePreview'));
 const PharmacyToolsPage = React.lazy(() => import('../pages/pharmacy-tools'));
 const HMRTemplatesPage = React.lazy(() => import('../pages/hmr-templates'));
+const HMRDashboardPage = React.lazy(() => import('../pages/hmr'));
 const AboutPage = React.lazy(() => import('../pages/about'));
 const ContactPage = React.lazy(() => import('../pages/contact'));
 
@@ -19,6 +20,7 @@ export const ROUTES = {
     TEMPLATE_PREVIEW: '/templates/preview/:slug',
     PHARMACY_TOOLS: '/pharmacy-tools',
     HMR_TEMPLATES: '/hmr-templates',
+    HMR_DASHBOARD: '/hmr',
     ABOUT: '/about',
     CONTACT: '/contact',
 } as const
@@ -67,6 +69,12 @@ export const routes: RouteConfig[] = [
         path: ROUTES.HMR_TEMPLATES,
         component: HMRTemplatesPage,
         title: 'HMR Templates - Buete Consulting',
+        protected: false
+    },
+    {
+        path: ROUTES.HMR_DASHBOARD,
+        component: HMRDashboardPage,
+        title: 'HMR Dashboard - Buete Consulting',
         protected: false
     },
     {

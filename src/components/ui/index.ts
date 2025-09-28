@@ -9,3 +9,41 @@ export { default as ContactForm } from './ContactForm';
 // Re-export shadcn/ui components for convenience
 export { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './Card';
 export { Button, buttonVariants } from './Button';
+export { Input } from './Input';
+export { Textarea } from './Textarea';
+export { Badge } from './Badge';
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from './Tabs';
+export {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from './Dialog';
+export {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
+} from './Select';
+export {
+  Form,
+  FormField,
+  FormLabel,
+  FormItem,
+  FormControl,
+  FormMessage,
+  FormDescription,
+} from './Form';

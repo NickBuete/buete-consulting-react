@@ -57,6 +57,10 @@ model User {
   assignedActionItems HmrActionItem[] @relation("ActionItemAssignee")
   uploadedAttachments HmrAttachment[] @relation("AttachmentUploader")
   auditLogs          HmrAuditLog[]    @relation("AuditLogUser")
+  patients           Patient[]
+  clinics            Clinic[]
+  prescribers        Prescriber[]
+  reviews            HmrReview[]
 
   @@map("users")
 }
@@ -112,6 +116,7 @@ enum MedicationStatus {
 
 model Clinic {
   id            Int        @id @default(autoincrement())
+  ownerId       Int        @map("owner_id")
   name          String     @db.VarChar(150)
   contactEmail  String?    @map("contact_email") @db.VarChar(150)
   contactPhone  String?    @map("contact_phone") @db.VarChar(50)
@@ -123,14 +128,17 @@ model Clinic {
   notes         String?
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  owner         User       @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   prescribers   Prescriber[]
   hmrReviews    HmrReview[]
 
   @@map("clinics")
+  @@index([ownerId])
 }
 
 model Prescriber {
   id            Int         @id @default(autoincrement())
+  ownerId       Int         @map("owner_id")
   clinicId      Int?        @map("clinic_id")
   honorific     String?     @db.VarChar(30)
   firstName     String      @map("first_name") @db.VarChar(100)
@@ -142,14 +150,17 @@ model Prescriber {
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
   clinic        Clinic?     @relation(fields: [clinicId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  owner         User        @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   hmrReviews    HmrReview[]
 
   @@map("prescribers")
   @@index([clinicId])
+  @@index([ownerId])
 }
 
 model Patient {
   id                     Int               @id @default(autoincrement())
+  ownerId                Int               @map("owner_id")
   clientId               Int?              @map("client_id")
   firstName              String            @map("first_name") @db.VarChar(100)
   lastName               String            @map("last_name") @db.VarChar(100)
@@ -173,10 +184,12 @@ model Patient {
   createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
   client                 Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  owner                  User              @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   hmrReviews             HmrReview[]
 
   @@map("patients")
   @@index([clientId])
+  @@index([ownerId])
 }
 
 model Medication {
@@ -195,6 +208,7 @@ model Medication {
 
 model HmrReview {
   id                  Int               @id @default(autoincrement())
+  ownerId             Int               @map("owner_id")
   patientId           Int               @map("patient_id")
   prescriberId        Int?              @map("prescriber_id")
   clinicId            Int?              @map("clinic_id")
@@ -227,6 +241,7 @@ model HmrReview {
   patient             Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   prescriber          Prescriber?       @relation(fields: [prescriberId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   clinic              Clinic?           @relation(fields: [clinicId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  owner               User              @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   medications         HmrMedication[]
   symptoms            HmrSymptom[]
   actionItems         HmrActionItem[]
@@ -237,6 +252,7 @@ model HmrReview {
   @@index([patientId])
   @@index([prescriberId])
   @@index([clinicId])
+  @@index([ownerId])
 }
 
 model HmrMedication {

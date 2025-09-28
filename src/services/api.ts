@@ -1,13 +1,9 @@
 // Base API service configuration and common functions
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
-// API response interface
-interface ApiResponse<T> {
-  data: T;
-  message: string;
-  success: boolean;
-}
+// API responses return JSON directly from the backend
+type ApiResponse<T> = T;
 
 // Request configuration
 interface RequestConfig extends RequestInit {

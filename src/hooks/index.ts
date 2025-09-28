@@ -180,3 +180,5 @@ export const useClipboard = () => {
 
   return { copied, copy };
 };
+
+export { useHmrDashboard } from './useHmrDashboard';

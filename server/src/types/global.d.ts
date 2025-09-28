@@ -5,4 +5,14 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
+declare namespace Express {
+  interface Request {
+    user?: {
+      id: number;
+      email: string;
+      role: string;
+    };
+  }
+}
+
 export {};

@@ -7,8 +7,10 @@ export type ListPatientsOptions = {
   clientId?: number;
 };
 
-export const listPatients = async (options: ListPatientsOptions = {}) => {
+export const listPatients = async (ownerId: number, options: ListPatientsOptions = {}) => {
   const conditions: Prisma.PatientWhereInput[] = [];
+
+  conditions.push({ ownerId });
 
   if (options.search) {
     conditions.push({
@@ -24,7 +26,7 @@ export const listPatients = async (options: ListPatientsOptions = {}) => {
     conditions.push({ clientId: options.clientId });
   }
 
-  const where: Prisma.PatientWhereInput = conditions.length ? { AND: conditions } : {};
+  const where: Prisma.PatientWhereInput = { AND: conditions };
 
   return prisma.patient.findMany({
     where,
@@ -33,9 +35,9 @@ export const listPatients = async (options: ListPatientsOptions = {}) => {
   });
 };
 
-export const getPatientById = async (id: number) => {
-  return prisma.patient.findUnique({
-    where: { id },
+export const getPatientById = async (ownerId: number, id: number) => {
+  return prisma.patient.findFirst({
+    where: { id, ownerId },
     include: {
       client: true,
       hmrReviews: {
@@ -46,7 +48,7 @@ export const getPatientById = async (id: number) => {
   });
 };
 
-export const createPatient = async (data: PatientCreateInput) => {
+export const createPatient = async (ownerId: number, data: PatientCreateInput) => {
   const createData: Prisma.PatientCreateInput = {
     firstName: data.firstName,
     lastName: data.lastName,
@@ -73,13 +75,20 @@ export const createPatient = async (data: PatientCreateInput) => {
     createData.client = { connect: { id: data.clientId } };
   }
 
+  createData.owner = { connect: { id: ownerId } };
+
   return prisma.patient.create({
     data: createData,
     include: { client: true },
   });
 };
 
-export const updatePatient = async (id: number, data: PatientUpdateInput) => {
+export const updatePatient = async (ownerId: number, id: number, data: PatientUpdateInput) => {
+  const existing = await prisma.patient.findFirst({ where: { id, ownerId } });
+  if (!existing) {
+    return null;
+  }
+
   const updatePayload: Prisma.PatientUpdateInput = {};
 
   if (typeof data.clientId !== 'undefined') {
@@ -152,6 +161,7 @@ export const updatePatient = async (id: number, data: PatientUpdateInput) => {
   });
 };
 
-export const deletePatient = async (id: number) => {
-  await prisma.patient.delete({ where: { id } });
+export const deletePatient = async (ownerId: number, id: number) => {
+  const deleted = await prisma.patient.deleteMany({ where: { id, ownerId } });
+  return deleted.count > 0;
 };
