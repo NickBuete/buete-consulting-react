@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import React, { useMemo, useState } from 'react'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 import {
   PageHero,
   Card,
@@ -34,20 +33,20 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from '../../components/ui';
-import { useHmrDashboard } from '../../hooks/useHmrDashboard';
+} from '../../components/ui'
+import { useHmrDashboard } from '../../hooks/useHmrDashboard'
 import type {
   CreateClinicPayload,
   CreateHmrReviewPayload,
   CreatePatientPayload,
   CreatePrescriberPayload,
-  HmrReview,
-  Patient,
-  Clinic,
-  Prescriber,
-} from '../../types/hmr';
+} from '../../types/hmr'
+import { PatientList } from '../../components/crud/PatientList'
 
-const statusVariantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+const statusVariantMap: Record<
+  string,
+  'default' | 'secondary' | 'outline' | 'destructive'
+> = {
   PENDING: 'outline',
   ACCEPTED: 'secondary',
   SCHEDULED: 'secondary',
@@ -55,9 +54,9 @@ const statusVariantMap: Record<string, 'default' | 'secondary' | 'outline' | 'de
   COMPLETED: 'secondary',
   CLAIMED: 'default',
   CANCELLED: 'destructive',
-};
+}
 
-const optionalEmail = z.string().optional();
+const optionalEmail = z.string().optional()
 
 const patientFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -66,7 +65,7 @@ const patientFormSchema = z.object({
   contactEmail: optionalEmail,
   contactPhone: z.string().optional(),
   notes: z.string().optional(),
-});
+})
 
 const prescriberFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -77,16 +76,7 @@ const prescriberFormSchema = z.object({
   clinicName: z.string().optional(),
   clinicEmail: optionalEmail,
   clinicPhone: z.string().optional(),
-});
-
-const clinicFormSchema = z.object({
-  name: z.string().min(1, 'Clinic name is required'),
-  contactEmail: optionalEmail,
-  contactPhone: z.string().optional(),
-  suburb: z.string().optional(),
-  state: z.string().optional(),
-  notes: z.string().optional(),
-});
+})
 
 const reviewFormSchema = z.object({
   patientId: z.string().min(1, 'Select a patient'),
@@ -97,91 +87,26 @@ const reviewFormSchema = z.object({
   followUpDueAt: z.string().optional(),
   referralReason: z.string().optional(),
   status: z.string().optional(),
-});
+})
 
-type PatientFormValues = z.infer<typeof patientFormSchema>;
-type PrescriberFormValues = z.infer<typeof prescriberFormSchema>;
-type ClinicFormValues = z.infer<typeof clinicFormSchema>;
-type ReviewFormValues = z.infer<typeof reviewFormSchema>;
+type PatientFormValues = z.infer<typeof patientFormSchema>
+type PrescriberFormValues = z.infer<typeof prescriberFormSchema>
+type ReviewFormValues = z.infer<typeof reviewFormSchema>
 
-type PrescriberFormMode = 'existing' | 'new';
-
-const patientFormDefaults: PatientFormValues = {
-  firstName: '',
-  lastName: '',
-  dateOfBirth: '',
-  contactEmail: '',
-  contactPhone: '',
-  notes: '',
-};
-
-const prescriberFormDefaults: PrescriberFormValues = {
-  firstName: '',
-  lastName: '',
-  contactEmail: '',
-  contactPhone: '',
-  clinicSelection: '',
-  clinicName: '',
-  clinicEmail: '',
-  clinicPhone: '',
-};
-
-const clinicFormDefaults: ClinicFormValues = {
-  name: '',
-  contactEmail: '',
-  contactPhone: '',
-  suburb: '',
-  state: '',
-  notes: '',
-};
-
-const reviewDefaultValues: ReviewFormValues = {
-  patientId: '',
-  prescriberId: '',
-  clinicId: '',
-  referralDate: '',
-  scheduledAt: '',
-  followUpDueAt: '',
-  referralReason: '',
-  status: 'PENDING',
-};
+type PrescriberFormMode = 'existing' | 'new'
 
 const formatDate = (value: string | null) => {
-  if (!value) return '—';
+  if (!value) return '—'
   try {
     return new Intl.DateTimeFormat('en-AU', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    }).format(new Date(value));
+    }).format(new Date(value))
   } catch (error) {
-    return value;
+    return value
   }
-};
-
-const formatStatusLabel = (status: string) => status.replace(/_/g, ' ');
-
-const toDateInputValue = (value: string | null | undefined) => {
-  if (!value) {
-    return '';
-  }
-  return value.slice(0, 10);
-};
-
-const toDateTimeLocalValue = (value: string | null | undefined) => {
-  if (!value) {
-    return '';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60000);
-  return local.toISOString().slice(0, 16);
-};
+}
 
 const HmrDashboardPage: React.FC = () => {
   const {
@@ -196,106 +121,83 @@ const HmrDashboardPage: React.FC = () => {
     createPrescriber,
     createClinic,
     createReview,
-    updateReview,
-    deleteReview,
-    updatePatient,
     deletePatient,
-    updatePrescriber,
-    deletePrescriber,
-    updateClinic,
-    deleteClinic,
-  } = useHmrDashboard();
+    updatePatient,
+  } = useHmrDashboard()
 
-  const [isPatientDialogOpen, setPatientDialogOpen] = useState(false);
-  const [isPrescriberDialogOpen, setPrescriberDialogOpen] = useState(false);
-  const [isClinicDialogOpen, setClinicDialogOpen] = useState(false);
-  const [isReviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [prescriberFormMode, setPrescriberFormMode] = useState<PrescriberFormMode>('existing');
-  const [reviewDialogMode, setReviewDialogMode] = useState<'create' | 'edit'>('create');
-  const [selectedReview, setSelectedReview] = useState<HmrReview | null>(null);
-  const [patientDialogMode, setPatientDialogMode] = useState<'create' | 'edit'>('create');
-  const [prescriberDialogMode, setPrescriberDialogMode] = useState<'create' | 'edit'>('create');
-  const [clinicDialogMode, setClinicDialogMode] = useState<'create' | 'edit'>('create');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [selectedPrescriber, setSelectedPrescriber] = useState<Prescriber | null>(null);
-  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
-  const [reviewPendingDelete, setReviewPendingDelete] = useState<HmrReview | null>(null);
-  const [patientPendingDelete, setPatientPendingDelete] = useState<Patient | null>(null);
-  const [prescriberPendingDelete, setPrescriberPendingDelete] = useState<Prescriber | null>(null);
-  const [clinicPendingDelete, setClinicPendingDelete] = useState<Clinic | null>(null);
-  const [isDeletingReview, setIsDeletingReview] = useState(false);
-  const [isDeletingPatient, setIsDeletingPatient] = useState(false);
-  const [isDeletingPrescriber, setIsDeletingPrescriber] = useState(false);
-  const [isDeletingClinic, setIsDeletingClinic] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [isPatientDialogOpen, setPatientDialogOpen] = useState(false)
+  const [isPrescriberDialogOpen, setPrescriberDialogOpen] = useState(false)
+  const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [prescriberFormMode, setPrescriberFormMode] =
+    useState<PrescriberFormMode>('existing')
 
   const patientForm = useForm<PatientFormValues>({
     resolver: zodResolver(patientFormSchema),
-    defaultValues: patientFormDefaults,
-  });
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      dateOfBirth: '',
+      contactEmail: '',
+      contactPhone: '',
+      notes: '',
+    },
+  })
 
   const prescriberForm = useForm<PrescriberFormValues>({
     resolver: zodResolver(prescriberFormSchema),
-    defaultValues: prescriberFormDefaults,
-  });
-
-  const clinicForm = useForm<ClinicFormValues>({
-    resolver: zodResolver(clinicFormSchema),
-    defaultValues: clinicFormDefaults,
-  });
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      contactEmail: '',
+      contactPhone: '',
+      clinicSelection: '',
+      clinicName: '',
+      clinicEmail: '',
+      clinicPhone: '',
+    },
+  })
 
   const reviewForm = useForm<ReviewFormValues>({
     resolver: zodResolver(reviewFormSchema),
-    defaultValues: reviewDefaultValues,
-  });
+    defaultValues: {
+      patientId: '',
+      prescriberId: '',
+      clinicId: '',
+      referralDate: '',
+      scheduledAt: '',
+      followUpDueAt: '',
+      referralReason: '',
+      status: 'PENDING',
+    },
+  })
 
   const resetPatientForm = () => {
-    patientForm.reset();
-    setPatientDialogOpen(false);
-  };
+    patientForm.reset()
+    setPatientDialogOpen(false)
+  }
 
   const resetPrescriberForm = () => {
-    prescriberForm.reset();
-    setPrescriberFormMode('existing');
-    setPrescriberDialogOpen(false);
-  };
+    prescriberForm.reset()
+    setPrescriberFormMode('existing')
+    setPrescriberDialogOpen(false)
+  }
 
   const resetReviewForm = () => {
-    reviewForm.reset(reviewDefaultValues);
-    setSelectedReview(null);
-    setReviewDialogMode('create');
-    setActionError(null);
-  };
-
-  const closeReviewDialog = () => {
-    setReviewDialogOpen(false);
-  };
-
-  const openCreateReviewDialog = () => {
-    resetReviewForm();
-    setReviewDialogMode('create');
-    setReviewDialogOpen(true);
-  };
-
-  const openEditReviewDialog = (review: HmrReview) => {
-    setSelectedReview(review);
-    setReviewDialogMode('edit');
     reviewForm.reset({
-      patientId: String(review.patientId),
-      prescriberId: review.prescriberId ? String(review.prescriberId) : '',
-      clinicId: review.clinicId ? String(review.clinicId) : '',
-      referralDate: toDateInputValue(review.referralDate),
-      scheduledAt: toDateTimeLocalValue(review.scheduledAt),
-      followUpDueAt: toDateInputValue(review.followUpDueAt),
-      referralReason: review.referralReason ?? '',
-      status: review.status,
-    });
-    setActionError(null);
-    setReviewDialogOpen(true);
-  };
+      patientId: '',
+      prescriberId: '',
+      clinicId: '',
+      referralDate: '',
+      scheduledAt: '',
+      followUpDueAt: '',
+      referralReason: '',
+      status: 'PENDING',
+    })
+    setReviewDialogOpen(false)
+  }
 
   const onCreatePatient = async (values: PatientFormValues) => {
-    const email = values.contactEmail?.trim();
+    const email = values.contactEmail?.trim()
     const payload: CreatePatientPayload = {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -303,23 +205,23 @@ const HmrDashboardPage: React.FC = () => {
       contactEmail: email ? email : undefined,
       contactPhone: values.contactPhone || undefined,
       notes: values.notes || undefined,
-    };
+    }
 
-    await createPatient(payload);
-    resetPatientForm();
-  };
+    await createPatient(payload)
+    resetPatientForm()
+  }
 
   const onCreatePrescriber = async (values: PrescriberFormValues) => {
-    let clinicId: number | null = null;
+    let clinicId: number | null = null
 
     if (prescriberFormMode === 'existing' && values.clinicSelection) {
-      clinicId = Number(values.clinicSelection);
+      clinicId = Number(values.clinicSelection)
     } else if (prescriberFormMode === 'existing' && !values.clinicSelection) {
       prescriberForm.setError('clinicSelection', {
         type: 'manual',
         message: 'Please choose a clinic or switch to "New Clinic".',
-      });
-      return;
+      })
+      return
     }
 
     if (prescriberFormMode === 'new') {
@@ -327,86 +229,64 @@ const HmrDashboardPage: React.FC = () => {
         prescriberForm.setError('clinicName', {
           type: 'manual',
           message: 'Clinic name is required when creating a clinic.',
-        });
-        return;
+        })
+        return
       }
-      const clinicEmail = values.clinicEmail?.trim();
+      const clinicEmail = values.clinicEmail?.trim()
       const clinicPayload: CreateClinicPayload = {
         name: values.clinicName,
         contactEmail: clinicEmail ? clinicEmail : undefined,
         contactPhone: values.clinicPhone || undefined,
-      };
-      const newClinic = await createClinic(clinicPayload);
-      clinicId = newClinic.id;
+      }
+      const newClinic = await createClinic(clinicPayload)
+      clinicId = newClinic.id
     }
 
-    const contactEmail = values.contactEmail?.trim();
+    const contactEmail = values.contactEmail?.trim()
     const payload: CreatePrescriberPayload = {
       firstName: values.firstName,
       lastName: values.lastName,
       contactEmail: contactEmail ? contactEmail : undefined,
       contactPhone: values.contactPhone || undefined,
       clinicId,
-    };
+    }
 
-    await createPrescriber(payload);
-    resetPrescriberForm();
-  };
+    await createPrescriber(payload)
+    resetPrescriberForm()
+  }
 
-  const onSubmitReview = async (values: ReviewFormValues) => {
+  const onCreateReview = async (values: ReviewFormValues) => {
     const payload: CreateHmrReviewPayload = {
       patientId: Number(values.patientId),
-      prescriberId: values.prescriberId ? Number(values.prescriberId) : undefined,
+      prescriberId: values.prescriberId
+        ? Number(values.prescriberId)
+        : undefined,
       clinicId: values.clinicId ? Number(values.clinicId) : undefined,
       referralDate: values.referralDate || undefined,
-      referralReason: values.referralReason?.trim() ? values.referralReason.trim() : undefined,
-      scheduledAt: values.scheduledAt ? new Date(values.scheduledAt).toISOString() : undefined,
+      referralReason: values.referralReason || undefined,
+      scheduledAt: values.scheduledAt
+        ? new Date(values.scheduledAt).toISOString()
+        : undefined,
       followUpDueAt: values.followUpDueAt || undefined,
       status: (values.status as CreateHmrReviewPayload['status']) ?? undefined,
-    };
-
-    setActionError(null);
-
-    try {
-      if (reviewDialogMode === 'edit' && selectedReview) {
-        await updateReview(selectedReview.id, payload);
-      } else {
-        await createReview(payload);
-      }
-      closeReviewDialog();
-    } catch (submitError) {
-      const message =
-      submitError instanceof Error ? submitError.message : 'Failed to save HMR review';
-      setActionError(message);
-    }
-  };
-
-  const confirmDeleteReview = async () => {
-    if (!reviewPendingDelete) {
-      return;
     }
 
-    setActionError(null);
-    setIsDeletingReview(true);
-    try {
-      await deleteReview(reviewPendingDelete.id);
-      setReviewPendingDelete(null);
-    } catch (deleteError) {
-      const message =
-        deleteError instanceof Error ? deleteError.message : 'Failed to delete HMR review';
-      setActionError(message);
-    } finally {
-      setIsDeletingReview(false);
-    }
-  };
+    await createReview(payload)
+    resetReviewForm()
+  }
 
   const sortedReviews = useMemo(() => {
-    return [...reviews].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [reviews]);
+    return [...reviews].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }, [reviews])
 
   const upcomingFollowUps = useMemo(() => {
-    return reviews.filter((review) => review.followUpDueAt && review.status !== 'CLAIMED');
-  }, [reviews]);
+    return reviews.filter(
+      (review) => review.followUpDueAt && review.status !== 'CLAIMED'
+    )
+  }, [reviews])
 
   return (
     <>
@@ -424,34 +304,60 @@ const HmrDashboardPage: React.FC = () => {
               {error}
             </div>
           )}
-          {actionError && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">
-              {actionError}
-            </div>
-          )}
 
           <section>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-              <StatsCard title="Patients" value={stats.totalPatients} description="Active in the HMR program" />
-              <StatsCard title="Reviews in Progress" value={stats.activeReviews} description="Open or scheduled" />
-              <StatsCard title="Follow-ups Due" value={stats.followUpsDue} description="Requires attention today" highlight={stats.followUpsDue > 0} />
-              <StatsCard title="Prescribers" value={stats.prescriberCount} description="Linked referrers" />
+              <StatsCard
+                title="Patients"
+                value={stats.totalPatients}
+                description="Active in the HMR program"
+              />
+              <StatsCard
+                title="Reviews in Progress"
+                value={stats.activeReviews}
+                description="Open or scheduled"
+              />
+              <StatsCard
+                title="Follow-ups Due"
+                value={stats.followUpsDue}
+                description="Requires attention today"
+                highlight={stats.followUpsDue > 0}
+              />
+              <StatsCard
+                title="Prescribers"
+                value={stats.prescriberCount}
+                description="Linked referrers"
+              />
             </div>
           </section>
 
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-2xl font-heading font-semibold text-gray-900">Workflow Overview</h2>
-              <p className="text-gray-600 font-body">Manage patients, prescribers, and HMR activity. Use the actions to add new records.</p>
+              <h2 className="text-2xl font-heading font-semibold text-gray-900">
+                Workflow Overview
+              </h2>
+              <p className="text-gray-600 font-body">
+                Manage patients, prescribers, and HMR activity. Use the actions
+                to add new records.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="default" onClick={openCreateReviewDialog}>
+              <Button
+                variant="default"
+                onClick={() => setReviewDialogOpen(true)}
+              >
                 New HMR Review
               </Button>
-              <Button variant="secondary" onClick={() => setPatientDialogOpen(true)}>
+              <Button
+                variant="secondary"
+                onClick={() => setPatientDialogOpen(true)}
+              >
                 Add Patient
               </Button>
-              <Button variant="outline" onClick={() => setPrescriberDialogOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setPrescriberDialogOpen(true)}
+              >
                 Add Prescriber
               </Button>
             </div>
@@ -469,7 +375,9 @@ const HmrDashboardPage: React.FC = () => {
               <TabsContent value="reviews">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="font-heading">Recent Reviews</CardTitle>
+                    <CardTitle className="font-heading">
+                      Recent Reviews
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {loading ? (
@@ -487,23 +395,33 @@ const HmrDashboardPage: React.FC = () => {
                               <TableHeaderCell>Referral Date</TableHeaderCell>
                               <TableHeaderCell>Scheduled</TableHeaderCell>
                               <TableHeaderCell>Follow-up</TableHeaderCell>
-                              <TableHeaderCell>Actions</TableHeaderCell>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                             {sortedReviews.map((review) => (
-                              <tr key={review.id} className="bg-white hover:bg-gray-50">
+                              <tr
+                                key={review.id}
+                                className="bg-white hover:bg-gray-50"
+                              >
                                 <TableCell>
                                   <span className="font-medium text-gray-900">
-                                    {review.patient?.firstName} {review.patient?.lastName}
+                                    {review.patient?.firstName}{' '}
+                                    {review.patient?.lastName}
                                   </span>
                                   {review.referralReason && (
-                                    <p className="text-sm text-gray-500">{review.referralReason}</p>
+                                    <p className="text-sm text-gray-500">
+                                      {review.referralReason}
+                                    </p>
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant={statusVariantMap[review.status] ?? 'outline'}>
-                                    {formatStatusLabel(review.status)}
+                                  <Badge
+                                    variant={
+                                      statusVariantMap[review.status] ??
+                                      'outline'
+                                    }
+                                  >
+                                    {review.status.replace('_', ' ')}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
@@ -511,31 +429,14 @@ const HmrDashboardPage: React.FC = () => {
                                     ? `${review.prescriber.firstName} ${review.prescriber.lastName}`
                                     : '—'}
                                 </TableCell>
-                                <TableCell>{formatDate(review.referralDate)}</TableCell>
-                                <TableCell>{formatDate(review.scheduledAt)}</TableCell>
-                                <TableCell>{formatDate(review.followUpDueAt)}</TableCell>
                                 <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => openEditReviewDialog(review)}
-                                      aria-label="Edit HMR review"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-red-600 hover:text-red-700"
-                                      onClick={() => setReviewPendingDelete(review)}
-                                      aria-label="Delete HMR review"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                  {formatDate(review.referralDate)}
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(review.scheduledAt)}
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(review.followUpDueAt)}
                                 </TableCell>
                               </tr>
                             ))}
@@ -548,30 +449,32 @@ const HmrDashboardPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="patients">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-heading">Patients</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <LoadingState />
-                    ) : patients.length === 0 ? (
-                      <EmptyState message="No patients yet. Add a patient to begin the HMR process." />
-                    ) : (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {patients.map((patient) => (
-                          <PatientSummaryCard key={patient.id} patient={patient} />
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Use PatientList for full CRUD (edit/delete) */}
+                <PatientList
+                  patients={patients}
+                  onDelete={async (id) => {
+                    try {
+                      await deletePatient(id)
+                    } catch (err) {
+                      // Silently ignore or show a toast
+                    }
+                  }}
+                  onUpdate={async (id, data) => {
+                    try {
+                      await updatePatient(id, data)
+                    } catch (err) {
+                      // Silently ignore or show a toast
+                    }
+                  }}
+                />
               </TabsContent>
 
               <TabsContent value="prescribers">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="font-heading">Prescribers & Clinics</CardTitle>
+                    <CardTitle className="font-heading">
+                      Prescribers & Clinics
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {loading ? (
@@ -581,23 +484,36 @@ const HmrDashboardPage: React.FC = () => {
                     ) : (
                       <div className="grid gap-4 md:grid-cols-2">
                         {prescribers.map((prescriber) => (
-                          <Card key={prescriber.id} className="border border-gray-200">
+                          <Card
+                            key={prescriber.id}
+                            className="border border-gray-200"
+                          >
                             <CardHeader>
                               <CardTitle className="text-lg font-semibold text-gray-900">
-                                {prescriber.honorific ? `${prescriber.honorific} ` : ''}
+                                {prescriber.honorific
+                                  ? `${prescriber.honorific} `
+                                  : ''}
                                 {prescriber.firstName} {prescriber.lastName}
                               </CardTitle>
                               {prescriber.clinic && (
-                                <p className="text-sm text-gray-600">{prescriber.clinic.name}</p>
+                                <p className="text-sm text-gray-600">
+                                  {prescriber.clinic.name}
+                                </p>
                               )}
                             </CardHeader>
                             <CardContent className="space-y-2 text-sm text-gray-600">
-                              {prescriber.contactEmail && <p>Email: {prescriber.contactEmail}</p>}
-                              {prescriber.contactPhone && <p>Phone: {prescriber.contactPhone}</p>}
+                              {prescriber.contactEmail && (
+                                <p>Email: {prescriber.contactEmail}</p>
+                              )}
+                              {prescriber.contactPhone && (
+                                <p>Phone: {prescriber.contactPhone}</p>
+                              )}
                               {prescriber.clinic?.suburb && (
                                 <p>
                                   Suburb: {prescriber.clinic.suburb}
-                                  {prescriber.clinic.state ? `, ${prescriber.clinic.state}` : ''}
+                                  {prescriber.clinic.state
+                                    ? `, ${prescriber.clinic.state}`
+                                    : ''}
                                 </p>
                               )}
                             </CardContent>
@@ -612,7 +528,9 @@ const HmrDashboardPage: React.FC = () => {
               <TabsContent value="followups">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="font-heading">Follow-up Reminders</CardTitle>
+                    <CardTitle className="font-heading">
+                      Follow-up Reminders
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {loading ? (
@@ -622,24 +540,33 @@ const HmrDashboardPage: React.FC = () => {
                     ) : (
                       <div className="space-y-4">
                         {upcomingFollowUps.map((review) => (
-                          <Card key={review.id} className="border border-amber-200 bg-amber-50">
+                          <Card
+                            key={review.id}
+                            className="border border-amber-200 bg-amber-50"
+                          >
                             <CardContent className="py-4">
                               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                 <div>
                                   <p className="font-medium text-gray-900">
-                                    {review.patient?.firstName} {review.patient?.lastName}
+                                    {review.patient?.firstName}{' '}
+                                    {review.patient?.lastName}
                                   </p>
                                   <p className="text-sm text-gray-600">
-                                    Follow-up due {formatDate(review.followUpDueAt)} — status {review.status.replace('_', ' ')}
+                                    Follow-up due{' '}
+                                    {formatDate(review.followUpDueAt)} — status{' '}
+                                    {review.status.replace('_', ' ')}
                                   </p>
                                 </div>
                                 <div className="text-sm text-gray-600">
                                   {review.prescriber && (
                                     <p>
-                                      Prescriber: {review.prescriber.firstName} {review.prescriber.lastName}
+                                      Prescriber: {review.prescriber.firstName}{' '}
+                                      {review.prescriber.lastName}
                                     </p>
                                   )}
-                                  {review.clinic && <p>Clinic: {review.clinic.name}</p>}
+                                  {review.clinic && (
+                                    <p>Clinic: {review.clinic.name}</p>
+                                  )}
                                 </div>
                               </div>
                             </CardContent>
@@ -660,11 +587,15 @@ const HmrDashboardPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Add Patient</DialogTitle>
             <DialogDescription>
-              Capture the basics so you can start an HMR referral for this patient.
+              Capture the basics so you can start an HMR referral for this
+              patient.
             </DialogDescription>
           </DialogHeader>
           <Form {...patientForm}>
-            <form className="space-y-4" onSubmit={patientForm.handleSubmit(onCreatePatient)}>
+            <form
+              className="space-y-4"
+              onSubmit={patientForm.handleSubmit(onCreatePatient)}
+            >
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={patientForm.control}
@@ -744,7 +675,11 @@ const HmrDashboardPage: React.FC = () => {
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} placeholder="Clinical notes, supports, key concerns" {...field} />
+                      <Textarea
+                        rows={3}
+                        placeholder="Clinical notes, supports, key concerns"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -752,11 +687,20 @@ const HmrDashboardPage: React.FC = () => {
               />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={resetPatientForm}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetPatientForm}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={patientForm.formState.isSubmitting}>
-                  {patientForm.formState.isSubmitting ? 'Saving...' : 'Save Patient'}
+                <Button
+                  type="submit"
+                  disabled={patientForm.formState.isSubmitting}
+                >
+                  {patientForm.formState.isSubmitting
+                    ? 'Saving...'
+                    : 'Save Patient'}
                 </Button>
               </DialogFooter>
             </form>
@@ -764,16 +708,23 @@ const HmrDashboardPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isPrescriberDialogOpen} onOpenChange={setPrescriberDialogOpen}>
+      <Dialog
+        open={isPrescriberDialogOpen}
+        onOpenChange={setPrescriberDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Prescriber</DialogTitle>
             <DialogDescription>
-              Link the prescriber to an existing clinic or create a new clinic in one step.
+              Link the prescriber to an existing clinic or create a new clinic
+              in one step.
             </DialogDescription>
           </DialogHeader>
           <Form {...prescriberForm}>
-            <form className="space-y-4" onSubmit={prescriberForm.handleSubmit(onCreatePrescriber)}>
+            <form
+              className="space-y-4"
+              onSubmit={prescriberForm.handleSubmit(onCreatePrescriber)}
+            >
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={prescriberForm.control}
@@ -811,7 +762,10 @@ const HmrDashboardPage: React.FC = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="prescriber@example.com" {...field} />
+                        <Input
+                          placeholder="prescriber@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -837,14 +791,18 @@ const HmrDashboardPage: React.FC = () => {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={prescriberFormMode === 'existing' ? 'default' : 'outline'}
+                    variant={
+                      prescriberFormMode === 'existing' ? 'default' : 'outline'
+                    }
                     onClick={() => setPrescriberFormMode('existing')}
                   >
                     Existing
                   </Button>
                   <Button
                     type="button"
-                    variant={prescriberFormMode === 'new' ? 'default' : 'outline'}
+                    variant={
+                      prescriberFormMode === 'new' ? 'default' : 'outline'
+                    }
                     onClick={() => setPrescriberFormMode('new')}
                   >
                     New Clinic
@@ -861,7 +819,7 @@ const HmrDashboardPage: React.FC = () => {
                       <FormLabel>Select clinic</FormLabel>
                       <FormControl>
                         <Select
-                          value={field.value || undefined}
+                          value={field.value}
                           onValueChange={(value) => field.onChange(value)}
                         >
                           <SelectTrigger>
@@ -869,12 +827,15 @@ const HmrDashboardPage: React.FC = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {clinics.length === 0 ? (
-                              <SelectItem value="__no_clinic" disabled>
+                              <SelectItem value="none">
                                 No clinics available
                               </SelectItem>
                             ) : (
                               clinics.map((clinic) => (
-                                <SelectItem key={clinic.id} value={String(clinic.id)}>
+                                <SelectItem
+                                  key={clinic.id}
+                                  value={String(clinic.id)}
+                                >
                                   {clinic.name}
                                 </SelectItem>
                               ))
@@ -895,7 +856,10 @@ const HmrDashboardPage: React.FC = () => {
                       <FormItem>
                         <FormLabel>Clinic name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Example Medical Centre" {...field} />
+                          <Input
+                            placeholder="Example Medical Centre"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -908,7 +872,10 @@ const HmrDashboardPage: React.FC = () => {
                       <FormItem>
                         <FormLabel>Clinic email</FormLabel>
                         <FormControl>
-                          <Input placeholder="team@examplemedical.com" {...field} />
+                          <Input
+                            placeholder="team@examplemedical.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -921,7 +888,10 @@ const HmrDashboardPage: React.FC = () => {
                       <FormItem className="md:col-span-2">
                         <FormLabel>Clinic phone</FormLabel>
                         <FormControl>
-                          <Input placeholder="Clinic contact number" {...field} />
+                          <Input
+                            placeholder="Clinic contact number"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -931,11 +901,20 @@ const HmrDashboardPage: React.FC = () => {
               )}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={resetPrescriberForm}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetPrescriberForm}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={prescriberForm.formState.isSubmitting}>
-                  {prescriberForm.formState.isSubmitting ? 'Saving...' : 'Save Prescriber'}
+                <Button
+                  type="submit"
+                  disabled={prescriberForm.formState.isSubmitting}
+                >
+                  {prescriberForm.formState.isSubmitting
+                    ? 'Saving...'
+                    : 'Save Prescriber'}
                 </Button>
               </DialogFooter>
             </form>
@@ -943,28 +922,20 @@ const HmrDashboardPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={isReviewDialogOpen}
-        onOpenChange={(open) => {
-          setReviewDialogOpen(open);
-          if (!open) {
-            resetReviewForm();
-          }
-        }}
-      >
+      <Dialog open={isReviewDialogOpen} onOpenChange={setReviewDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              {reviewDialogMode === 'edit' ? 'Update HMR Review' : 'Create HMR Review'}
-            </DialogTitle>
+            <DialogTitle>Create HMR Review</DialogTitle>
             <DialogDescription>
-              {reviewDialogMode === 'edit'
-                ? 'Revise scheduling, referral notes, or assignment details for this review.'
-                : 'Schedule the review, capture referral details, and assign the prescriber.'}
+              Schedule the review, capture referral details, and assign the
+              prescriber.
             </DialogDescription>
           </DialogHeader>
           <Form {...reviewForm}>
-            <form className="space-y-4" onSubmit={reviewForm.handleSubmit(onSubmitReview)}>
+            <form
+              className="space-y-4"
+              onSubmit={reviewForm.handleSubmit(onCreateReview)}
+            >
               <FormField
                 control={reviewForm.control}
                 name="patientId"
@@ -972,18 +943,24 @@ const HmrDashboardPage: React.FC = () => {
                   <FormItem>
                     <FormLabel>Patient</FormLabel>
                     <FormControl>
-                      <Select value={field.value || undefined} onValueChange={(value) => field.onChange(value)}>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => field.onChange(value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a patient" />
                         </SelectTrigger>
                         <SelectContent>
                           {patients.length === 0 ? (
-                            <SelectItem value="__no_patient" disabled>
+                            <SelectItem value="">
                               No patients available
                             </SelectItem>
                           ) : (
                             patients.map((patient) => (
-                              <SelectItem key={patient.id} value={String(patient.id)}>
+                              <SelectItem
+                                key={patient.id}
+                                value={String(patient.id)}
+                              >
                                 {patient.firstName} {patient.lastName}
                               </SelectItem>
                             ))
@@ -1005,16 +982,19 @@ const HmrDashboardPage: React.FC = () => {
                       <FormLabel>Prescriber (optional)</FormLabel>
                       <FormControl>
                         <Select
-                          value={field.value || '__none'}
-                          onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}
+                          value={field.value}
+                          onValueChange={(value) => field.onChange(value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select prescriber" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none">Unassigned</SelectItem>
+                            <SelectItem value="">Unassigned</SelectItem>
                             {prescribers.map((prescriber) => (
-                              <SelectItem key={prescriber.id} value={String(prescriber.id)}>
+                              <SelectItem
+                                key={prescriber.id}
+                                value={String(prescriber.id)}
+                              >
                                 {prescriber.firstName} {prescriber.lastName}
                               </SelectItem>
                             ))}
@@ -1034,16 +1014,19 @@ const HmrDashboardPage: React.FC = () => {
                       <FormLabel>Clinic (optional)</FormLabel>
                       <FormControl>
                         <Select
-                          value={field.value || '__none'}
-                          onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}
+                          value={field.value}
+                          onValueChange={(value) => field.onChange(value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select clinic" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none">Not specified</SelectItem>
+                            <SelectItem value="">Not specified</SelectItem>
                             {clinics.map((clinic) => (
-                              <SelectItem key={clinic.id} value={String(clinic.id)}>
+                              <SelectItem
+                                key={clinic.id}
+                                value={String(clinic.id)}
+                              >
                                 {clinic.name}
                               </SelectItem>
                             ))}
@@ -1105,7 +1088,10 @@ const HmrDashboardPage: React.FC = () => {
                   <FormItem>
                     <FormLabel>Status</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => field.onChange(value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
@@ -1138,7 +1124,11 @@ const HmrDashboardPage: React.FC = () => {
                   <FormItem>
                     <FormLabel>Referral reason</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} placeholder="Reason for referral, key issues to explore" {...field} />
+                      <Textarea
+                        rows={3}
+                        placeholder="Reason for referral, key issues to explore"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1146,16 +1136,19 @@ const HmrDashboardPage: React.FC = () => {
               />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeReviewDialog}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetReviewForm}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={reviewForm.formState.isSubmitting}>
+                <Button
+                  type="submit"
+                  disabled={reviewForm.formState.isSubmitting}
+                >
                   {reviewForm.formState.isSubmitting
-                    ? reviewDialogMode === 'edit'
-                      ? 'Updating...'
-                      : 'Creating...'
-                    : reviewDialogMode === 'edit'
-                    ? 'Update Review'
+                    ? 'Creating...'
                     : 'Create Review'}
                 </Button>
               </DialogFooter>
@@ -1163,117 +1156,66 @@ const HmrDashboardPage: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
-
-      <Dialog
-        open={Boolean(reviewPendingDelete)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setReviewPendingDelete(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete HMR Review</DialogTitle>
-            <DialogDescription>
-              {reviewPendingDelete ? (
-                <span>
-                  This will permanently remove the review for{' '}
-                  <strong>
-                    {reviewPendingDelete.patient
-                      ? `${reviewPendingDelete.patient.firstName} ${reviewPendingDelete.patient.lastName}`
-                      : 'the selected patient'}
-                  </strong>
-                  . This action cannot be undone.
-                </span>
-              ) : null}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setReviewPendingDelete(null)}
-              disabled={isDeletingReview}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={confirmDeleteReview}
-              disabled={isDeletingReview}
-            >
-              {isDeletingReview ? 'Deleting...' : 'Delete Review'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
-  );
-};
-
-interface PatientSummaryCardProps {
-  patient: Patient;
+  )
 }
-
-const PatientSummaryCard: React.FC<PatientSummaryCardProps> = ({ patient }) => {
-  return (
-    <Card className="border border-gray-200">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-gray-900">
-          {patient.firstName} {patient.lastName}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm text-gray-600">
-        <p>Date of birth: {formatDate(patient.dateOfBirth)}</p>
-        {patient.contactPhone && <p>Phone: {patient.contactPhone}</p>}
-        {patient.contactEmail && <p>Email: {patient.contactEmail}</p>}
-        {patient.notes && <p className="text-gray-500">{patient.notes}</p>}
-      </CardContent>
-    </Card>
-  );
-};
 
 interface StatsCardProps {
-  title: string;
-  value: number;
-  description: string;
-  highlight?: boolean;
+  title: string
+  value: number
+  description: string
+  highlight?: boolean
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ title, value, description, highlight }) => {
+const StatsCard: React.FC<StatsCardProps> = ({
+  title,
+  value,
+  description,
+  highlight,
+}) => {
   return (
-    <Card className={highlight ? 'border border-amber-300 bg-amber-50' : 'border border-gray-200'}>
+    <Card
+      className={
+        highlight
+          ? 'border border-amber-300 bg-amber-50'
+          : 'border border-gray-200'
+      }
+    >
       <CardContent className="pt-6">
-        <p className="text-sm font-medium uppercase tracking-wide text-gray-500">{title}</p>
-        <div className="mt-2 text-3xl font-heading font-semibold text-gray-900">{value}</div>
+        <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
+          {title}
+        </p>
+        <div className="mt-2 text-3xl font-heading font-semibold text-gray-900">
+          {value}
+        </div>
         <p className="mt-2 text-sm text-gray-600">{description}</p>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
 const TableHeaderCell: React.FC<React.PropsWithChildren> = ({ children }) => (
   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
     {children}
   </th>
-);
+)
 
 const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{children}</td>
-);
+  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+    {children}
+  </td>
+)
 
 const LoadingState: React.FC = () => (
   <div className="flex h-32 items-center justify-center text-sm text-gray-500">
     Loading data…
   </div>
-);
+)
 
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex h-32 items-center justify-center text-sm text-gray-500">
     {message}
   </div>
-);
+)
 
-export default HmrDashboardPage;
+export default HmrDashboardPage
