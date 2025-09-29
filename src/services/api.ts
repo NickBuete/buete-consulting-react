@@ -1,5 +1,7 @@
 // Base API service configuration and common functions
 
+import { configureOfflineQueue, enqueueOfflineAction, processOfflineQueue } from '../offline/offlineQueue';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 // API responses return JSON directly from the backend
@@ -41,6 +43,7 @@ class ApiService {
     this.defaultHeaders = {
       'Content-Type': 'application/json',
     };
+    configureOfflineQueue({ baseUrl: this.baseURL });
   }
 
   // Set authentication token
@@ -72,6 +75,10 @@ class ApiService {
     };
 
     try {
+      if (typeof window !== 'undefined' && navigator.onLine) {
+        void processOfflineQueue();
+      }
+
       const response = await fetchWithTimeout(url, requestConfig);
       
       if (!response.ok) {
@@ -92,6 +99,33 @@ class ApiService {
       const data = await response.json();
       return data;
     } catch (error) {
+      const method = (config?.method ?? 'GET').toUpperCase();
+      const isMutation = method !== 'GET';
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (isMutation && (offline || error instanceof TypeError)) {
+        const rawHeaders = requestConfig.headers ?? {};
+        const serializedHeaders: Record<string, string> = Array.isArray(rawHeaders)
+          ? Object.fromEntries(rawHeaders)
+          : rawHeaders instanceof Headers
+          ? Object.fromEntries(rawHeaders.entries())
+          : (rawHeaders as Record<string, string>);
+
+        await enqueueOfflineAction({
+          method,
+          endpoint,
+          body:
+            typeof requestConfig.body === 'string'
+              ? requestConfig.body
+              : requestConfig.body
+              ? JSON.stringify(requestConfig.body)
+              : undefined,
+          headers: serializedHeaders,
+        });
+
+        throw new Error('Request queued for sync once connection is restored.');
+      }
+
       if (error instanceof Error) {
         throw new Error(`API request failed: ${error.message}`);
       }

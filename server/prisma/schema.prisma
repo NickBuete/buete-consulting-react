@@ -61,6 +61,7 @@ model User {
   clinics            Clinic[]
   prescribers        Prescriber[]
   reviews            HmrReview[]
+  reports            HmrReport[]      @relation("UserReports")
 
   @@map("users")
 }
@@ -253,6 +254,7 @@ model HmrReview {
   actionItems         HmrActionItem[]
   attachments         HmrAttachment[]
   auditLogs           HmrAuditLog[]
+  report              HmrReport?       @relation("ReviewReport")
 
   @@map("hmr_reviews")
   @@index([patientId])
@@ -350,4 +352,43 @@ model HmrAuditLog {
   @@map("hmr_audit_logs")
   @@index([hmrReviewId])
   @@index([changedByUserId])
+}
+
+model HmrReport {
+  id              Int              @id @default(autoincrement())
+  ownerId         Int              @map("owner_id")
+  reviewId        Int              @map("review_id")
+  status          HmrReportStatus  @default(DRAFT)
+  summary         String?          @db.Text
+  recommendations String?          @db.Text
+  generatedBy     String?          @map("generated_by") @db.VarChar(150)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+  review          HmrReview        @relation("ReviewReport", fields: [reviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  owner           User             @relation("UserReports", fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  auditTrail      HmrReportAudit[]
+
+  @@map("hmr_reports")
+  @@index([ownerId])
+  @@index([reviewId])
+  @@unique([reviewId])
+}
+
+model HmrReportAudit {
+  id         Int       @id @default(autoincrement())
+  reportId   Int       @map("report_id")
+  modelUsed  String    @map("model_used") @db.VarChar(150)
+  prompt     String    @db.Text
+  completion String    @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  report     HmrReport @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("hmr_report_audit")
+  @@index([reportId])
+}
+
+enum HmrReportStatus {
+  DRAFT
+  READY
+  SIGNED_OFF
 }

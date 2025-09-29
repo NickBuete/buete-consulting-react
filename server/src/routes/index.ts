@@ -11,6 +11,7 @@ import { prescriberRouter } from './prescriberRoutes';
 import { patientRouter } from './patientRoutes';
 import { medicationRouter } from './medicationRoutes';
 import { hmrReviewRouter } from './hmrReviewRoutes';
+import { hmrReportRouter } from './hmrReportRoutes';
 
 export const registerRoutes = (app: Express) => {
   app.use('/api/auth', authRouter);
@@ -22,4 +23,5 @@ export const registerRoutes = (app: Express) => {
   app.use('/api/patients', authenticate, authorize(UserRole.PRO, UserRole.ADMIN), patientRouter);
   app.use('/api/medications', authenticate, authorize(UserRole.PRO, UserRole.ADMIN), medicationRouter);
   app.use('/api/hmr', authenticate, authorize(UserRole.PRO, UserRole.ADMIN), hmrReviewRouter);
+  app.use('/api/hmr/reports', authenticate, authorize(UserRole.PRO, UserRole.ADMIN), hmrReportRouter);
 };

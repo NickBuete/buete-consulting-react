@@ -697,7 +697,7 @@ const HmrDashboardPage: React.FC = () => {
                       <FormLabel>Select clinic</FormLabel>
                       <FormControl>
                         <Select
-                          value={field.value}
+                          value={field.value || undefined}
                           onValueChange={(value) => field.onChange(value)}
                         >
                           <SelectTrigger>
@@ -705,7 +705,9 @@ const HmrDashboardPage: React.FC = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {clinics.length === 0 ? (
-                              <SelectItem value="">No clinics available</SelectItem>
+                              <SelectItem value="__no_clinic" disabled>
+                                No clinics available
+                              </SelectItem>
                             ) : (
                               clinics.map((clinic) => (
                                 <SelectItem key={clinic.id} value={String(clinic.id)}>
@@ -794,13 +796,15 @@ const HmrDashboardPage: React.FC = () => {
                   <FormItem>
                     <FormLabel>Patient</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
+                      <Select value={field.value || undefined} onValueChange={(value) => field.onChange(value)}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a patient" />
                         </SelectTrigger>
                         <SelectContent>
                           {patients.length === 0 ? (
-                            <SelectItem value="">No patients available</SelectItem>
+                            <SelectItem value="__no_patient" disabled>
+                              No patients available
+                            </SelectItem>
                           ) : (
                             patients.map((patient) => (
                               <SelectItem key={patient.id} value={String(patient.id)}>
@@ -824,12 +828,15 @@ const HmrDashboardPage: React.FC = () => {
                     <FormItem>
                       <FormLabel>Prescriber (optional)</FormLabel>
                       <FormControl>
-                        <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
+                        <Select
+                          value={field.value || '__none'}
+                          onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select prescriber" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Unassigned</SelectItem>
+                            <SelectItem value="__none">Unassigned</SelectItem>
                             {prescribers.map((prescriber) => (
                               <SelectItem key={prescriber.id} value={String(prescriber.id)}>
                                 {prescriber.firstName} {prescriber.lastName}
@@ -850,12 +857,15 @@ const HmrDashboardPage: React.FC = () => {
                     <FormItem>
                       <FormLabel>Clinic (optional)</FormLabel>
                       <FormControl>
-                        <Select value={field.value} onValueChange={(value) => field.onChange(value)}>
+                        <Select
+                          value={field.value || '__none'}
+                          onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select clinic" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Not specified</SelectItem>
+                            <SelectItem value="__none">Not specified</SelectItem>
                             {clinics.map((clinic) => (
                               <SelectItem key={clinic.id} value={String(clinic.id)}>
                                 {clinic.name}

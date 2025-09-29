@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Header, Footer } from './components/layout';
+import { OfflineBanner } from './components/layout/OfflineBanner';
 import { routes } from './router/routes';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './router/ProtectedRoute';
@@ -11,6 +12,7 @@ function App() {
       <AuthProvider>
         <div className="min-h-screen bg-gray-50">
           <Header />
+          <OfflineBanner />
           <main>
             <Suspense
               fallback={
