@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -40,7 +41,10 @@ import type {
   CreateHmrReviewPayload,
   CreatePatientPayload,
   CreatePrescriberPayload,
+  HmrReview,
   Patient,
+  Clinic,
+  Prescriber,
 } from '../../types/hmr';
 
 const statusVariantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -75,6 +79,15 @@ const prescriberFormSchema = z.object({
   clinicPhone: z.string().optional(),
 });
 
+const clinicFormSchema = z.object({
+  name: z.string().min(1, 'Clinic name is required'),
+  contactEmail: optionalEmail,
+  contactPhone: z.string().optional(),
+  suburb: z.string().optional(),
+  state: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 const reviewFormSchema = z.object({
   patientId: z.string().min(1, 'Select a patient'),
   prescriberId: z.string().optional(),
@@ -88,9 +101,50 @@ const reviewFormSchema = z.object({
 
 type PatientFormValues = z.infer<typeof patientFormSchema>;
 type PrescriberFormValues = z.infer<typeof prescriberFormSchema>;
+type ClinicFormValues = z.infer<typeof clinicFormSchema>;
 type ReviewFormValues = z.infer<typeof reviewFormSchema>;
 
 type PrescriberFormMode = 'existing' | 'new';
+
+const patientFormDefaults: PatientFormValues = {
+  firstName: '',
+  lastName: '',
+  dateOfBirth: '',
+  contactEmail: '',
+  contactPhone: '',
+  notes: '',
+};
+
+const prescriberFormDefaults: PrescriberFormValues = {
+  firstName: '',
+  lastName: '',
+  contactEmail: '',
+  contactPhone: '',
+  clinicSelection: '',
+  clinicName: '',
+  clinicEmail: '',
+  clinicPhone: '',
+};
+
+const clinicFormDefaults: ClinicFormValues = {
+  name: '',
+  contactEmail: '',
+  contactPhone: '',
+  suburb: '',
+  state: '',
+  notes: '',
+};
+
+const reviewDefaultValues: ReviewFormValues = {
+  patientId: '',
+  prescriberId: '',
+  clinicId: '',
+  referralDate: '',
+  scheduledAt: '',
+  followUpDueAt: '',
+  referralReason: '',
+  status: 'PENDING',
+};
 
 const formatDate = (value: string | null) => {
   if (!value) return '—';
@@ -103,6 +157,30 @@ const formatDate = (value: string | null) => {
   } catch (error) {
     return value;
   }
+};
+
+const formatStatusLabel = (status: string) => status.replace(/_/g, ' ');
+
+const toDateInputValue = (value: string | null | undefined) => {
+  if (!value) {
+    return '';
+  }
+  return value.slice(0, 10);
+};
+
+const toDateTimeLocalValue = (value: string | null | undefined) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
 };
 
 const HmrDashboardPage: React.FC = () => {
@@ -118,51 +196,57 @@ const HmrDashboardPage: React.FC = () => {
     createPrescriber,
     createClinic,
     createReview,
+    updateReview,
+    deleteReview,
+    updatePatient,
+    deletePatient,
+    updatePrescriber,
+    deletePrescriber,
+    updateClinic,
+    deleteClinic,
   } = useHmrDashboard();
 
   const [isPatientDialogOpen, setPatientDialogOpen] = useState(false);
   const [isPrescriberDialogOpen, setPrescriberDialogOpen] = useState(false);
+  const [isClinicDialogOpen, setClinicDialogOpen] = useState(false);
   const [isReviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [prescriberFormMode, setPrescriberFormMode] = useState<PrescriberFormMode>('existing');
+  const [reviewDialogMode, setReviewDialogMode] = useState<'create' | 'edit'>('create');
+  const [selectedReview, setSelectedReview] = useState<HmrReview | null>(null);
+  const [patientDialogMode, setPatientDialogMode] = useState<'create' | 'edit'>('create');
+  const [prescriberDialogMode, setPrescriberDialogMode] = useState<'create' | 'edit'>('create');
+  const [clinicDialogMode, setClinicDialogMode] = useState<'create' | 'edit'>('create');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPrescriber, setSelectedPrescriber] = useState<Prescriber | null>(null);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
+  const [reviewPendingDelete, setReviewPendingDelete] = useState<HmrReview | null>(null);
+  const [patientPendingDelete, setPatientPendingDelete] = useState<Patient | null>(null);
+  const [prescriberPendingDelete, setPrescriberPendingDelete] = useState<Prescriber | null>(null);
+  const [clinicPendingDelete, setClinicPendingDelete] = useState<Clinic | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const [isDeletingPatient, setIsDeletingPatient] = useState(false);
+  const [isDeletingPrescriber, setIsDeletingPrescriber] = useState(false);
+  const [isDeletingClinic, setIsDeletingClinic] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const patientForm = useForm<PatientFormValues>({
     resolver: zodResolver(patientFormSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      dateOfBirth: '',
-      contactEmail: '',
-      contactPhone: '',
-      notes: '',
-    },
+    defaultValues: patientFormDefaults,
   });
 
   const prescriberForm = useForm<PrescriberFormValues>({
     resolver: zodResolver(prescriberFormSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      contactEmail: '',
-      contactPhone: '',
-      clinicSelection: '',
-      clinicName: '',
-      clinicEmail: '',
-      clinicPhone: '',
-    },
+    defaultValues: prescriberFormDefaults,
+  });
+
+  const clinicForm = useForm<ClinicFormValues>({
+    resolver: zodResolver(clinicFormSchema),
+    defaultValues: clinicFormDefaults,
   });
 
   const reviewForm = useForm<ReviewFormValues>({
     resolver: zodResolver(reviewFormSchema),
-    defaultValues: {
-      patientId: '',
-      prescriberId: '',
-      clinicId: '',
-      referralDate: '',
-      scheduledAt: '',
-      followUpDueAt: '',
-      referralReason: '',
-      status: 'PENDING',
-    },
+    defaultValues: reviewDefaultValues,
   });
 
   const resetPatientForm = () => {
@@ -177,17 +261,37 @@ const HmrDashboardPage: React.FC = () => {
   };
 
   const resetReviewForm = () => {
-    reviewForm.reset({
-      patientId: '',
-      prescriberId: '',
-      clinicId: '',
-      referralDate: '',
-      scheduledAt: '',
-      followUpDueAt: '',
-      referralReason: '',
-      status: 'PENDING',
-    });
+    reviewForm.reset(reviewDefaultValues);
+    setSelectedReview(null);
+    setReviewDialogMode('create');
+    setActionError(null);
+  };
+
+  const closeReviewDialog = () => {
     setReviewDialogOpen(false);
+  };
+
+  const openCreateReviewDialog = () => {
+    resetReviewForm();
+    setReviewDialogMode('create');
+    setReviewDialogOpen(true);
+  };
+
+  const openEditReviewDialog = (review: HmrReview) => {
+    setSelectedReview(review);
+    setReviewDialogMode('edit');
+    reviewForm.reset({
+      patientId: String(review.patientId),
+      prescriberId: review.prescriberId ? String(review.prescriberId) : '',
+      clinicId: review.clinicId ? String(review.clinicId) : '',
+      referralDate: toDateInputValue(review.referralDate),
+      scheduledAt: toDateTimeLocalValue(review.scheduledAt),
+      followUpDueAt: toDateInputValue(review.followUpDueAt),
+      referralReason: review.referralReason ?? '',
+      status: review.status,
+    });
+    setActionError(null);
+    setReviewDialogOpen(true);
   };
 
   const onCreatePatient = async (values: PatientFormValues) => {
@@ -249,20 +353,51 @@ const HmrDashboardPage: React.FC = () => {
     resetPrescriberForm();
   };
 
-  const onCreateReview = async (values: ReviewFormValues) => {
+  const onSubmitReview = async (values: ReviewFormValues) => {
     const payload: CreateHmrReviewPayload = {
       patientId: Number(values.patientId),
       prescriberId: values.prescriberId ? Number(values.prescriberId) : undefined,
       clinicId: values.clinicId ? Number(values.clinicId) : undefined,
       referralDate: values.referralDate || undefined,
-      referralReason: values.referralReason || undefined,
+      referralReason: values.referralReason?.trim() ? values.referralReason.trim() : undefined,
       scheduledAt: values.scheduledAt ? new Date(values.scheduledAt).toISOString() : undefined,
       followUpDueAt: values.followUpDueAt || undefined,
       status: (values.status as CreateHmrReviewPayload['status']) ?? undefined,
     };
 
-    await createReview(payload);
-    resetReviewForm();
+    setActionError(null);
+
+    try {
+      if (reviewDialogMode === 'edit' && selectedReview) {
+        await updateReview(selectedReview.id, payload);
+      } else {
+        await createReview(payload);
+      }
+      closeReviewDialog();
+    } catch (submitError) {
+      const message =
+      submitError instanceof Error ? submitError.message : 'Failed to save HMR review';
+      setActionError(message);
+    }
+  };
+
+  const confirmDeleteReview = async () => {
+    if (!reviewPendingDelete) {
+      return;
+    }
+
+    setActionError(null);
+    setIsDeletingReview(true);
+    try {
+      await deleteReview(reviewPendingDelete.id);
+      setReviewPendingDelete(null);
+    } catch (deleteError) {
+      const message =
+        deleteError instanceof Error ? deleteError.message : 'Failed to delete HMR review';
+      setActionError(message);
+    } finally {
+      setIsDeletingReview(false);
+    }
   };
 
   const sortedReviews = useMemo(() => {
@@ -289,6 +424,11 @@ const HmrDashboardPage: React.FC = () => {
               {error}
             </div>
           )}
+          {actionError && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">
+              {actionError}
+            </div>
+          )}
 
           <section>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
@@ -305,7 +445,7 @@ const HmrDashboardPage: React.FC = () => {
               <p className="text-gray-600 font-body">Manage patients, prescribers, and HMR activity. Use the actions to add new records.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="default" onClick={() => setReviewDialogOpen(true)}>
+              <Button variant="default" onClick={openCreateReviewDialog}>
                 New HMR Review
               </Button>
               <Button variant="secondary" onClick={() => setPatientDialogOpen(true)}>
@@ -347,6 +487,7 @@ const HmrDashboardPage: React.FC = () => {
                               <TableHeaderCell>Referral Date</TableHeaderCell>
                               <TableHeaderCell>Scheduled</TableHeaderCell>
                               <TableHeaderCell>Follow-up</TableHeaderCell>
+                              <TableHeaderCell>Actions</TableHeaderCell>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
@@ -362,7 +503,7 @@ const HmrDashboardPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant={statusVariantMap[review.status] ?? 'outline'}>
-                                    {review.status.replace('_', ' ')}
+                                    {formatStatusLabel(review.status)}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
@@ -373,6 +514,29 @@ const HmrDashboardPage: React.FC = () => {
                                 <TableCell>{formatDate(review.referralDate)}</TableCell>
                                 <TableCell>{formatDate(review.scheduledAt)}</TableCell>
                                 <TableCell>{formatDate(review.followUpDueAt)}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openEditReviewDialog(review)}
+                                      aria-label="Edit HMR review"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => setReviewPendingDelete(review)}
+                                      aria-label="Delete HMR review"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
                               </tr>
                             ))}
                           </tbody>
@@ -779,16 +943,28 @@ const HmrDashboardPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isReviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+      <Dialog
+        open={isReviewDialogOpen}
+        onOpenChange={(open) => {
+          setReviewDialogOpen(open);
+          if (!open) {
+            resetReviewForm();
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create HMR Review</DialogTitle>
+            <DialogTitle>
+              {reviewDialogMode === 'edit' ? 'Update HMR Review' : 'Create HMR Review'}
+            </DialogTitle>
             <DialogDescription>
-              Schedule the review, capture referral details, and assign the prescriber.
+              {reviewDialogMode === 'edit'
+                ? 'Revise scheduling, referral notes, or assignment details for this review.'
+                : 'Schedule the review, capture referral details, and assign the prescriber.'}
             </DialogDescription>
           </DialogHeader>
           <Form {...reviewForm}>
-            <form className="space-y-4" onSubmit={reviewForm.handleSubmit(onCreateReview)}>
+            <form className="space-y-4" onSubmit={reviewForm.handleSubmit(onSubmitReview)}>
               <FormField
                 control={reviewForm.control}
                 name="patientId"
@@ -970,15 +1146,67 @@ const HmrDashboardPage: React.FC = () => {
               />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={resetReviewForm}>
+                <Button type="button" variant="outline" onClick={closeReviewDialog}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={reviewForm.formState.isSubmitting}>
-                  {reviewForm.formState.isSubmitting ? 'Creating...' : 'Create Review'}
+                  {reviewForm.formState.isSubmitting
+                    ? reviewDialogMode === 'edit'
+                      ? 'Updating...'
+                      : 'Creating...'
+                    : reviewDialogMode === 'edit'
+                    ? 'Update Review'
+                    : 'Create Review'}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(reviewPendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReviewPendingDelete(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete HMR Review</DialogTitle>
+            <DialogDescription>
+              {reviewPendingDelete ? (
+                <span>
+                  This will permanently remove the review for{' '}
+                  <strong>
+                    {reviewPendingDelete.patient
+                      ? `${reviewPendingDelete.patient.firstName} ${reviewPendingDelete.patient.lastName}`
+                      : 'the selected patient'}
+                  </strong>
+                  . This action cannot be undone.
+                </span>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReviewPendingDelete(null)}
+              disabled={isDeletingReview}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDeleteReview}
+              disabled={isDeletingReview}
+            >
+              {isDeletingReview ? 'Deleting...' : 'Delete Review'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

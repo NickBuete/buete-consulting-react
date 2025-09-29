@@ -1,6 +1,8 @@
 import { Prisma, HmrReportStatus } from '../generated/prisma';
 import { withTenantContext } from '../db/tenant';
 import type { HmrReportGenerateInput, HmrReportUpsertInput } from '../validators/hmrReportSchemas';
+import { buildReportPrompt } from './hmrReportPromptBuilder';
+import { invokeClaude } from './ai/claudeClient';
 
 export const getReportForReview = async (ownerId: number, reviewId: number) => {
   return withTenantContext(ownerId, (tx) =>
@@ -93,13 +95,51 @@ export const generateReportDraft = async (
   reviewId: number,
   _options: HmrReportGenerateInput,
 ) => {
-  const report = await getReportForReview(ownerId, reviewId);
-  if (!report) {
+  const prompt = await buildReportPrompt(reviewId, ownerId);
+  if (!prompt) {
     return null;
   }
 
+  let completion = '';
+  let parsed: { letter: string; recommendations: string[] } | null = null;
+
+  try {
+    const response = await invokeClaude(prompt);
+    completion = response.completion;
+    parsed = JSON.parse(completion);
+  } catch (error) {
+    parsed = null;
+  }
+
+  if (!parsed || typeof parsed.letter !== 'string' || !Array.isArray(parsed.recommendations)) {
+    parsed = {
+      letter: completion || 'No draft generated. Please prepare the report manually.',
+      recommendations: completion
+        ? completion
+            .split('\n')
+            .filter((line) => line.trim().length > 0)
+            .slice(0, 5)
+        : [],
+    };
+  }
+
+  const updatedReport = await upsertReportForReview(ownerId, reviewId, {
+    summary: parsed.letter,
+    recommendations: parsed.recommendations.map((item) => `- ${item}`).join('\n'),
+    status: HmrReportStatus.DRAFT,
+  });
+
+  if (!updatedReport) {
+    return null;
+  }
+
+  if (completion) {
+    await recordReportAudit(ownerId, reviewId, process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-3-5-sonnet-20240620-v1:0', prompt.userPrompt, completion);
+  }
+
   return {
-    message: 'Report generation is not yet implemented. This endpoint will integrate with Claude shortly.',
-    report,
+    message: 'Draft generated with Claude. Review before finalising.',
+    report: updatedReport,
+    recommendations: parsed.recommendations,
   };
 };

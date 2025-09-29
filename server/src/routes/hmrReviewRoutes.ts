@@ -8,6 +8,7 @@ import {
   createAttachmentForReview,
   createHmrReview,
   deleteActionItemFromReview,
+  deleteHmrReview,
   deleteSymptomFromReview,
   getHmrReviewById,
   listHmrReviews,
@@ -155,6 +156,28 @@ router.patch(
       }
 
       res.json(review);
+    } catch (error) {
+      return handlePrismaError(error, res);
+    }
+  }),
+);
+
+router.delete(
+  '/reviews/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ message: 'Invalid review id' });
+    }
+
+    try {
+      const ownerId = req.user!.id;
+      const deleted = await deleteHmrReview(ownerId, id);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
+      res.status(204).send();
     } catch (error) {
       return handlePrismaError(error, res);
     }

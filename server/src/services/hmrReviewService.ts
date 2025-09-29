@@ -350,6 +350,18 @@ export const updateHmrReview = async (ownerId: number, id: number, data: HmrRevi
   });
 };
 
+export const deleteHmrReview = async (ownerId: number, id: number) => {
+  return withTenantContext(ownerId, async (tx) => {
+    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } });
+    if (!existing) {
+      return false;
+    }
+
+    await tx.hmrReview.delete({ where: { id } });
+    return true;
+  });
+};
+
 export const addMedicationToReview = async (
   ownerId: number,
   hmrReviewId: number,

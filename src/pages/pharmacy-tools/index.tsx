@@ -284,6 +284,59 @@ const OpioidCalculator: React.FC = () => {
 
 const weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const references = [
+  {
+    name: 'SUSMP (Poisons Standard)',
+    description: 'Scheduling and labelling requirements for medicines and poisons.',
+    url: 'https://www.tga.gov.au/book-page/poisons-standard-susmp',
+  },
+  {
+    name: 'TGA Medicine Shortages',
+    description: 'Real-time database of current and anticipated medicine shortages.',
+    url: 'https://www.tga.gov.au/medicine-shortages',
+  },
+  {
+    name: 'PBS Schedule',
+    description: 'Latest PBS pricing, restrictions, and authority codes.',
+    url: 'https://www.pbs.gov.au/pbs/home',
+  },
+  {
+    name: 'QCPP Hub',
+    description: 'Quality Care Pharmacy Program standards, audits, and resources.',
+    url: 'https://www.qcpp.com/',
+  },
+  {
+    name: 'SafeScript (Victoria)',
+    description: 'Real-time prescription monitoring for Schedule 8/4 medicines.',
+    url: 'https://www.safescript.vic.gov.au/',
+  },
+  {
+    name: 'SafeScript NSW',
+    description: 'NSW prescription monitoring portal for monitored medicines.',
+    url: 'https://www.safescript.health.nsw.gov.au/',
+  },
+  {
+    name: 'SafeScript Tasmania',
+    description: 'Tasmanian monitored medicines database (DAPIS Online Reporting).',
+    url: 'https://www.dhhs.tas.gov.au/psbtas/quick_links/dapis_online_reporting',
+  },
+  {
+    name: 'WA Real Time Prescription Monitoring',
+    description: 'Monitor schedule 8 supply across Western Australia.',
+    url: 'https://www.health.wa.gov.au/Articles/N_R/Real-Time-Prescription-Monitoring',
+  },
+  {
+    name: 'Medicines Handbook (SA Health)',
+    description: 'High-risk medicine protocols and state-based advisories.',
+    url: 'https://www.sahealth.sa.gov.au/wps/wcm/connect/public+content/sa+health+internet/clinical+resources/clinical+programs+and+practice+guidelines/medicines+and+drugs',
+  },
+  {
+    name: 'Australian Immunisation Handbook',
+    description: 'Clinical vaccine recommendations and catch-up schedules.',
+    url: 'https://immunisationhandbook.health.gov.au/',
+  },
+];
+
 const VariableDosePlanner: React.FC = () => {
   const [cycleLength, setCycleLength] = useState("7");
   const [notes, setNotes] = useState("");
@@ -410,6 +463,33 @@ const PharmacyToolsPage: React.FC = () => {
             <UnitConverter />
             <OpioidCalculator />
             <VariableDosePlanner />
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="font-heading flex items-center gap-3">
+                  <span className="text-2xl">📚</span>
+                  Quick Reference Library
+                </CardTitle>
+                <CardDescription className="font-body">
+                  Trusted Australian resources for regulatory updates, safety advisories, and practice support.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {references.map((item) => (
+                  <div key={item.url} className="space-y-2 rounded-md border border-gray-200 p-4 hover:border-brand-300">
+                    <p className="font-heading text-sm text-gray-900">{item.name}</p>
+                    <p className="text-xs text-gray-600 font-body">{item.description}</p>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm font-semibold text-brand-600 hover:text-brand-700"
+                    >
+                      Visit resource →
+                    </a>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

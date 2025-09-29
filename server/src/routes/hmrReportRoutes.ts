@@ -71,10 +71,10 @@ router.post(
     const ownerId = req.user!.id;
     const result = await generateReportDraft(ownerId, reviewId, payload);
     if (!result) {
-      return res.status(404).json({ message: 'Report not found' });
+      return res.status(404).json({ message: 'Review not found or prompt unavailable' });
     }
 
-    return res.status(202).json(result);
+    return res.status(200).json(result);
   }),
 );
 

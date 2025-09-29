@@ -53,6 +53,18 @@ export const createPrescriber = async (payload: CreatePrescriberPayload) => {
   return response;
 };
 
+export const updatePrescriber = async (
+  id: number,
+  payload: Partial<CreatePrescriberPayload> & { clinicId?: number | null },
+) => {
+  const response = await api.patch<Prescriber>(`/prescribers/${id}`, payload);
+  return response;
+};
+
+export const deletePrescriber = async (id: number) => {
+  await api.delete<void>(`/prescribers/${id}`);
+};
+
 export const fetchClinics = async () => {
   const response = await api.get<Clinic[]>('/clinics');
   return response;
@@ -61,6 +73,15 @@ export const fetchClinics = async () => {
 export const createClinic = async (payload: CreateClinicPayload) => {
   const response = await api.post<Clinic>('/clinics', payload);
   return response;
+};
+
+export const updateClinic = async (id: number, payload: Partial<CreateClinicPayload>) => {
+  const response = await api.patch<Clinic>(`/clinics/${id}`, payload);
+  return response;
+};
+
+export const deleteClinic = async (id: number) => {
+  await api.delete<void>(`/clinics/${id}`);
 };
 
 export const fetchReviews = async (options?: {
@@ -86,4 +107,8 @@ export const createHmrReview = async (payload: CreateHmrReviewPayload) => {
 export const updateHmrReview = async (id: number, payload: Partial<CreateHmrReviewPayload>) => {
   const response = await api.patch<HmrReview>(`/hmr/reviews/${id}`, payload);
   return response;
+};
+
+export const deleteHmrReview = async (id: number) => {
+  await api.delete<void>(`/hmr/reviews/${id}`);
 };
