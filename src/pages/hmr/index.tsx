@@ -449,24 +449,30 @@ const HmrDashboardPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="patients">
-                {/* Use PatientList for full CRUD (edit/delete) */}
-                <PatientList
-                  patients={patients}
-                  onDelete={async (id) => {
-                    try {
-                      await deletePatient(id)
-                    } catch (err) {
-                      // Silently ignore or show a toast
-                    }
-                  }}
-                  onUpdate={async (id, data) => {
-                    try {
-                      await updatePatient(id, data)
-                    } catch (err) {
-                      // Silently ignore or show a toast
-                    }
-                  }}
-                />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="font-heading">Patients</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PatientList
+                      patients={patients}
+                      onDelete={async (id) => {
+                        try {
+                          await deletePatient(id)
+                        } catch (err) {
+                          // Silently ignore or show a toast
+                        }
+                      }}
+                      onUpdate={async (id, data) => {
+                        try {
+                          await updatePatient(id, data)
+                        } catch (err) {
+                          // Silently ignore or show a toast
+                        }
+                      }}
+                    />
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="prescribers">

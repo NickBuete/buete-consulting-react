@@ -40,7 +40,6 @@ export function PatientList({
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-2">Patients</h2>
       {patients.length > 0 ? (
         <ul className="mb-6">
           {patients.map((p) => (
@@ -56,7 +55,9 @@ export function PatientList({
           ))}
         </ul>
       ) : (
-        <div className="text-gray-500 mb-6">No patients found.</div>
+        <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+          You haven’t added any patients yet.
+        </div>
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
