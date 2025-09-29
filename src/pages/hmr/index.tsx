@@ -1,9 +1,7 @@
-import React, { useMemo, useState } from 'react'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
+import React from 'react'
 import { useForm } from 'react-hook-form'
+import { useHmrDashboard } from '../../hooks/useHmrDashboard'
 import {
-  PageHero,
   Card,
   CardContent,
   CardHeader,
@@ -14,323 +12,174 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Input,
-  Textarea,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
+  Table,
+  EmptyState,
+  LoadingState,
+  StatsCard,
 } from '../../components/ui'
-import { useHmrDashboard } from '../../hooks/useHmrDashboard'
-import type {
-  CreateClinicPayload,
-  CreateHmrReviewPayload,
-  CreatePatientPayload,
-  CreatePrescriberPayload,
-} from '../../types/hmr'
 import { PatientList } from '../../components/crud/PatientList'
-
-const statusVariantMap: Record<
-  string,
-  'default' | 'secondary' | 'outline' | 'destructive'
-> = {
-  PENDING: 'outline',
-  ACCEPTED: 'secondary',
-  SCHEDULED: 'secondary',
-  IN_PROGRESS: 'default',
-  COMPLETED: 'secondary',
-  CLAIMED: 'default',
-  CANCELLED: 'destructive',
-}
-
-const optionalEmail = z.string().optional()
-
-const patientFormSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  dateOfBirth: z.string().optional(),
-  contactEmail: optionalEmail,
-  contactPhone: z.string().optional(),
-  notes: z.string().optional(),
-})
-
-const prescriberFormSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  contactEmail: optionalEmail,
-  contactPhone: z.string().optional(),
-  clinicSelection: z.string().optional(),
-  clinicName: z.string().optional(),
-  clinicEmail: optionalEmail,
-  clinicPhone: z.string().optional(),
-})
-
-const reviewFormSchema = z.object({
-  patientId: z.string().min(1, 'Select a patient'),
-  prescriberId: z.string().optional(),
-  clinicId: z.string().optional(),
-  referralDate: z.string().optional(),
-  scheduledAt: z.string().optional(),
-  followUpDueAt: z.string().optional(),
-  referralReason: z.string().optional(),
-  status: z.string().optional(),
-})
-
-type PatientFormValues = z.infer<typeof patientFormSchema>
-type PrescriberFormValues = z.infer<typeof prescriberFormSchema>
-type ReviewFormValues = z.infer<typeof reviewFormSchema>
-
-type PrescriberFormMode = 'existing' | 'new'
-
-const formatDate = (value: string | null) => {
-  if (!value) return '—'
-  try {
-    return new Intl.DateTimeFormat('en-AU', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date(value))
-  } catch (error) {
-    return value
-  }
-}
+import { AddPatientDialog } from '../../components/crud/AddPatientDialog'
+import { AddPrescriberDialog } from '../../components/crud/AddPrescriberDialog'
+import {
+  AddReviewDialog,
+  HmrReviewFormValues,
+} from '../../components/crud/AddReviewDialog'
+import { formatDate, statusVariantMap } from '../../utils/dashboard'
 
 const HmrDashboardPage: React.FC = () => {
+  const [selectedReview, setSelectedReview] = React.useState<any>(null)
+  const handleReviewRowClick = (review: any) => {
+    setSelectedReview(review)
+    setReviewDialogOpen(true)
+    reviewForm.reset(review)
+  }
   const {
     patients,
     prescribers,
     clinics,
     reviews,
-    stats,
     loading,
-    error,
-    createPatient,
-    createPrescriber,
-    createClinic,
-    createReview,
     deletePatient,
     updatePatient,
+    createPatient,
+    createPrescriber,
+    createReview,
+    updateReview,
+    deleteReview,
+    stats,
   } = useHmrDashboard()
 
-  const [isPatientDialogOpen, setPatientDialogOpen] = useState(false)
-  const [isPrescriberDialogOpen, setPrescriberDialogOpen] = useState(false)
-  const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
-  const [prescriberFormMode, setPrescriberFormMode] =
-    useState<PrescriberFormMode>('existing')
+  // Dialog state
+  const [isPatientDialogOpen, setPatientDialogOpen] = React.useState(false)
+  const [isPrescriberDialogOpen, setPrescriberDialogOpen] =
+    React.useState(false)
+  const [isReviewDialogOpen, setReviewDialogOpen] = React.useState(false)
 
-  const patientForm = useForm<PatientFormValues>({
-    resolver: zodResolver(patientFormSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      dateOfBirth: '',
-      contactEmail: '',
-      contactPhone: '',
-      notes: '',
-    },
-  })
-
-  const prescriberForm = useForm<PrescriberFormValues>({
-    resolver: zodResolver(prescriberFormSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      contactEmail: '',
-      contactPhone: '',
-      clinicSelection: '',
-      clinicName: '',
-      clinicEmail: '',
-      clinicPhone: '',
-    },
-  })
-
-  const reviewForm = useForm<ReviewFormValues>({
-    resolver: zodResolver(reviewFormSchema),
-    defaultValues: {
-      patientId: '',
-      prescriberId: '',
-      clinicId: '',
-      referralDate: '',
-      scheduledAt: '',
-      followUpDueAt: '',
-      referralReason: '',
-      status: 'PENDING',
-    },
-  })
-
+  // Form state and handlers
+  const patientForm = useForm({ defaultValues: {} })
+  const prescriberForm = useForm({ defaultValues: {} })
+  const reviewForm = useForm<HmrReviewFormValues>({ defaultValues: {} })
+  const [prescriberFormMode, setPrescriberFormMode] = React.useState<
+    'existing' | 'new'
+  >('existing')
+  const onCreatePatient = async (values: any) => {
+    await createPatient(values)
+  }
   const resetPatientForm = () => {
     patientForm.reset()
     setPatientDialogOpen(false)
   }
-
+  const onCreatePrescriber = async (values: any) => {
+    if (prescriberFormMode === 'new') {
+      await createPrescriber({
+        ...values,
+        clinic: {
+          name: values.clinicName,
+          email: values.clinicEmail,
+          phone: values.clinicPhone,
+        },
+      })
+    } else {
+      await createPrescriber({
+        ...values,
+        clinicId: values.clinicSelection
+          ? Number(values.clinicSelection)
+          : undefined,
+      })
+    }
+  }
   const resetPrescriberForm = () => {
     prescriberForm.reset()
-    setPrescriberFormMode('existing')
     setPrescriberDialogOpen(false)
+    setPrescriberFormMode('existing')
   }
-
-  const resetReviewForm = () => {
-    reviewForm.reset({
-      patientId: '',
-      prescriberId: '',
-      clinicId: '',
-      referralDate: '',
-      scheduledAt: '',
-      followUpDueAt: '',
-      referralReason: '',
-      status: 'PENDING',
-    })
-    setReviewDialogOpen(false)
-  }
-
-  const onCreatePatient = async (values: PatientFormValues) => {
-    const email = values.contactEmail?.trim()
-    const payload: CreatePatientPayload = {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      dateOfBirth: values.dateOfBirth || undefined,
-      contactEmail: email ? email : undefined,
-      contactPhone: values.contactPhone || undefined,
-      notes: values.notes || undefined,
-    }
-
-    await createPatient(payload)
-    resetPatientForm()
-  }
-
-  const onCreatePrescriber = async (values: PrescriberFormValues) => {
-    let clinicId: number | null = null
-
-    if (prescriberFormMode === 'existing' && values.clinicSelection) {
-      clinicId = Number(values.clinicSelection)
-    } else if (prescriberFormMode === 'existing' && !values.clinicSelection) {
-      prescriberForm.setError('clinicSelection', {
-        type: 'manual',
-        message: 'Please choose a clinic or switch to "New Clinic".',
-      })
-      return
-    }
-
-    if (prescriberFormMode === 'new') {
-      if (!values.clinicName) {
-        prescriberForm.setError('clinicName', {
-          type: 'manual',
-          message: 'Clinic name is required when creating a clinic.',
-        })
-        return
-      }
-      const clinicEmail = values.clinicEmail?.trim()
-      const clinicPayload: CreateClinicPayload = {
-        name: values.clinicName,
-        contactEmail: clinicEmail ? clinicEmail : undefined,
-        contactPhone: values.clinicPhone || undefined,
-      }
-      const newClinic = await createClinic(clinicPayload)
-      clinicId = newClinic.id
-    }
-
-    const contactEmail = values.contactEmail?.trim()
-    const payload: CreatePrescriberPayload = {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      contactEmail: contactEmail ? contactEmail : undefined,
-      contactPhone: values.contactPhone || undefined,
-      clinicId,
-    }
-
-    await createPrescriber(payload)
-    resetPrescriberForm()
-  }
-
-  const onCreateReview = async (values: ReviewFormValues) => {
-    const payload: CreateHmrReviewPayload = {
-      patientId: Number(values.patientId),
+  const onCreateReview = async (values: any) => {
+    await createReview({
+      ...values,
+      patientId: values.patientId ? Number(values.patientId) : undefined,
       prescriberId: values.prescriberId
         ? Number(values.prescriberId)
         : undefined,
       clinicId: values.clinicId ? Number(values.clinicId) : undefined,
-      referralDate: values.referralDate || undefined,
-      referralReason: values.referralReason || undefined,
-      scheduledAt: values.scheduledAt
-        ? new Date(values.scheduledAt).toISOString()
-        : undefined,
-      followUpDueAt: values.followUpDueAt || undefined,
-      status: (values.status as CreateHmrReviewPayload['status']) ?? undefined,
-    }
-
-    await createReview(payload)
-    resetReviewForm()
+    })
   }
-
-  const sortedReviews = useMemo(() => {
-    return [...reviews].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-  }, [reviews])
-
-  const upcomingFollowUps = useMemo(() => {
-    return reviews.filter(
-      (review) => review.followUpDueAt && review.status !== 'CLAIMED'
-    )
+  const upcomingFollowUps: any[] = []
+  const resetReviewForm = () => {
+    reviewForm.reset()
+    setReviewDialogOpen(false)
+  }
+  const sortedReviews = React.useMemo(() => {
+    if (!Array.isArray(reviews)) return []
+    return [...reviews].sort((a, b) => {
+      const dateA = new Date(a.referralDate || 0).getTime()
+      const dateB = new Date(b.referralDate || 0).getTime()
+      return dateB - dateA
+    })
   }, [reviews])
 
   return (
     <>
-      <PageHero
-        title="Home Medicines Review Dashboard"
-        subtitle="Organise referrals, patient interviews, and follow-up workflows"
-        description="Track patients, prescribers, and HMR progress in one place so you can focus on delivering actionable insights."
-        backgroundVariant="gradient"
-      />
-
       <main className="bg-white py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
-              {error}
-            </div>
-          )}
+          {/* Dialogs */}
+          <AddPatientDialog
+            open={isPatientDialogOpen}
+            onOpenChange={setPatientDialogOpen}
+            form={patientForm}
+            onSubmit={onCreatePatient}
+            onCancel={resetPatientForm}
+          />
+          <AddPrescriberDialog
+            open={isPrescriberDialogOpen}
+            onOpenChange={setPrescriberDialogOpen}
+            form={prescriberForm}
+            clinics={clinics}
+            formMode={prescriberFormMode}
+            setFormMode={setPrescriberFormMode}
+            onSubmit={onCreatePrescriber}
+            onCancel={resetPrescriberForm}
+          />
+          <AddReviewDialog
+            open={isReviewDialogOpen}
+            onOpenChange={setReviewDialogOpen}
+            form={reviewForm}
+            patients={patients}
+            prescribers={prescribers}
+            clinics={clinics}
+            review={selectedReview}
+            onSubmit={
+              selectedReview
+                ? async (values) => {
+                    // Convert null patientId to undefined for backend compatibility
+                    const payload = {
+                      ...values,
+                      patientId:
+                        values.patientId === null
+                          ? undefined
+                          : values.patientId,
+                    }
+                    await updateReview(selectedReview.id, payload)
+                    setSelectedReview(null)
+                    resetReviewForm()
+                  }
+                : onCreateReview
+            }
+            onDelete={
+              selectedReview
+                ? async () => {
+                    await deleteReview(selectedReview.id)
+                    setSelectedReview(null)
+                    resetReviewForm()
+                  }
+                : undefined
+            }
+            onCancel={() => {
+              setSelectedReview(null)
+              resetReviewForm()
+            }}
+          />
 
-          <section>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-              <StatsCard
-                title="Patients"
-                value={stats.totalPatients}
-                description="Active in the HMR program"
-              />
-              <StatsCard
-                title="Reviews in Progress"
-                value={stats.activeReviews}
-                description="Open or scheduled"
-              />
-              <StatsCard
-                title="Follow-ups Due"
-                value={stats.followUpsDue}
-                description="Requires attention today"
-                highlight={stats.followUpsDue > 0}
-              />
-              <StatsCard
-                title="Prescribers"
-                value={stats.prescriberCount}
-                description="Linked referrers"
-              />
-            </div>
-          </section>
-
+          {/* Workflow Overview and Actions */}
           <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-2xl font-heading font-semibold text-gray-900">
@@ -340,6 +189,16 @@ const HmrDashboardPage: React.FC = () => {
                 Manage patients, prescribers, and HMR activity. Use the actions
                 to add new records.
               </p>
+              <div className="mt-6">
+                <StatsCard
+                  stats={{
+                    patients: stats.totalPatients,
+                    prescribers: stats.prescriberCount,
+                    clinics: clinics.length,
+                    reviews: stats.activeReviews,
+                  }}
+                />
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -363,6 +222,7 @@ const HmrDashboardPage: React.FC = () => {
             </div>
           </section>
 
+          {/* Tabs and Content */}
           <section>
             <Tabs defaultValue="reviews">
               <TabsList className="mb-4">
@@ -371,7 +231,6 @@ const HmrDashboardPage: React.FC = () => {
                 <TabsTrigger value="prescribers">Prescribers</TabsTrigger>
                 <TabsTrigger value="followups">Upcoming Follow-ups</TabsTrigger>
               </TabsList>
-
               <TabsContent value="reviews">
                 <Card>
                   <CardHeader>
@@ -385,64 +244,59 @@ const HmrDashboardPage: React.FC = () => {
                     ) : sortedReviews.length === 0 ? (
                       <EmptyState message="No HMR reviews yet. Create your first review to get started." />
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <TableHeaderCell>Patient</TableHeaderCell>
-                              <TableHeaderCell>Status</TableHeaderCell>
-                              <TableHeaderCell>Prescriber</TableHeaderCell>
-                              <TableHeaderCell>Referral Date</TableHeaderCell>
-                              <TableHeaderCell>Scheduled</TableHeaderCell>
-                              <TableHeaderCell>Follow-up</TableHeaderCell>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {sortedReviews.map((review) => (
-                              <tr
-                                key={review.id}
-                                className="bg-white hover:bg-gray-50"
+                      <Table
+                        headers={[
+                          'Patient',
+                          'Status',
+                          'Prescriber',
+                          'Referral Date',
+                          'Scheduled',
+                          'Follow-up',
+                        ]}
+                      >
+                        {sortedReviews.map((review) => (
+                          <tr
+                            key={review.id}
+                            className="bg-white hover:bg-gray-50 cursor-pointer"
+                            onClick={() => handleReviewRowClick(review)}
+                          >
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              <span className="font-medium text-gray-900">
+                                {review.patient?.firstName}{' '}
+                                {review.patient?.lastName}
+                              </span>
+                              {review.referralReason && (
+                                <p className="text-sm text-gray-500">
+                                  {review.referralReason}
+                                </p>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              <Badge
+                                variant={
+                                  statusVariantMap[review.status] ?? 'outline'
+                                }
                               >
-                                <TableCell>
-                                  <span className="font-medium text-gray-900">
-                                    {review.patient?.firstName}{' '}
-                                    {review.patient?.lastName}
-                                  </span>
-                                  {review.referralReason && (
-                                    <p className="text-sm text-gray-500">
-                                      {review.referralReason}
-                                    </p>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={
-                                      statusVariantMap[review.status] ??
-                                      'outline'
-                                    }
-                                  >
-                                    {review.status.replace('_', ' ')}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {review.prescriber
-                                    ? `${review.prescriber.firstName} ${review.prescriber.lastName}`
-                                    : '—'}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(review.referralDate)}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(review.scheduledAt)}
-                                </TableCell>
-                                <TableCell>
-                                  {formatDate(review.followUpDueAt)}
-                                </TableCell>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                {review.status.replace('_', ' ')}
+                              </Badge>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              {review.prescriber
+                                ? `${review.prescriber.firstName} ${review.prescriber.lastName}`
+                                : '—'}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              {formatDate(review.referralDate)}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              {formatDate(review.scheduledAt)}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                              {formatDate(review.followUpDueAt)}
+                            </td>
+                          </tr>
+                        ))}
+                      </Table>
                     )}
                   </CardContent>
                 </Card>
@@ -587,641 +441,8 @@ const HmrDashboardPage: React.FC = () => {
           </section>
         </div>
       </main>
-
-      <Dialog open={isPatientDialogOpen} onOpenChange={setPatientDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Patient</DialogTitle>
-            <DialogDescription>
-              Capture the basics so you can start an HMR referral for this
-              patient.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...patientForm}>
-            <form
-              className="space-y-4"
-              onSubmit={patientForm.handleSubmit(onCreatePatient)}
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={patientForm.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Jane" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={patientForm.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Citizen" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={patientForm.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of birth</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={patientForm.control}
-                  name="contactPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Mobile or landline" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={patientForm.control}
-                name="contactEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="patient@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={patientForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        rows={3}
-                        placeholder="Clinical notes, supports, key concerns"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetPatientForm}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={patientForm.formState.isSubmitting}
-                >
-                  {patientForm.formState.isSubmitting
-                    ? 'Saving...'
-                    : 'Save Patient'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isPrescriberDialogOpen}
-        onOpenChange={setPrescriberDialogOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Prescriber</DialogTitle>
-            <DialogDescription>
-              Link the prescriber to an existing clinic or create a new clinic
-              in one step.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...prescriberForm}>
-            <form
-              className="space-y-4"
-              onSubmit={prescriberForm.handleSubmit(onCreatePrescriber)}
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={prescriberForm.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Alex" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={prescriberForm.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Smith" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={prescriberForm.control}
-                  name="contactEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="prescriber@example.com"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={prescriberForm.control}
-                  name="contactPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Contact number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <FormLabel>Clinic</FormLabel>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={
-                      prescriberFormMode === 'existing' ? 'default' : 'outline'
-                    }
-                    onClick={() => setPrescriberFormMode('existing')}
-                  >
-                    Existing
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      prescriberFormMode === 'new' ? 'default' : 'outline'
-                    }
-                    onClick={() => setPrescriberFormMode('new')}
-                  >
-                    New Clinic
-                  </Button>
-                </div>
-              </div>
-
-              {prescriberFormMode === 'existing' ? (
-                <FormField
-                  control={prescriberForm.control}
-                  name="clinicSelection"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select clinic</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => field.onChange(value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose a clinic" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clinics.length === 0 ? (
-                              <SelectItem value="none">
-                                No clinics available
-                              </SelectItem>
-                            ) : (
-                              clinics.map((clinic) => (
-                                <SelectItem
-                                  key={clinic.id}
-                                  value={String(clinic.id)}
-                                >
-                                  {clinic.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={prescriberForm.control}
-                    name="clinicName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Clinic name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Example Medical Centre"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={prescriberForm.control}
-                    name="clinicEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Clinic email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="team@examplemedical.com"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={prescriberForm.control}
-                    name="clinicPhone"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Clinic phone</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Clinic contact number"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetPrescriberForm}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={prescriberForm.formState.isSubmitting}
-                >
-                  {prescriberForm.formState.isSubmitting
-                    ? 'Saving...'
-                    : 'Save Prescriber'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isReviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create HMR Review</DialogTitle>
-            <DialogDescription>
-              Schedule the review, capture referral details, and assign the
-              prescriber.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...reviewForm}>
-            <form
-              className="space-y-4"
-              onSubmit={reviewForm.handleSubmit(onCreateReview)}
-            >
-              <FormField
-                control={reviewForm.control}
-                name="patientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Patient</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => field.onChange(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a patient" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {patients.length === 0 ? (
-                            <SelectItem value="">
-                              No patients available
-                            </SelectItem>
-                          ) : (
-                            patients.map((patient) => (
-                              <SelectItem
-                                key={patient.id}
-                                value={String(patient.id)}
-                              >
-                                {patient.firstName} {patient.lastName}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={reviewForm.control}
-                  name="prescriberId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Prescriber (optional)</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => field.onChange(value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select prescriber" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">Unassigned</SelectItem>
-                            {prescribers.map((prescriber) => (
-                              <SelectItem
-                                key={prescriber.id}
-                                value={String(prescriber.id)}
-                              >
-                                {prescriber.firstName} {prescriber.lastName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={reviewForm.control}
-                  name="clinicId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Clinic (optional)</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => field.onChange(value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select clinic" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">Not specified</SelectItem>
-                            {clinics.map((clinic) => (
-                              <SelectItem
-                                key={clinic.id}
-                                value={String(clinic.id)}
-                              >
-                                {clinic.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <FormField
-                  control={reviewForm.control}
-                  name="referralDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Referral date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={reviewForm.control}
-                  name="scheduledAt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Scheduled interview</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={reviewForm.control}
-                  name="followUpDueAt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Follow-up due</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={reviewForm.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => field.onChange(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            'PENDING',
-                            'ACCEPTED',
-                            'SCHEDULED',
-                            'IN_PROGRESS',
-                            'COMPLETED',
-                            'CLAIMED',
-                            'CANCELLED',
-                          ].map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status.replace('_', ' ')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={reviewForm.control}
-                name="referralReason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Referral reason</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        rows={3}
-                        placeholder="Reason for referral, key issues to explore"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetReviewForm}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={reviewForm.formState.isSubmitting}
-                >
-                  {reviewForm.formState.isSubmitting
-                    ? 'Creating...'
-                    : 'Create Review'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
-
-interface StatsCardProps {
-  title: string
-  value: number
-  description: string
-  highlight?: boolean
-}
-
-const StatsCard: React.FC<StatsCardProps> = ({
-  title,
-  value,
-  description,
-  highlight,
-}) => {
-  return (
-    <Card
-      className={
-        highlight
-          ? 'border border-amber-300 bg-amber-50'
-          : 'border border-gray-200'
-      }
-    >
-      <CardContent className="pt-6">
-        <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
-          {title}
-        </p>
-        <div className="mt-2 text-3xl font-heading font-semibold text-gray-900">
-          {value}
-        </div>
-        <p className="mt-2 text-sm text-gray-600">{description}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-const TableHeaderCell: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-    {children}
-  </th>
-)
-
-const TableCell: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
-    {children}
-  </td>
-)
-
-const LoadingState: React.FC = () => (
-  <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-    Loading data…
-  </div>
-)
-
-const EmptyState: React.FC<{ message: string }> = ({ message }) => (
-  <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-    {message}
-  </div>
-)
 
 export default HmrDashboardPage
