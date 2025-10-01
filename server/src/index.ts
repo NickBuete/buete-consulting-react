@@ -1,19 +1,21 @@
-import { createApp, port } from './app';
-import { prisma } from './db/prisma';
+import { createApp, port } from './app'
+import { prisma } from './db/prisma'
+import { logger } from './utils/logger'
 
-const app = createApp();
+const app = createApp()
 
 const server = app.listen(port, () => {
-  console.log(`API listening on port ${port}`); // eslint-disable-line no-console
-});
+  logger.info({ port }, 'API server started')
+})
 
 const gracefulShutdown = async (signal: string) => {
-  console.log(`Received ${signal}. Shutting down gracefully.`); // eslint-disable-line no-console
+  logger.info({ signal }, 'Shutting down gracefully')
   server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-};
+    await prisma.$disconnect()
+    logger.info('Database disconnected')
+    process.exit(0)
+  })
+}
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))

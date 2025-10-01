@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../db/prisma'
+import { dbLogger } from '../utils/logger'
 
 const router = Router()
 
@@ -23,7 +24,7 @@ router.get('/health', async (req: Request, res: Response) => {
 
     res.status(200).json(healthCheck)
   } catch (error) {
-    console.error('Health check failed:', error)
+    dbLogger.error({ error }, 'Health check failed')
     res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -43,7 +44,7 @@ router.get('/ready', async (req: Request, res: Response) => {
     await prisma.$queryRaw`SELECT 1`
     res.status(200).send('OK')
   } catch (error) {
-    console.error('Readiness check failed:', error)
+    dbLogger.error({ error }, 'Readiness check failed')
     res.status(503).send('Not Ready')
   }
 })

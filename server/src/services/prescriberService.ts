@@ -1,5 +1,6 @@
 import { Prisma } from '../generated/prisma'
 import { prisma } from '../db/prisma'
+import { getCached, invalidateCache } from '../utils/cache'
 import type {
   PrescriberCreateInput,
   PrescriberUpdateInput,
@@ -24,16 +25,20 @@ const buildClinicCreateRelation = (
 
 // Prescribers are now SHARED resources - no tenant isolation
 export const listPrescribers = async () => {
-  return prisma.prescriber.findMany({
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    include: { clinic: true },
+  return getCached('prescribers:list', async () => {
+    return prisma.prescriber.findMany({
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      include: { clinic: true },
+    })
   })
 }
 
 export const getPrescriberById = async (id: number) => {
-  return prisma.prescriber.findUnique({
-    where: { id },
-    include: { clinic: true, hmrReviews: true },
+  return getCached(`prescribers:${id}`, async () => {
+    return prisma.prescriber.findUnique({
+      where: { id },
+      include: { clinic: true, hmrReviews: true },
+    })
   })
 }
 
@@ -60,10 +65,13 @@ export const createPrescriber = async (data: PrescriberCreateInput) => {
     createData.clinic = buildClinicCreateRelation(data.clinic)
   }
 
-  return prisma.prescriber.create({
+  const prescriber = await prisma.prescriber.create({
     data: createData,
     include: { clinic: true },
   })
+
+  invalidateCache('prescribers:')
+  return prescriber
 }
 
 export const updatePrescriber = async (
@@ -119,16 +127,24 @@ export const updatePrescriber = async (
     }
   }
 
-  return prisma.prescriber.update({
+  const prescriber = await prisma.prescriber.update({
     where: { id },
     data: updatePayload,
     include: { clinic: true },
   })
+
+  invalidateCache('prescribers:')
+  return prescriber
 }
 
 export const deletePrescriber = async (id: number) => {
   const deleted = await prisma.prescriber
     .delete({ where: { id } })
     .catch(() => null)
+
+  if (deleted) {
+    invalidateCache('prescribers:')
+  }
+
   return deleted !== null
 }

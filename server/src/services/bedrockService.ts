@@ -3,6 +3,7 @@ import {
   InvokeModelCommand,
   InvokeModelCommandInput,
 } from '@aws-sdk/client-bedrock-runtime'
+import { aiLogger } from '../utils/logger'
 
 // Initialize Bedrock client
 const client = new BedrockRuntimeClient({
@@ -114,7 +115,10 @@ export async function invokeClaude(
 
     throw new Error('No content in response')
   } catch (error) {
-    console.error('Bedrock invocation error:', error)
+    aiLogger.error(
+      { error, model, promptLength: prompt.length },
+      'Bedrock invocation failed'
+    )
     throw new Error(
       `Failed to invoke Bedrock model: ${
         error instanceof Error ? error.message : 'Unknown error'

@@ -1,5 +1,6 @@
 import { Prisma } from '../generated/prisma'
 import { prisma } from '../db/prisma'
+import { getCached, invalidateCache } from '../utils/cache'
 import type {
   ClinicCreateInput,
   ClinicUpdateInput,
@@ -7,16 +8,20 @@ import type {
 
 // Clinics are now SHARED resources - no tenant isolation
 export const listClinics = async () => {
-  return prisma.clinic.findMany({
-    orderBy: { name: 'asc' },
-    include: { prescribers: true },
+  return getCached('clinics:list', async () => {
+    return prisma.clinic.findMany({
+      orderBy: { name: 'asc' },
+      include: { prescribers: true },
+    })
   })
 }
 
 export const getClinicById = async (id: number) => {
-  return prisma.clinic.findUnique({
-    where: { id },
-    include: { prescribers: true },
+  return getCached(`clinics:${id}`, async () => {
+    return prisma.clinic.findUnique({
+      where: { id },
+      include: { prescribers: true },
+    })
   })
 }
 
@@ -33,7 +38,9 @@ export const createClinic = async (data: ClinicCreateInput) => {
     notes: data.notes ?? null,
   }
 
-  return prisma.clinic.create({ data: createData })
+  const clinic = await prisma.clinic.create({ data: createData })
+  invalidateCache('clinics:')
+  return clinic
 }
 
 export const updateClinic = async (id: number, data: ClinicUpdateInput) => {
@@ -72,15 +79,23 @@ export const updateClinic = async (id: number, data: ClinicUpdateInput) => {
     return null
   }
 
-  return prisma.clinic.update({
+  const clinic = await prisma.clinic.update({
     where: { id },
     data: updatePayload,
   })
+
+  invalidateCache('clinics:')
+  return clinic
 }
 
 export const deleteClinic = async (id: number) => {
   const deleted = await prisma.clinic
     .delete({ where: { id } })
     .catch(() => null)
+
+  if (deleted) {
+    invalidateCache('clinics:')
+  }
+
   return deleted !== null
 }

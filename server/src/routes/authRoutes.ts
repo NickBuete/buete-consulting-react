@@ -5,6 +5,8 @@ import { UserRole } from '../generated/prisma'
 import { prisma } from '../db/prisma'
 import { signToken } from '../utils/jwt'
 import { authenticate } from '../middleware/auth'
+import { authLimiter } from '../middleware/rateLimiter'
+import { authLogger } from '../utils/logger'
 
 const router = Router()
 
@@ -20,7 +22,7 @@ const registrationSchema = z.object({
     }),
 })
 
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const payload = registrationSchema.parse(req.body ?? {})
 
@@ -62,20 +64,18 @@ router.post('/register', async (req, res) => {
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({
-          message: 'Invalid registration payload',
-          issues: error.flatten(),
-        })
+      return res.status(400).json({
+        message: 'Invalid registration payload',
+        issues: error.flatten(),
+      })
     }
 
-    console.error(error) // eslint-disable-line no-console
+    authLogger.error({ error }, 'Registration error')
     return res.status(500).json({ message: 'Internal server error' })
   }
 })
 
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body ?? {}
 
   if (typeof email !== 'string' || typeof password !== 'string') {
