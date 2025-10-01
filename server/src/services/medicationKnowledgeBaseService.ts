@@ -199,7 +199,7 @@ export const upsertMedicationKnowledgeBase = async (
       route: route || null,
       notes: notes || null,
       usageCount: 1,
-    };
+    }
 
     if (indication) {
       createData.indications = {
@@ -207,7 +207,7 @@ export const upsertMedicationKnowledgeBase = async (
           indication,
           usageCount: 1,
         },
-      };
+      }
     }
 
     medication = await prisma.medication.create({

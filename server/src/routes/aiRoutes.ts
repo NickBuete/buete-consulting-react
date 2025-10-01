@@ -73,7 +73,9 @@ router.post('/recommendations', async (req: Request, res: Response) => {
         ...(med.indication && { indication: med.indication }),
       })),
       symptoms: allSymptoms,
-      ...(review.pastMedicalHistory && { medicalHistory: review.pastMedicalHistory }),
+      ...(review.pastMedicalHistory && {
+        medicalHistory: review.pastMedicalHistory,
+      }),
       ...(review.allergies && { allergies: review.allergies }),
       ...(patientAge && { age: patientAge }),
       ...(review.medicalGoals && { goals: review.medicalGoals }),
@@ -140,7 +142,9 @@ router.post('/assessment-summary', async (req: Request, res: Response) => {
       symptoms: allSymptoms,
       ...(review.medicalGoals && { goals: review.medicalGoals }),
       ...(review.goalBarriers && { barriers: review.goalBarriers }),
-      ...(review.livingArrangement && { livingArrangement: review.livingArrangement }),
+      ...(review.livingArrangement && {
+        livingArrangement: review.livingArrangement,
+      }),
       ...(review.socialSupport && { socialSupport: review.socialSupport }),
     })
 
