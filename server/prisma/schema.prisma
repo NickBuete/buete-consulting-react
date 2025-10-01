@@ -208,17 +208,17 @@ model Patient {
 }
 
 model Medication {
-  id          Int                   @id @default(autoincrement())
-  name        String                @db.VarChar(255)
-  genericName String?               @map("generic_name") @db.VarChar(255)
-  form        String?               @db.VarChar(100)
-  strength    String?               @db.VarChar(100)
-  route       String?               @db.VarChar(100)
+  id          Int                    @id @default(autoincrement())
+  name        String                 @db.VarChar(255)
+  genericName String?                @map("generic_name") @db.VarChar(255)
+  form        String?                @db.VarChar(100)
+  strength    String?                @db.VarChar(100)
+  route       String?                @db.VarChar(100)
   notes       String?
-  isActive    Boolean               @default(true) @map("is_active")
-  usageCount  Int                   @default(0) @map("usage_count") // Track popularity
-  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamp(6)
+  isActive    Boolean                @default(true) @map("is_active")
+  usageCount  Int                    @default(0) @map("usage_count") // Track popularity
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamp(6)
   hmrEntries  HmrMedication[]
   indications MedicationIndication[]
 

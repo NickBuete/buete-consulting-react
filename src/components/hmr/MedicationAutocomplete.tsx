@@ -23,22 +23,29 @@ interface MedicationAutocompleteProps {
   initialValue?: string
 }
 
-export const MedicationAutocomplete: React.FC<
-  MedicationAutocompleteProps
-> = ({ onSelect, placeholder = 'Search medications...', className, initialValue = '' }) => {
+export const MedicationAutocomplete: React.FC<MedicationAutocompleteProps> = ({
+  onSelect,
+  placeholder = 'Search medications...',
+  className,
+  initialValue = '',
+}) => {
   const [query, setQuery] = useState(initialValue)
   const [results, setResults] = useState<Medication[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const [showIndicationPicker, setShowIndicationPicker] = useState<Medication | null>(null)
+  const [showIndicationPicker, setShowIndicationPicker] =
+    useState<Medication | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false)
         setShowIndicationPicker(null)
       }
@@ -118,15 +125,11 @@ export const MedicationAutocomplete: React.FC<
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setSelectedIndex((prev) =>
-          prev < results.length - 1 ? prev + 1 : 0
-        )
+        setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0))
         break
       case 'ArrowUp':
         e.preventDefault()
-        setSelectedIndex((prev) =>
-          prev > 0 ? prev - 1 : results.length - 1
-        )
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1))
         break
       case 'Enter':
         e.preventDefault()
@@ -254,9 +257,7 @@ export const MedicationAutocomplete: React.FC<
                 </span>
               )}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Select an indication:
-            </p>
+            <p className="text-sm text-gray-600 mt-1">Select an indication:</p>
           </div>
 
           {showIndicationPicker.indications.map((indication) => (
@@ -264,7 +265,9 @@ export const MedicationAutocomplete: React.FC<
               key={indication.id}
               type="button"
               className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
-              onClick={() => handleSelect(showIndicationPicker, indication.indication)}
+              onClick={() =>
+                handleSelect(showIndicationPicker, indication.indication)
+              }
             >
               <div className="flex items-center justify-between">
                 <span className="text-gray-900">{indication.indication}</span>

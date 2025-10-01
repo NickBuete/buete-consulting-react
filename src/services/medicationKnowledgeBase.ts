@@ -80,7 +80,9 @@ export const searchIndications = async (
   limit: number = 20
 ): Promise<string[]> => {
   const response = await api.get<IndicationsSearchResponse>(
-    `/medications/indications/search?q=${encodeURIComponent(query)}&limit=${limit}`
+    `/medications/indications/search?q=${encodeURIComponent(
+      query
+    )}&limit=${limit}`
   )
   return response.indications
 }

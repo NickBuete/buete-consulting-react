@@ -9,6 +9,7 @@ After the initial AWS Bedrock integration, the backend server failed to start du
 ## Errors Encountered
 
 ### 1. Module Not Found Error
+
 ```
 Error: Cannot find module '../db'
 Require stack:
@@ -18,6 +19,7 @@ Require stack:
 **Root Cause**: The import path `import { prisma } from '../db'` was incorrect. The project structure uses `../db/prisma.ts` to export the Prisma client.
 
 **Fix Applied**:
+
 ```typescript
 // Before (incorrect)
 import { prisma } from '../db'
@@ -29,6 +31,7 @@ import { prisma } from '../db/prisma'
 ---
 
 ### 2. Handler Required Error
+
 ```
 TypeError: argument handler is required
     at Function.use (.../node_modules/router/index.js:385:11)
@@ -38,6 +41,7 @@ TypeError: argument handler is required
 **Root Cause**: The middleware import was incorrect. The project uses `authenticate` but the code tried to import `authenticateToken`.
 
 **Fix Applied**:
+
 ```typescript
 // Before (incorrect)
 import { authenticateToken } from '../middleware/auth'
@@ -55,18 +59,21 @@ router.use(authenticate)
 ### `/server/src/routes/aiRoutes.ts`
 
 **Line 8**: Changed import path for Prisma
+
 ```typescript
-import { prisma } from '../db/prisma'  // Was: '../db'
+import { prisma } from '../db/prisma' // Was: '../db'
 ```
 
 **Line 7**: Changed middleware import
+
 ```typescript
-import { authenticate } from '../middleware/auth'  // Was: authenticateToken
+import { authenticate } from '../middleware/auth' // Was: authenticateToken
 ```
 
 **Line 13**: Changed middleware usage
+
 ```typescript
-router.use(authenticate)  // Was: authenticateToken
+router.use(authenticate) // Was: authenticateToken
 ```
 
 ---
@@ -76,17 +83,20 @@ router.use(authenticate)  // Was: authenticateToken
 After applying these fixes:
 
 ✅ **Backend Server**: Started successfully on port 4000
+
 ```
 API listening on port 4000
 ```
 
 ✅ **Route Registration**: AI routes properly registered at `/api/ai`
 
-✅ **Middleware Chain**: 
+✅ **Middleware Chain**:
+
 - Authentication: `authenticate` middleware
 - Authorization: `authorize(UserRole.PRO, UserRole.ADMIN)`
 
 ✅ **Available Endpoints**:
+
 - `POST /api/ai/recommendations` - Generate medication recommendations
 - `POST /api/ai/assessment-summary` - Generate patient assessment
 - `POST /api/ai/enhance-section` - Enhance report sections
@@ -133,6 +143,7 @@ import {
 ## Next Steps
 
 1. **Configure AWS Credentials** in `server/.env`:
+
    ```env
    AWS_REGION="us-east-1"
    AWS_ACCESS_KEY_ID="your-key-here"
@@ -140,6 +151,7 @@ import {
    ```
 
 2. **Test AI Endpoints**:
+
    ```bash
    # Health check
    curl http://localhost:4000/api/ai/health \

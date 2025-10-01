@@ -301,9 +301,7 @@ export const searchIndications = async (
 /**
  * Deactivate a medication (soft delete)
  */
-export const deactivateMedication = async (
-  id: number
-): Promise<void> => {
+export const deactivateMedication = async (id: number): Promise<void> => {
   await prisma.medication.update({
     where: { id },
     data: { isActive: false },

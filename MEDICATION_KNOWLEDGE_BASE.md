@@ -19,7 +19,7 @@ The **Medication Knowledge Base** is an intelligent auto-learning system that st
 ✅ **Multiple indications** - Same medication can have many indications  
 ✅ **Popularity tracking** - Most-used medications appear first  
 ✅ **Fuzzy search** - Finds medications even with partial spelling  
-✅ **Indication picker** - Select from known indications when adding  
+✅ **Indication picker** - Select from known indications when adding
 
 ---
 
@@ -42,14 +42,15 @@ model Medication {
   usageCount  Int      @default(0)      // Tracks popularity
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   indications MedicationIndication[]
-  
+
   @@unique([name, strength, form]) // Prevent duplicates
 }
 ```
 
 **Key Changes**:
+
 - Added `genericName` field
 - Added `isActive` for soft deletes
 - Added `usageCount` to track popularity
@@ -66,7 +67,7 @@ model MedicationIndication {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   medication   Medication @relation(...)
-  
+
   @@unique([medicationId, indication]) // Prevent duplicate indications
 }
 ```
@@ -84,23 +85,27 @@ model MedicationIndication {
 #### Key Functions
 
 1. **`searchMedications(query, limit)`**
+
    - Searches by medication name, generic name, or indication
    - Case-insensitive fuzzy search
    - Returns medications sorted by popularity
    - Includes all indications per medication
 
 2. **`upsertMedicationKnowledgeBase(input)`**
+
    - Creates new medication or updates existing
    - Increments `usageCount` on each use
    - Auto-adds new indications
    - Smart duplicate detection
 
 3. **`getPopularMedications(limit)`**
+
    - Returns most-used medications
    - Sorted by `usageCount` descending
    - Useful for "quick add" buttons
 
 4. **`searchIndications(query, limit)`**
+
    - Search indications only
    - For indication autocomplete
 
@@ -113,22 +118,24 @@ model MedicationIndication {
 
 #### New Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/medications/search?q={query}&limit={n}` | Search medications |
-| GET | `/api/medications/popular?limit={n}` | Get popular medications |
-| GET | `/api/medications/indications/search?q={query}` | Search indications |
-| POST | `/api/medications/knowledge-base` | Add to knowledge base |
-| GET | `/api/medications/:id` | Get medication by ID |
+| Method | Endpoint                                        | Description             |
+| ------ | ----------------------------------------------- | ----------------------- |
+| GET    | `/api/medications/search?q={query}&limit={n}`   | Search medications      |
+| GET    | `/api/medications/popular?limit={n}`            | Get popular medications |
+| GET    | `/api/medications/indications/search?q={query}` | Search indications      |
+| POST   | `/api/medications/knowledge-base`               | Add to knowledge base   |
+| GET    | `/api/medications/:id`                          | Get medication by ID    |
 
 #### Example Requests
 
 **Search Medications**:
+
 ```bash
 GET /api/medications/search?q=metformin&limit=10
 ```
 
 **Response**:
+
 ```json
 {
   "results": [
@@ -159,6 +166,7 @@ GET /api/medications/search?q=metformin&limit=10
 ```
 
 **Add to Knowledge Base**:
+
 ```bash
 POST /api/medications/knowledge-base
 Content-Type: application/json
@@ -196,7 +204,7 @@ await addToKnowledgeBase({
   name: 'Metformin',
   strength: '500mg',
   form: 'tablet',
-  indication: 'Type 2 Diabetes'
+  indication: 'Type 2 Diabetes',
 })
 ```
 
@@ -246,24 +254,28 @@ function MyComponent() {
 ### How It Works
 
 1. **User Adds Medication**
+
    - Types in MedicationAutocomplete component
    - Autocomplete shows matching medications
    - User selects medication
 
 2. **Multiple Indications**
+
    - If medication has >1 indication, shows indication picker
    - User selects specific indication
    - If medication has 1 indication, auto-selects
    - If no indications, proceeds without indication
 
 3. **Auto-Learning**
+
    - After user saves medication to HMR, call:
+
    ```typescript
    await addToKnowledgeBase({
      name: medication.name,
      strength: medication.strength,
      form: medication.form,
-     indication: medication.indication
+     indication: medication.indication,
    })
    ```
 
@@ -374,11 +386,13 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
         value={medication.dose}
         onChange={(e) => setMedication({ ...medication, dose: e.target.value })}
       />
-      
+
       <Input
         label="Frequency"
         value={medication.frequency}
-        onChange={(e) => setMedication({ ...medication, frequency: e.target.value })}
+        onChange={(e) =>
+          setMedication({ ...medication, frequency: e.target.value })
+        }
       />
 
       {/* If user types new medication, allow manual entry */}
@@ -387,17 +401,23 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
           <Input
             label="Strength"
             value={medication.strength}
-            onChange={(e) => setMedication({ ...medication, strength: e.target.value })}
+            onChange={(e) =>
+              setMedication({ ...medication, strength: e.target.value })
+            }
           />
           <Input
             label="Form"
             value={medication.form}
-            onChange={(e) => setMedication({ ...medication, form: e.target.value })}
+            onChange={(e) =>
+              setMedication({ ...medication, form: e.target.value })
+            }
           />
           <Input
             label="Indication"
             value={medication.indication}
-            onChange={(e) => setMedication({ ...medication, indication: e.target.value })}
+            onChange={(e) =>
+              setMedication({ ...medication, indication: e.target.value })
+            }
           />
         </>
       )}
@@ -418,14 +438,14 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
 ✅ **Consistent data** - Standardized medication names  
 ✅ **Smart suggestions** - Popular medications appear first  
 ✅ **Learn as you go** - System gets smarter with use  
-✅ **Multiple indications** - Handle real-world complexity  
+✅ **Multiple indications** - Handle real-world complexity
 
 ### For System
 
 ✅ **Data quality** - Fewer typos and variations  
 ✅ **Analytics ready** - Standardized data for reporting  
 ✅ **Scalable** - Indexed searches with Prisma  
-✅ **Intelligent** - Usage tracking improves UX over time  
+✅ **Intelligent** - Usage tracking improves UX over time
 
 ---
 
@@ -434,12 +454,14 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
 ### Manual Testing Steps
 
 1. **Test Search**:
+
    ```bash
    curl http://localhost:4000/api/medications/search?q=metf \
      -H "Authorization: Bearer YOUR_TOKEN"
    ```
 
 2. **Add Medication**:
+
    ```bash
    curl -X POST http://localhost:4000/api/medications/knowledge-base \
      -H "Content-Type: application/json" \
@@ -453,6 +475,7 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
    ```
 
 3. **Verify Usage Count**:
+
    - Add same medication again
    - Check `usageCount` incremented
 
@@ -477,23 +500,28 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
 ### Planned Features
 
 1. **Drug Interaction Checking**
+
    - Integrate with drug interaction APIs
    - Warn about contraindications
 
 2. **Australian Medicines** - Pre-populate with PBS data
+
    - Import PBS (Pharmaceutical Benefits Scheme) medications
    - Include PBS restrictions and requirements
 
 3. **Admin Dashboard**
+
    - View most-used medications
    - Merge duplicate entries
    - Edit/deactivate medications
 
 4. **Bulk Import**
+
    - CSV upload for medication database
    - Import from MIMS or other sources
 
 5. **AI-Powered Suggestions**
+
    - Use AWS Bedrock to suggest indications
    - Analyze prescription patterns
 
@@ -508,18 +536,23 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
 ### Common Issues
 
 #### Issue: Search returns no results
+
 **Solution**: Check that `isActive = true` and medications exist in DB
 
 #### Issue: Duplicate medications created
+
 **Solution**: Unique constraint prevents this. Check name+strength+form combination
 
 #### Issue: Autocomplete slow
-**Solution**: 
+
+**Solution**:
+
 - Check database indexes on `name`, `genericName`, `indication`
 - Reduce search limit
 - Increase debounce delay
 
 #### Issue: Indication not saving
+
 **Solution**: Check `addToKnowledgeBase()` is called after medication save
 
 ---
@@ -530,7 +563,7 @@ function MedicationForm({ hmrReviewId }: { hmrReviewId: number }) {
 ✅ **Backend**: 5 new API endpoints + smart upsert logic  
 ✅ **Frontend**: MedicationAutocomplete component + service layer  
 ✅ **Features**: Auto-learning, multi-indication support, popularity tracking  
-✅ **Ready**: Integration-ready for HMR medication forms  
+✅ **Ready**: Integration-ready for HMR medication forms
 
 **Next Step**: Integrate `MedicationAutocomplete` component into your medication entry forms!
 
