@@ -1,26 +1,26 @@
-import { Prisma } from '../generated/prisma';
-import { withTenantContext } from '../db/tenant';
-import type { ClinicCreateInput, ClinicUpdateInput } from '../validators/clinicSchemas';
+import { Prisma } from '../generated/prisma'
+import { prisma } from '../db/prisma'
+import type {
+  ClinicCreateInput,
+  ClinicUpdateInput,
+} from '../validators/clinicSchemas'
 
-export const listClinics = async (ownerId: number) => {
-  return withTenantContext(ownerId, (tx) =>
-    tx.clinic.findMany({
-      where: { ownerId },
-      orderBy: { name: 'asc' },
-    }),
-  );
-};
+// Clinics are now SHARED resources - no tenant isolation
+export const listClinics = async () => {
+  return prisma.clinic.findMany({
+    orderBy: { name: 'asc' },
+    include: { prescribers: true },
+  })
+}
 
-export const getClinicById = async (ownerId: number, id: number) => {
-  return withTenantContext(ownerId, (tx) =>
-    tx.clinic.findFirst({
-      where: { id, ownerId },
-      include: { prescribers: true },
-    }),
-  );
-};
+export const getClinicById = async (id: number) => {
+  return prisma.clinic.findUnique({
+    where: { id },
+    include: { prescribers: true },
+  })
+}
 
-export const createClinic = async (ownerId: number, data: ClinicCreateInput) => {
+export const createClinic = async (data: ClinicCreateInput) => {
   const createData: Prisma.ClinicCreateInput = {
     name: data.name,
     contactEmail: data.contactEmail ?? null,
@@ -31,60 +31,56 @@ export const createClinic = async (ownerId: number, data: ClinicCreateInput) => 
     state: data.state ?? null,
     postcode: data.postcode ?? null,
     notes: data.notes ?? null,
-  };
+  }
 
-  createData.owner = { connect: { id: ownerId } };
+  return prisma.clinic.create({ data: createData })
+}
 
-  return withTenantContext(ownerId, (tx) => tx.clinic.create({ data: createData }));
-};
-
-export const updateClinic = async (ownerId: number, id: number, data: ClinicUpdateInput) => {
-  const updatePayload: Prisma.ClinicUpdateInput = {};
+export const updateClinic = async (id: number, data: ClinicUpdateInput) => {
+  const updatePayload: Prisma.ClinicUpdateInput = {}
 
   if (typeof data.name !== 'undefined') {
-    updatePayload.name = data.name;
+    updatePayload.name = data.name
   }
   if (typeof data.contactEmail !== 'undefined') {
-    updatePayload.contactEmail = data.contactEmail ?? null;
+    updatePayload.contactEmail = data.contactEmail ?? null
   }
   if (typeof data.contactPhone !== 'undefined') {
-    updatePayload.contactPhone = data.contactPhone ?? null;
+    updatePayload.contactPhone = data.contactPhone ?? null
   }
   if (typeof data.addressLine1 !== 'undefined') {
-    updatePayload.addressLine1 = data.addressLine1 ?? null;
+    updatePayload.addressLine1 = data.addressLine1 ?? null
   }
   if (typeof data.addressLine2 !== 'undefined') {
-    updatePayload.addressLine2 = data.addressLine2 ?? null;
+    updatePayload.addressLine2 = data.addressLine2 ?? null
   }
   if (typeof data.suburb !== 'undefined') {
-    updatePayload.suburb = data.suburb ?? null;
+    updatePayload.suburb = data.suburb ?? null
   }
   if (typeof data.state !== 'undefined') {
-    updatePayload.state = data.state ?? null;
+    updatePayload.state = data.state ?? null
   }
   if (typeof data.postcode !== 'undefined') {
-    updatePayload.postcode = data.postcode ?? null;
+    updatePayload.postcode = data.postcode ?? null
   }
   if (typeof data.notes !== 'undefined') {
-    updatePayload.notes = data.notes ?? null;
+    updatePayload.notes = data.notes ?? null
   }
 
-  return withTenantContext(ownerId, async (tx) => {
-    const existing = await tx.clinic.findFirst({ where: { id, ownerId } });
-    if (!existing) {
-      return null;
-    }
+  const existing = await prisma.clinic.findUnique({ where: { id } })
+  if (!existing) {
+    return null
+  }
 
-    return tx.clinic.update({
-      where: { id },
-      data: updatePayload,
-    });
-  });
-};
+  return prisma.clinic.update({
+    where: { id },
+    data: updatePayload,
+  })
+}
 
-export const deleteClinic = async (ownerId: number, id: number) => {
-  return withTenantContext(ownerId, async (tx) => {
-    const deleted = await tx.clinic.deleteMany({ where: { id, ownerId } });
-    return deleted.count > 0;
-  });
-};
+export const deleteClinic = async (id: number) => {
+  const deleted = await prisma.clinic
+    .delete({ where: { id } })
+    .catch(() => null)
+  return deleted !== null
+}

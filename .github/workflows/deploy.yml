@@ -1,0 +1,277 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: buete-consulting/backend
+  ECS_CLUSTER: buete-consulting-cluster
+  ECS_SERVICE: backend-service
+  ECS_TASK_DEFINITION: server/ecs-task-definition.json
+  CONTAINER_NAME: backend
+  S3_BUCKET: buete-consulting-frontend
+  CLOUDFRONT_DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+jobs:
+  # Build and test backend
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./server
+        run: npm run prisma:generate
+
+      - name: Build TypeScript
+        working-directory: ./server
+        run: npm run build
+
+  # Build and test frontend
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          REACT_APP_API_URL: https://api.yourdomain.com
+        run: npm run build
+
+  # Deploy backend to ECS
+  deploy-backend:
+    name: Deploy Backend to ECS
+    runs-on: ubuntu-latest
+    needs: [test-backend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd server
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition buete-consulting-backend \
+            --query taskDefinition > task-definition.json
+
+      - name: Update ECS task definition with new image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+
+          # Get the ALB endpoint
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --query "LoadBalancers[?contains(LoadBalancerName, 'buete-consulting')].DNSName" \
+            --output text)
+
+          echo "Testing health endpoint: http://$ALB_DNS/api/health"
+          curl -f http://$ALB_DNS/api/health || echo "Health check failed"
+
+  # Deploy frontend to S3/CloudFront
+  deploy-frontend:
+    name: Deploy Frontend to S3/CloudFront
+    runs-on: ubuntu-latest
+    needs: [test-frontend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_VERSION: ${{ github.sha }}
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync to S3
+        run: |
+          # Upload static assets with long cache
+          aws s3 sync build/ s3://${{ env.S3_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "service-worker.js" \
+            --exclude "manifest.json" \
+            --exclude "robots.txt"
+
+          # Upload index.html with no cache
+          aws s3 cp build/index.html s3://${{ env.S3_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --metadata-directive REPLACE
+
+          # Upload service worker with no cache
+          aws s3 cp build/service-worker.js s3://${{ env.S3_BUCKET }}/service-worker.js \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --metadata-directive REPLACE || echo "No service worker found"
+
+          # Upload manifest and robots with short cache
+          aws s3 cp build/manifest.json s3://${{ env.S3_BUCKET }}/manifest.json \
+            --cache-control "public, max-age=3600" \
+            --metadata-directive REPLACE || echo "No manifest found"
+
+          aws s3 cp build/robots.txt s3://${{ env.S3_BUCKET }}/robots.txt \
+            --cache-control "public, max-age=3600" \
+            --metadata-directive REPLACE || echo "No robots.txt found"
+
+      - name: Invalidate CloudFront cache
+        if: env.CLOUDFRONT_DISTRIBUTION != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION }} \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Frontend deployed successfully!"
+          echo "📦 Build: ${{ github.sha }}"
+          echo "🌐 S3 Bucket: ${{ env.S3_BUCKET }}"
+          if [ -n "${{ env.CLOUDFRONT_DISTRIBUTION }}" ]; then
+            echo "☁️ CloudFront: ${{ env.CLOUDFRONT_DISTRIBUTION }}"
+          fi
+
+  # Post-deployment verification
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check backend health
+        run: |
+          echo "Checking backend health..."
+          BACKEND_URL="${{ secrets.REACT_APP_API_URL }}"
+
+          if [ -n "$BACKEND_URL" ]; then
+            response=$(curl -s -o /dev/null -w "%{http_code}" $BACKEND_URL/health)
+            if [ $response -eq 200 ]; then
+              echo "✅ Backend is healthy"
+            else
+              echo "❌ Backend health check failed with status $response"
+              exit 1
+            fi
+          else
+            echo "⚠️ REACT_APP_API_URL not set, skipping backend health check"
+          fi
+
+      - name: Check frontend
+        run: |
+          echo "Checking frontend..."
+          if [ -n "${{ env.CLOUDFRONT_DISTRIBUTION }}" ]; then
+            CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution \
+              --id ${{ env.CLOUDFRONT_DISTRIBUTION }} \
+              --query "Distribution.DomainName" \
+              --output text)
+            
+            response=$(curl -s -o /dev/null -w "%{http_code}" https://$CLOUDFRONT_DOMAIN)
+            if [ $response -eq 200 ]; then
+              echo "✅ Frontend is accessible"
+            else
+              echo "❌ Frontend check failed with status $response"
+              exit 1
+            fi
+          else
+            echo "⚠️ CloudFront distribution not set, skipping frontend check"
+          fi
+
+      - name: Deployment complete
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "Backend: ${{ secrets.REACT_APP_API_URL }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"

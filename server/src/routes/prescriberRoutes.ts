@@ -44,8 +44,7 @@ const handlePrismaError = (error: unknown, res: Response) => {
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const ownerId = req.user!.id;
-    const prescribers = await listPrescribers(ownerId);
+    const prescribers = await listPrescribers();
     res.json(prescribers);
   }),
 );
@@ -56,8 +55,7 @@ router.post(
     const payload = prescriberCreateSchema.parse(req.body);
 
     try {
-      const ownerId = req.user!.id;
-      const prescriber = await createPrescriber(ownerId, payload);
+      const prescriber = await createPrescriber(payload);
       if (!prescriber) {
         return res.status(404).json({ message: 'Clinic not found' });
       }
@@ -77,8 +75,7 @@ router.get(
       return res.status(400).json({ message: 'Invalid prescriber id' });
     }
 
-    const ownerId = req.user!.id;
-    const prescriber = await getPrescriberById(ownerId, id);
+    const prescriber = await getPrescriberById(id);
     if (!prescriber) {
       return res.status(404).json({ message: 'Prescriber not found' });
     }
@@ -98,8 +95,7 @@ router.patch(
     const payload = prescriberUpdateSchema.parse(req.body);
 
     try {
-      const ownerId = req.user!.id;
-      const prescriber = await updatePrescriber(ownerId, id, payload);
+      const prescriber = await updatePrescriber(id, payload);
       if (!prescriber) {
         return res.status(404).json({ message: 'Prescriber not found' });
       }
@@ -120,8 +116,7 @@ router.delete(
     }
 
     try {
-      const ownerId = req.user!.id;
-      const deleted = await deletePrescriber(ownerId, id);
+      const deleted = await deletePrescriber(id);
       if (!deleted) {
         return res.status(404).json({ message: 'Prescriber not found' });
       }

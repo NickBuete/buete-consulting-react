@@ -155,6 +155,56 @@ export interface HmrAuditLog {
   createdAt: string
 }
 
+export interface HmrMedicalHistory {
+  id: number
+  hmrReviewId: number
+  year: string | null
+  condition: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HmrMedicalHistoryInput {
+  year: string | null
+  condition: string
+  notes: string | null
+}
+
+export interface HmrAllergy {
+  id: number
+  hmrReviewId: number
+  allergen: string
+  reaction: string | null
+  severity: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HmrAllergyInput {
+  allergen: string
+  reaction: string | null
+  severity: string | null
+}
+
+export interface HmrPathology {
+  id: number
+  hmrReviewId: number
+  date: string | null
+  test: string
+  result: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HmrPathologyInput {
+  date: string | null
+  test: string
+  result: string
+  notes: string | null
+}
+
 export interface HmrReview {
   id: number
   patientId: number
@@ -177,9 +227,9 @@ export interface HmrReview {
   visitLocation: string | null
   visitNotes: string | null
   assessmentSummary: string | null
-  pastMedicalHistory: string | null
-  allergies: string | null
-  pathology: string | null
+  pastMedicalHistory: string | null // Deprecated - kept for backward compatibility
+  allergies: string | null // Deprecated - kept for backward compatibility
+  pathology: string | null // Deprecated - kept for backward compatibility
   medicalGoals: string | null
   goalBarriers: string | null
   livingArrangement: LivingArrangement | null
@@ -220,6 +270,9 @@ export interface HmrReview {
   actionItems?: HmrActionItem[]
   attachments?: HmrAttachment[]
   auditLogs?: HmrAuditLog[]
+  medicalHistory?: HmrMedicalHistory[]
+  allergiesTable?: HmrAllergy[]
+  pathologyResults?: HmrPathology[]
 }
 
 export interface CreatePatientPayload {
@@ -268,6 +321,9 @@ export interface CreateHmrReviewPayload {
   followUpDueAt?: string | null
   visitLocation?: string | null
   visitNotes?: string | null
+  medicalHistory?: HmrMedicalHistoryInput[]
+  allergiesTable?: HmrAllergyInput[]
+  pathologyResults?: HmrPathologyInput[]
 }
 
 export interface DashboardSnapshot {

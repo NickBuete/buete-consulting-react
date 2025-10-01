@@ -13,7 +13,7 @@ const registrationSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   role: z.nativeEnum(UserRole).default(UserRole.BASIC).refine(
-    (value) => [UserRole.BASIC, UserRole.PRO].includes(value),
+    (value) => value === UserRole.BASIC || value === UserRole.PRO,
     { message: 'Invalid role' },
   ),
 });

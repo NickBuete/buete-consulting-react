@@ -58,8 +58,6 @@ model User {
   uploadedAttachments   HmrAttachment[]      @relation("AttachmentUploader")
   auditLogs             HmrAuditLog[]        @relation("AuditLogUser")
   patients              Patient[]
-  clinics               Clinic[]
-  prescribers           Prescriber[]
   reviews               HmrReview[]
   reports               HmrReport[]          @relation("UserReports")
   educationEntries      HmrEducationAdvice[]
@@ -131,7 +129,6 @@ enum UserRole {
 
 model Clinic {
   id           Int          @id @default(autoincrement())
-  ownerId      Int          @map("owner_id")
   name         String       @db.VarChar(150)
   contactEmail String?      @map("contact_email") @db.VarChar(150)
   contactPhone String?      @map("contact_phone") @db.VarChar(50)
@@ -143,17 +140,14 @@ model Clinic {
   notes        String?
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
-  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   prescribers  Prescriber[]
   hmrReviews   HmrReview[]
 
-  @@index([ownerId])
   @@map("clinics")
 }
 
 model Prescriber {
   id             Int         @id @default(autoincrement())
-  ownerId        Int         @map("owner_id")
   clinicId       Int?        @map("clinic_id")
   honorific      String?     @db.VarChar(30)
   firstName      String      @map("first_name") @db.VarChar(100)
@@ -165,11 +159,9 @@ model Prescriber {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
   clinic         Clinic?     @relation(fields: [clinicId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  owner          User        @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   hmrReviews     HmrReview[]
 
   @@index([clinicId])
-  @@index([ownerId])
   @@map("prescribers")
 }
 
@@ -312,6 +304,9 @@ model HmrReview {
   report               HmrReport?           @relation("ReviewReport")
   education            HmrEducationAdvice[]
   recommendations      HmrRecommendation[]
+  medicalHistory       HmrMedicalHistory[]
+  allergiesTable       HmrAllergy[]
+  pathologyResults     HmrPathology[]
 
   @@index([patientId])
   @@index([prescriberId])
@@ -480,4 +475,47 @@ enum HmrReportStatus {
   DRAFT
   READY
   SIGNED_OFF
+}
+
+model HmrMedicalHistory {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @map("hmr_review_id")
+  year        String?   @db.VarChar(10)
+  condition   String    @db.VarChar(500)
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview   HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([hmrReviewId])
+  @@map("hmr_medical_history")
+}
+
+model HmrAllergy {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @map("hmr_review_id")
+  allergen    String    @db.VarChar(255)
+  reaction    String?   @db.VarChar(255)
+  severity    String?   @db.VarChar(50)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview   HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([hmrReviewId])
+  @@map("hmr_allergies")
+}
+
+model HmrPathology {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @map("hmr_review_id")
+  date        String?   @db.VarChar(50)
+  test        String    @db.VarChar(255)
+  result      String    @db.VarChar(500)
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview   HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([hmrReviewId])
+  @@map("hmr_pathology")
 }

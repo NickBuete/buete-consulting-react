@@ -1,14 +1,13 @@
-import { Prisma } from '../generated/prisma';
-import { withTenantContext } from '../db/tenant';
+import { Prisma } from '../generated/prisma'
+import { prisma } from '../db/prisma'
 import type {
   PrescriberCreateInput,
   PrescriberUpdateInput,
-} from '../validators/prescriberSchemas';
-import type { ClinicCreateInput } from '../validators/clinicSchemas';
+} from '../validators/prescriberSchemas'
+import type { ClinicCreateInput } from '../validators/clinicSchemas'
 
 const buildClinicCreateRelation = (
-  ownerId: number,
-  clinic: ClinicCreateInput,
+  clinic: ClinicCreateInput
 ): Prisma.ClinicCreateNestedOneWithoutPrescribersInput => ({
   create: {
     name: clinic.name,
@@ -20,30 +19,25 @@ const buildClinicCreateRelation = (
     state: clinic.state ?? null,
     postcode: clinic.postcode ?? null,
     notes: clinic.notes ?? null,
-    owner: { connect: { id: ownerId } },
   },
-});
+})
 
-export const listPrescribers = async (ownerId: number) => {
-  return withTenantContext(ownerId, (tx) =>
-    tx.prescriber.findMany({
-      where: { ownerId },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      include: { clinic: true },
-    }),
-  );
-};
+// Prescribers are now SHARED resources - no tenant isolation
+export const listPrescribers = async () => {
+  return prisma.prescriber.findMany({
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    include: { clinic: true },
+  })
+}
 
-export const getPrescriberById = async (ownerId: number, id: number) => {
-  return withTenantContext(ownerId, (tx) =>
-    tx.prescriber.findFirst({
-      where: { id, ownerId },
-      include: { clinic: true, hmrReviews: true },
-    }),
-  );
-};
+export const getPrescriberById = async (id: number) => {
+  return prisma.prescriber.findUnique({
+    where: { id },
+    include: { clinic: true, hmrReviews: true },
+  })
+}
 
-export const createPrescriber = async (ownerId: number, data: PrescriberCreateInput) => {
+export const createPrescriber = async (data: PrescriberCreateInput) => {
   const createData: Prisma.PrescriberCreateInput = {
     honorific: data.honorific ?? null,
     firstName: data.firstName,
@@ -52,87 +46,89 @@ export const createPrescriber = async (ownerId: number, data: PrescriberCreateIn
     contactEmail: data.contactEmail ?? null,
     contactPhone: data.contactPhone ?? null,
     notes: data.notes ?? null,
-  };
+  }
 
-  createData.owner = { connect: { id: ownerId } };
-
-  return withTenantContext(ownerId, async (tx) => {
-    if (data.clinicId) {
-      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
-      if (!clinic) {
-        return null;
-      }
-      createData.clinic = { connect: { id: clinic.id } };
-    } else if (data.clinic) {
-      createData.clinic = buildClinicCreateRelation(ownerId, data.clinic);
+  if (data.clinicId) {
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: data.clinicId },
+    })
+    if (!clinic) {
+      return null
     }
+    createData.clinic = { connect: { id: clinic.id } }
+  } else if (data.clinic) {
+    createData.clinic = buildClinicCreateRelation(data.clinic)
+  }
 
-    return tx.prescriber.create({
-      data: createData,
-      include: { clinic: true },
-    });
-  });
-};
+  return prisma.prescriber.create({
+    data: createData,
+    include: { clinic: true },
+  })
+}
 
-export const updatePrescriber = async (ownerId: number, id: number, data: PrescriberUpdateInput) => {
-  const updatePayload: Prisma.PrescriberUpdateInput = {};
+export const updatePrescriber = async (
+  id: number,
+  data: PrescriberUpdateInput
+) => {
+  const updatePayload: Prisma.PrescriberUpdateInput = {}
 
   if (typeof data.honorific !== 'undefined') {
-    updatePayload.honorific = data.honorific ?? null;
+    updatePayload.honorific = data.honorific ?? null
   }
   if (typeof data.firstName !== 'undefined') {
-    updatePayload.firstName = data.firstName;
+    updatePayload.firstName = data.firstName
   }
   if (typeof data.lastName !== 'undefined') {
-    updatePayload.lastName = data.lastName;
+    updatePayload.lastName = data.lastName
   }
   if (typeof data.providerNumber !== 'undefined') {
-    updatePayload.providerNumber = data.providerNumber ?? null;
+    updatePayload.providerNumber = data.providerNumber ?? null
   }
   if (typeof data.contactEmail !== 'undefined') {
-    updatePayload.contactEmail = data.contactEmail ?? null;
+    updatePayload.contactEmail = data.contactEmail ?? null
   }
   if (typeof data.contactPhone !== 'undefined') {
-    updatePayload.contactPhone = data.contactPhone ?? null;
+    updatePayload.contactPhone = data.contactPhone ?? null
   }
   if (typeof data.notes !== 'undefined') {
-    updatePayload.notes = data.notes ?? null;
+    updatePayload.notes = data.notes ?? null
   }
-  return withTenantContext(ownerId, async (tx) => {
-    const existing = await tx.prescriber.findFirst({ where: { id, ownerId } });
-    if (!existing) {
-      return null;
-    }
 
-    if (typeof data.clinicId !== 'undefined') {
-      if (data.clinicId) {
-        const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
-        if (!clinic) {
-          return null;
-        }
-        updatePayload.clinic = { connect: { id: clinic.id } };
-      } else {
-        updatePayload.clinic = { disconnect: true };
+  const existing = await prisma.prescriber.findUnique({ where: { id } })
+  if (!existing) {
+    return null
+  }
+
+  if (typeof data.clinicId !== 'undefined') {
+    if (data.clinicId) {
+      const clinic = await prisma.clinic.findUnique({
+        where: { id: data.clinicId },
+      })
+      if (!clinic) {
+        return null
       }
-    } else if (typeof data.clinic !== 'undefined') {
-      if (data.clinic) {
-        updatePayload.clinic = buildClinicCreateRelation(ownerId, data.clinic);
-      } else {
-        updatePayload.clinic = { disconnect: true };
-      }
+      updatePayload.clinic = { connect: { id: clinic.id } }
+    } else {
+      updatePayload.clinic = { disconnect: true }
     }
+  } else if (typeof data.clinic !== 'undefined') {
+    if (data.clinic) {
+      updatePayload.clinic = buildClinicCreateRelation(data.clinic)
+    } else {
+      updatePayload.clinic = { disconnect: true }
+    }
+  }
 
-    return tx.prescriber.update({
-      where: { id },
-      data: updatePayload,
-      include: { clinic: true },
-    });
-  });
-};
+  return prisma.prescriber.update({
+    where: { id },
+    data: updatePayload,
+    include: { clinic: true },
+  })
+}
 
-export const deletePrescriber = async (ownerId: number, id: number) => {
-  return withTenantContext(ownerId, async (tx) => {
-    const deleted = await tx.prescriber.deleteMany({ where: { id, ownerId } });
-    return deleted.count > 0;
-  });
-};
+export const deletePrescriber = async (id: number) => {
+  const deleted = await prisma.prescriber
+    .delete({ where: { id } })
+    .catch(() => null)
+  return deleted !== null
+}

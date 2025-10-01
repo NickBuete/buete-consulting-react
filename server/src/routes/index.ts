@@ -15,8 +15,12 @@ import { hmrReportRouter } from './hmrReportRoutes'
 import { hmrEducationRouter } from './hmrEducationRoutes'
 import { hmrRecommendationRouter } from './hmrRecommendationRoutes'
 import aiRoutes from './aiRoutes'
+import healthRoutes from './healthRoutes'
 
 export const registerRoutes = (app: Express) => {
+  // Health check routes (no authentication required)
+  app.use('/api', healthRoutes)
+
   app.use('/api/auth', authRouter)
 
   app.use(

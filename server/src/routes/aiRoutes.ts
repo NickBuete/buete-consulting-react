@@ -68,15 +68,15 @@ router.post('/recommendations', async (req: Request, res: Response) => {
     const recommendations = await generateHmrRecommendations({
       medications: review.medications.map((med) => ({
         name: med.name,
-        dose: med.dose || undefined,
-        frequency: med.frequency || undefined,
-        indication: med.indication || undefined,
+        ...(med.dose && { dose: med.dose }),
+        ...(med.frequency && { frequency: med.frequency }),
+        ...(med.indication && { indication: med.indication }),
       })),
       symptoms: allSymptoms,
-      medicalHistory: review.pastMedicalHistory || undefined,
-      allergies: review.allergies || undefined,
-      age: patientAge,
-      goals: review.medicalGoals || undefined,
+      ...(review.pastMedicalHistory && { medicalHistory: review.pastMedicalHistory }),
+      ...(review.allergies && { allergies: review.allergies }),
+      ...(patientAge && { age: patientAge }),
+      ...(review.medicalGoals && { goals: review.medicalGoals }),
     })
 
     res.json({ recommendations })
@@ -134,14 +134,14 @@ router.post('/assessment-summary', async (req: Request, res: Response) => {
       name: patientName,
       medications: review.medications.map((med) => ({
         name: med.name,
-        dose: med.dose || undefined,
-        frequency: med.frequency || undefined,
+        ...(med.dose && { dose: med.dose }),
+        ...(med.frequency && { frequency: med.frequency }),
       })),
       symptoms: allSymptoms,
-      goals: review.medicalGoals || undefined,
-      barriers: review.goalBarriers || undefined,
-      livingArrangement: review.livingArrangement || undefined,
-      socialSupport: review.socialSupport || undefined,
+      ...(review.medicalGoals && { goals: review.medicalGoals }),
+      ...(review.goalBarriers && { barriers: review.goalBarriers }),
+      ...(review.livingArrangement && { livingArrangement: review.livingArrangement }),
+      ...(review.socialSupport && { socialSupport: review.socialSupport }),
     })
 
     res.json({ summary })

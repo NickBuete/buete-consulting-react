@@ -18,7 +18,7 @@ import {
   ReportForm,
 } from '../../components/hmr'
 import { ArrowLeft } from 'lucide-react'
-import type { HmrReview } from '../../types/hmr'
+import type { HmrReview, CreateHmrReviewPayload } from '../../types/hmr'
 import { getHmrReviewById, updateHmrReview } from '../../services/hmr'
 
 const HmrReviewDetailPage: React.FC = () => {
@@ -70,7 +70,9 @@ const HmrReviewDetailPage: React.FC = () => {
     }
   }
 
-  const handleDataEntrySubmit = async (data: Partial<HmrReview>) => {
+  const handleDataEntrySubmit = async (
+    data: Partial<CreateHmrReviewPayload>
+  ) => {
     if (!review) return
     try {
       setSaving(true)

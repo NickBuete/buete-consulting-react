@@ -88,6 +88,9 @@ const baseInclude: Prisma.HmrReviewInclude = {
     take: 20,
     include: { changedBy: true },
   },
+  medicalHistory: { orderBy: { createdAt: 'asc' } },
+  allergiesTable: { orderBy: { createdAt: 'asc' } },
+  pathologyResults: { orderBy: { createdAt: 'desc' } },
 }
 
 const mapMedicationCreate = (
@@ -315,9 +318,8 @@ export const createHmrReview = async (
     claimedAt: data.claimedAt ?? null,
     reportUrl: data.reportUrl ?? null,
     reportBody: data.reportBody ?? null,
+    owner: { connect: { id: ownerId } },
   }
-
-  createData.owner = { connect: { id: ownerId } }
 
   if (data.prescriberId) {
     createData.prescriber = { connect: { id: data.prescriberId } }
@@ -355,8 +357,8 @@ export const createHmrReview = async (
     }
 
     if (data.prescriberId) {
-      const prescriber = await tx.prescriber.findFirst({
-        where: { id: data.prescriberId, ownerId },
+      const prescriber = await tx.prescriber.findUnique({
+        where: { id: data.prescriberId },
       })
       if (!prescriber) {
         return null
@@ -364,8 +366,8 @@ export const createHmrReview = async (
     }
 
     if (data.clinicId) {
-      const clinic = await tx.clinic.findFirst({
-        where: { id: data.clinicId, ownerId },
+      const clinic = await tx.clinic.findUnique({
+        where: { id: data.clinicId },
       })
       if (!clinic) {
         return null
@@ -407,8 +409,8 @@ export const updateHmrReview = async (
       typeof data.prescriberId !== 'undefined' &&
       data.prescriberId !== null
     ) {
-      const prescriber = await tx.prescriber.findFirst({
-        where: { id: data.prescriberId, ownerId },
+      const prescriber = await tx.prescriber.findUnique({
+        where: { id: data.prescriberId },
       })
       if (!prescriber) {
         return null
@@ -416,8 +418,8 @@ export const updateHmrReview = async (
     }
 
     if (typeof data.clinicId !== 'undefined' && data.clinicId !== null) {
-      const clinic = await tx.clinic.findFirst({
-        where: { id: data.clinicId, ownerId },
+      const clinic = await tx.clinic.findUnique({
+        where: { id: data.clinicId },
       })
       if (!clinic) {
         return null
@@ -430,6 +432,53 @@ export const updateHmrReview = async (
       })
       if (!patient) {
         return null
+      }
+    }
+
+    // Handle structured medical history
+    if (typeof data.medicalHistory !== 'undefined') {
+      // Delete all existing entries and recreate
+      await tx.hmrMedicalHistory.deleteMany({ where: { hmrReviewId: id } })
+      if (data.medicalHistory && data.medicalHistory.length > 0) {
+        await tx.hmrMedicalHistory.createMany({
+          data: data.medicalHistory.map((entry) => ({
+            hmrReviewId: id,
+            year: entry.year ?? null,
+            condition: entry.condition,
+            notes: entry.notes ?? null,
+          })),
+        })
+      }
+    }
+
+    // Handle structured allergies
+    if (typeof data.allergiesTable !== 'undefined') {
+      await tx.hmrAllergy.deleteMany({ where: { hmrReviewId: id } })
+      if (data.allergiesTable && data.allergiesTable.length > 0) {
+        await tx.hmrAllergy.createMany({
+          data: data.allergiesTable.map((entry) => ({
+            hmrReviewId: id,
+            allergen: entry.allergen,
+            reaction: entry.reaction ?? null,
+            severity: entry.severity ?? null,
+          })),
+        })
+      }
+    }
+
+    // Handle structured pathology
+    if (typeof data.pathologyResults !== 'undefined') {
+      await tx.hmrPathology.deleteMany({ where: { hmrReviewId: id } })
+      if (data.pathologyResults && data.pathologyResults.length > 0) {
+        await tx.hmrPathology.createMany({
+          data: data.pathologyResults.map((entry) => ({
+            hmrReviewId: id,
+            date: entry.date ?? null,
+            test: entry.test,
+            result: entry.result,
+            notes: entry.notes ?? null,
+          })),
+        })
       }
     }
 

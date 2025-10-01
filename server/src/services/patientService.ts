@@ -73,13 +73,12 @@ export const createPatient = async (ownerId: number, data: PatientCreateInput) =
     usesWebster: data.usesWebster ?? null,
     otherSupports: data.otherSupports ?? null,
     notes: data.notes ?? null,
+    owner: { connect: { id: ownerId } },
   };
 
   if (data.clientId) {
     createData.client = { connect: { id: data.clientId } };
   }
-
-  createData.owner = { connect: { id: ownerId } };
 
   return withTenantContext(ownerId, (tx) =>
     tx.patient.create({

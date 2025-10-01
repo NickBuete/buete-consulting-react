@@ -104,7 +104,7 @@ export async function invokeClaude(
     ) as ClaudeResponse
 
     // Extract the text from the first content block
-    if (responseBody.content && responseBody.content.length > 0) {
+    if (responseBody.content && responseBody.content.length > 0 && responseBody.content[0]) {
       return responseBody.content[0].text
     }
 

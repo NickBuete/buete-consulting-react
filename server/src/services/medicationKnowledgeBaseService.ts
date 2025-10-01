@@ -191,24 +191,27 @@ export const upsertMedicationKnowledgeBase = async (
     }
   } else {
     // Create new medication
+    const createData: any = {
+      name,
+      genericName: genericName || null,
+      form: form || null,
+      strength: strength || null,
+      route: route || null,
+      notes: notes || null,
+      usageCount: 1,
+    };
+
+    if (indication) {
+      createData.indications = {
+        create: {
+          indication,
+          usageCount: 1,
+        },
+      };
+    }
+
     medication = await prisma.medication.create({
-      data: {
-        name,
-        genericName: genericName || null,
-        form: form || null,
-        strength: strength || null,
-        route: route || null,
-        notes: notes || null,
-        usageCount: 1,
-        indications: indication
-          ? {
-              create: {
-                indication,
-                usageCount: 1,
-              },
-            }
-          : undefined,
-      },
+      data: createData,
       include: {
         indications: true,
       },
