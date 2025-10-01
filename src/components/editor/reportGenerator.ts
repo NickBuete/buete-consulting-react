@@ -46,15 +46,17 @@ export const generateReportTemplate = (review: HmrReview): string => {
 <p><strong>Medicare Number:</strong> ${
     review.patient?.medicareNumber || 'Not recorded'
   }</p>
-<p><strong>Address:</strong> ${[
-    review.patient?.addressLine1,
-    review.patient?.addressLine2,
-    review.patient?.suburb,
-    review.patient?.state,
-    review.patient?.postcode,
-  ]
-    .filter(Boolean)
-    .join(', ') || 'Not recorded'}</p>
+<p><strong>Address:</strong> ${
+    [
+      review.patient?.addressLine1,
+      review.patient?.addressLine2,
+      review.patient?.suburb,
+      review.patient?.state,
+      review.patient?.postcode,
+    ]
+      .filter(Boolean)
+      .join(', ') || 'Not recorded'
+  }</p>
 
 <h2>Referral Details</h2>
 <p><strong>Referring Prescriber:</strong> ${prescriberName}</p>
@@ -188,7 +190,9 @@ ${
 }
 ${
   review.usesWebster !== null
-    ? `<p><strong>Webster Pack:</strong> ${review.usesWebster ? 'Yes' : 'No'}</p>`
+    ? `<p><strong>Webster Pack:</strong> ${
+        review.usesWebster ? 'Yes' : 'No'
+      }</p>`
     : ''
 }
 ${
