@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { UserRole } from '../generated/prisma';
+import { UserRole } from '@prisma/client';
 import { verifyToken } from '../utils/jwt';
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {

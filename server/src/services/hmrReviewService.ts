@@ -5,7 +5,7 @@ import {
   MedicationStatus,
   Prisma,
   SymptomType,
-} from '../generated/prisma'
+} from '@prisma/client'
 import { withTenantContext } from '../db/tenant'
 import {
   InvalidTransitionError,

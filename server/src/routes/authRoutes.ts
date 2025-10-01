@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { UserRole } from '../generated/prisma'
+import { UserRole } from '@prisma/client'
 import { prisma } from '../db/prisma'
 import { signToken } from '../utils/jwt'
 import { authenticate } from '../middleware/auth'

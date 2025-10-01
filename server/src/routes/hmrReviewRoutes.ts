@@ -1,6 +1,6 @@
 import type { Response } from 'express'
 import { Router } from 'express'
-import { Prisma, HmrReviewStatus, SymptomType } from '../generated/prisma'
+import { Prisma, HmrReviewStatus, SymptomType } from '@prisma/client'
 
 import {
   addMedicationToReview,

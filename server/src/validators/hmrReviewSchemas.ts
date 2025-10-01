@@ -7,7 +7,7 @@ import {
   LivingArrangement,
   MedicationStatus,
   SymptomType,
-} from '../generated/prisma'
+} from '@prisma/client'
 
 const statusEnum = z.nativeEnum(HmrReviewStatus)
 const livingArrangementEnum = z.nativeEnum(LivingArrangement)

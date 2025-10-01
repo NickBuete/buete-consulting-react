@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma';
 import type { UserCreateInput, UserUpdateInput } from '../validators/userSchemas';
 

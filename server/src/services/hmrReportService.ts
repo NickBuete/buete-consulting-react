@@ -1,4 +1,4 @@
-import { Prisma, HmrReportStatus } from '../generated/prisma';
+import { Prisma, HmrReportStatus } from '@prisma/client';
 import { withTenantContext } from '../db/tenant';
 import type { HmrReportGenerateInput, HmrReportUpsertInput } from '../validators/hmrReportSchemas';
 import { buildReportPrompt } from './hmrReportPromptBuilder';

@@ -2,7 +2,7 @@ import type { Express } from 'express'
 
 import { authenticate } from '../middleware/auth'
 import { authorize } from '../middleware/authorize'
-import { UserRole } from '../generated/prisma'
+import { UserRole } from '@prisma/client'
 import { authRouter } from './authRoutes'
 import { clientRouter } from './clientRoutes'
 import { userRouter } from './userRoutes'

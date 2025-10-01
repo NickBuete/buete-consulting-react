@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { LivingArrangement } from '../generated/prisma';
+import { LivingArrangement } from '@prisma/client';
 
 const livingArrangementEnum = z.nativeEnum(LivingArrangement);
 

@@ -1,4 +1,4 @@
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import { withTenantContext } from '../db/tenant';
 import type {
   HmrRecommendationCreateInput,

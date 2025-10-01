@@ -1,4 +1,4 @@
-import type { HmrReviewStatus } from '../generated/prisma'
+import type { HmrReviewStatus } from '@prisma/client'
 
 /**
  * Workflow transition rules: defines valid next statuses for each current status
