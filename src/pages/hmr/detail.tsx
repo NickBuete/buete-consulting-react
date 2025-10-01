@@ -189,7 +189,7 @@ const HmrReviewDetailPage: React.FC = () => {
                   <TabsContent value="overview" className="space-y-4">
                     <div className="prose max-w-none">
                       <h3 className="text-lg font-semibold">Review Overview</h3>
-                      
+
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">
@@ -222,7 +222,9 @@ const HmrReviewDetailPage: React.FC = () => {
                           <span className="font-medium text-gray-700">
                             Referral Reason:
                           </span>
-                          <p className="text-gray-600">{review.referralReason}</p>
+                          <p className="text-gray-600">
+                            {review.referralReason}
+                          </p>
                         </div>
                       )}
 
@@ -307,14 +309,15 @@ const HmrReviewDetailPage: React.FC = () => {
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold">HMR Report</h3>
                       <p className="text-gray-600">
-                        Report generation will be available once the interview is
-                        completed.
+                        Report generation will be available once the interview
+                        is completed.
                       </p>
                       {review.status === 'REPORT_DRAFT' ||
                       review.status === 'REPORT_READY' ? (
                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                           <p className="text-sm text-blue-800">
-                            Report generation functionality coming in next step...
+                            Report generation functionality coming in next
+                            step...
                           </p>
                         </div>
                       ) : (

@@ -49,13 +49,14 @@ export const DataEntryForm: React.FC<DataEntryFormProps> = ({
       pastMedicalHistory: review.pastMedicalHistory || '',
       allergies: review.allergies || '',
       pathology: review.pathology || '',
-      medications: review.medications?.map((m) => ({
-        name: m.name,
-        dose: m.dose || '',
-        frequency: m.frequency || '',
-        indication: m.indication || '',
-        notes: m.notes || '',
-      })) || [],
+      medications:
+        review.medications?.map((m) => ({
+          name: m.name,
+          dose: m.dose || '',
+          frequency: m.frequency || '',
+          indication: m.indication || '',
+          notes: m.notes || '',
+        })) || [],
     },
   })
 
@@ -104,8 +105,8 @@ export const DataEntryForm: React.FC<DataEntryFormProps> = ({
                 {review.patient?.firstName} {review.patient?.lastName}
               </h3>
               <p className="text-sm text-blue-700">
-                DOB: {review.patient?.dateOfBirth || 'Not provided'} |
-                Medicare: {review.patient?.medicareNumber || 'Not provided'}
+                DOB: {review.patient?.dateOfBirth || 'Not provided'} | Medicare:{' '}
+                {review.patient?.medicareNumber || 'Not provided'}
               </p>
             </div>
             <div className="text-right">

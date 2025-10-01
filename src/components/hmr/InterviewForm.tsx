@@ -130,9 +130,8 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                 HMR Interview
               </h2>
               <p className="text-sm text-green-700">
-                Patient: {review.patient?.firstName}{' '}
-                {review.patient?.lastName} | Date:{' '}
-                {new Date().toLocaleDateString('en-AU')}
+                Patient: {review.patient?.firstName} {review.patient?.lastName}{' '}
+                | Date: {new Date().toLocaleDateString('en-AU')}
               </p>
             </div>
           </div>
@@ -369,7 +368,10 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Mobility Concerns</FormLabel>
                       <FormControl>
-                        <Input placeholder="Walking aids, limitations" {...field} />
+                        <Input
+                          placeholder="Walking aids, limitations"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -382,7 +384,10 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Falls</FormLabel>
                       <FormControl>
-                        <Input placeholder="Recent falls, near misses" {...field} />
+                        <Input
+                          placeholder="Recent falls, near misses"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -405,7 +410,10 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Bladder Control</FormLabel>
                       <FormControl>
-                        <Input placeholder="Any issues or concerns" {...field} />
+                        <Input
+                          placeholder="Any issues or concerns"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -418,7 +426,10 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Bowel Control</FormLabel>
                       <FormControl>
-                        <Input placeholder="Frequency, consistency" {...field} />
+                        <Input
+                          placeholder="Frequency, consistency"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -483,9 +494,7 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                           <SelectItem value="WITH_FAMILY">
                             With family
                           </SelectItem>
-                          <SelectItem value="WITH_CARER">
-                            With carer
-                          </SelectItem>
+                          <SelectItem value="WITH_CARER">With carer</SelectItem>
                           <SelectItem value="RESIDENTIAL_AGED_CARE">
                             Residential aged care
                           </SelectItem>
@@ -512,9 +521,7 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                             : 'no'
                         }
                         onValueChange={(v) =>
-                          field.onChange(
-                            v === 'unknown' ? null : v === 'yes'
-                          )
+                          field.onChange(v === 'unknown' ? null : v === 'yes')
                         }
                       >
                         <FormControl>
@@ -556,10 +563,7 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Other Supports</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Services, equipment"
-                          {...field}
-                        />
+                        <Input placeholder="Services, equipment" {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -595,7 +599,10 @@ export const InterviewForm: React.FC<InterviewFormProps> = ({
                     <FormItem>
                       <FormLabel>Bruising</FormLabel>
                       <FormControl>
-                        <Input placeholder="Unusual bruising noted" {...field} />
+                        <Input
+                          placeholder="Unusual bruising noted"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}

@@ -1,9 +1,7 @@
-
 export {
   WorkflowStatus,
   WORKFLOW_STAGES,
   getNextStatus,
-  
 } from './WorkflowStatus'
 export { WorkflowProgress } from './WorkflowProgress'
 export { WorkflowStepper } from './WorkflowStepper'
