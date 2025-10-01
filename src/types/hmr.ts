@@ -190,11 +190,31 @@ export interface HmrReview {
   claimedAt: string | null
   reportUrl: string | null
   reportBody: string | null
+  reportContent: string | null // HTML content for TipTap editor
+  // Interview symptom fields
+  dizziness: string | null
+  drowsiness: string | null
+  fatigue: string | null
+  memory: string | null
+  anxiety: string | null
+  sleep: string | null
+  headaches: string | null
+  pain: string | null
+  mobility: string | null
+  falls: string | null
+  bladderControl: string | null
+  bowelControl: string | null
+  nightSymptoms: string | null
+  signsOfBleeding: string | null
+  rashes: string | null
+  bruising: string | null
+  socialSupport: string | null
   createdAt: string
   updatedAt: string
   patient?: Patient
   prescriber?: Prescriber | null
   clinic?: Clinic | null
+  user?: { id: number; name: string; mrnNumber?: string | null } | null
   medications?: HmrMedication[]
   symptoms?: HmrSymptom[]
   actionItems?: HmrActionItem[]

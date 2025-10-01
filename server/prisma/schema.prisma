@@ -257,6 +257,25 @@ model HmrReview {
   claimedAt            DateTime?            @map("claimed_at")
   reportUrl            String?              @map("report_url") @db.VarChar(255)
   reportBody           String?              @map("report_body")
+  reportContent        String?              @map("report_content") // HTML content for TipTap editor
+  // Interview symptom fields
+  dizziness            String?
+  drowsiness           String?
+  fatigue              String?
+  memory               String?
+  anxiety              String?
+  sleep                String?
+  headaches            String?
+  pain                 String?
+  mobility             String?
+  falls                String?
+  bladderControl       String?              @map("bladder_control")
+  bowelControl         String?              @map("bowel_control")
+  nightSymptoms        String?              @map("night_symptoms")
+  signsOfBleeding      String?              @map("signs_of_bleeding")
+  rashes               String?
+  bruising             String?
+  socialSupport        String?              @map("social_support")
   createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamp(6)
   patient              Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)

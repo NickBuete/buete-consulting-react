@@ -15,6 +15,7 @@ import {
   WorkflowInfoCard,
   DataEntryForm,
   InterviewForm,
+  ReportForm,
 } from '../../components/hmr'
 import { ArrowLeft } from 'lucide-react'
 import type { HmrReview } from '../../types/hmr'
@@ -45,6 +46,8 @@ const HmrReviewDetailPage: React.FC = () => {
         setActiveTab('data-entry')
       } else if (data.status === 'INTERVIEW') {
         setActiveTab('interview')
+      } else if (['REPORT_DRAFT', 'REPORT_READY'].includes(data.status)) {
+        setActiveTab('report')
       }
     } catch (error) {
       console.error('Failed to load review:', error)
@@ -92,6 +95,21 @@ const HmrReviewDetailPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to save interview:', error)
       alert('Failed to save interview')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReportSubmit = async (data: Partial<HmrReview>) => {
+    if (!review) return
+    try {
+      setSaving(true)
+      await updateHmrReview(review.id, data)
+      await loadReview()
+      alert('Report saved successfully')
+    } catch (error) {
+      console.error('Failed to save report:', error)
+      alert('Failed to save report')
     } finally {
       setSaving(false)
     }
@@ -306,28 +324,11 @@ const HmrReviewDetailPage: React.FC = () => {
 
                   {/* Report Tab */}
                   <TabsContent value="report">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">HMR Report</h3>
-                      <p className="text-gray-600">
-                        Report generation will be available once the interview
-                        is completed.
-                      </p>
-                      {review.status === 'REPORT_DRAFT' ||
-                      review.status === 'REPORT_READY' ? (
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                          <p className="text-sm text-blue-800">
-                            Report generation functionality coming in next
-                            step...
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
-                          <p className="text-sm text-gray-600">
-                            Complete the interview to generate the report.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <ReportForm
+                      review={review}
+                      onSubmit={handleReportSubmit}
+                      loading={saving}
+                    />
                   </TabsContent>
                 </Tabs>
               </CardContent>

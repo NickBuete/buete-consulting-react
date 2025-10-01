@@ -2,6 +2,8 @@ export { Table } from './Table'
 export { StatsCard } from './StatsCard'
 export { EmptyState } from './EmptyState'
 export { LoadingState } from './LoadingState'
+export { Alert, AlertTitle, AlertDescription } from './Alert'
+export { Separator } from './Separator'
 // UI component exports
 export { default as Logo } from './Logo'
 export { default as ExpertiseCard } from './ExpertiseCard'
