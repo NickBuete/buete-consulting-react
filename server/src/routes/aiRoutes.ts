@@ -4,13 +4,13 @@ import {
   generateAssessmentSummary,
   enhanceReportSection,
 } from '../services/bedrockService'
-import { authenticateToken } from '../middleware/auth'
-import { prisma } from '../db'
+import { authenticate } from '../middleware/auth'
+import { prisma } from '../db/prisma'
 
 const router = Router()
 
 // Apply authentication middleware to all routes
-router.use(authenticateToken)
+router.use(authenticate)
 
 /**
  * POST /api/ai/recommendations
