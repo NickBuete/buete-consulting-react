@@ -15,6 +15,10 @@ import {
   generateAISuggestions,
   generateKeySummary,
 } from '../editor/reportGenerator'
+import {
+  generateAIRecommendations,
+  generateAIAssessmentSummary,
+} from '../../services/ai'
 import type { HmrReview } from '../../types/hmr'
 import {
   FileText,
@@ -25,6 +29,7 @@ import {
   Lightbulb,
   Download,
   AlertCircle,
+  Wand2,
 } from 'lucide-react'
 
 interface ReportFormProps {
@@ -75,6 +80,58 @@ export const ReportForm: React.FC<ReportFormProps> = ({
         reportContent,
         status: 'REPORT_READY',
       })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleGenerateAIRecommendations = async () => {
+    setSaving(true)
+    try {
+      const recommendations = await generateAIRecommendations(review.id)
+
+      // Insert recommendations into the report at the recommendations section
+      const recommendationsSection = `<h2>Pharmacist Recommendations</h2>\n${recommendations}`
+
+      // Replace the placeholder recommendations section
+      const updatedContent = reportContent.replace(
+        /<h2>Pharmacist Recommendations<\/h2>[\s\S]*?<h2>Medication Action Plan<\/h2>/,
+        `${recommendationsSection}\n\n<h2>Medication Action Plan</h2>`
+      )
+
+      setReportContent(updatedContent)
+      alert('AI recommendations generated successfully')
+    } catch (error) {
+      console.error('Failed to generate AI recommendations:', error)
+      alert(
+        'Failed to generate AI recommendations. Please check your AWS configuration.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleGenerateAISummary = async () => {
+    setSaving(true)
+    try {
+      const summary = await generateAIAssessmentSummary(review.id)
+
+      // Insert summary into the assessment section
+      const summarySection = `<h3>Overall Assessment</h3>\n<p>${summary}</p>`
+
+      // Replace the assessment summary placeholder
+      const updatedContent = reportContent.replace(
+        /<h3>Overall Assessment<\/h3>[\s\S]*?(?=<h3>|<h2>)/,
+        `${summarySection}\n\n`
+      )
+
+      setReportContent(updatedContent)
+      alert('AI assessment summary generated successfully')
+    } catch (error) {
+      console.error('Failed to generate AI summary:', error)
+      alert(
+        'Failed to generate AI summary. Please check your AWS configuration.'
+      )
     } finally {
       setSaving(false)
     }
@@ -166,6 +223,24 @@ export const ReportForm: React.FC<ReportFormProps> = ({
                 >
                   <Send className="h-4 w-4" />
                   Finalize Report
+                </Button>
+                <Button
+                  onClick={handleGenerateAIRecommendations}
+                  disabled={saving || loading}
+                  className="gap-2"
+                  variant="outline"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  AI Recommendations
+                </Button>
+                <Button
+                  onClick={handleGenerateAISummary}
+                  disabled={saving || loading}
+                  className="gap-2"
+                  variant="outline"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI Summary
                 </Button>
               </>
             )}
