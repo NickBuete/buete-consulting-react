@@ -99,6 +99,11 @@ export const fetchReviews = async (options?: {
   return response;
 };
 
+export const getHmrReviewById = async (id: number) => {
+  const response = await api.get<HmrReview>(`/hmr/reviews/${id}`);
+  return response;
+};
+
 export const createHmrReview = async (payload: CreateHmrReviewPayload) => {
   const response = await api.post<HmrReview>('/hmr/reviews', payload);
   return response;

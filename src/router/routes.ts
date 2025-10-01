@@ -10,6 +10,7 @@ const TemplatePreviewPage = React.lazy(() => import('../pages/templates/preview/
 const PharmacyToolsPage = React.lazy(() => import('../pages/pharmacy-tools'));
 const HMRTemplatesPage = React.lazy(() => import('../pages/hmr-templates'));
 const HMRDashboardPage = React.lazy(() => import('../pages/hmr'));
+const HMRReviewDetailPage = React.lazy(() => import('../pages/hmr/detail'));
 const AboutPage = React.lazy(() => import('../pages/about'));
 const ContactPage = React.lazy(() => import('../pages/contact'));
 const LoginPage = React.lazy(() => import('../pages/auth/Login'));
@@ -25,6 +26,7 @@ export const ROUTES = {
     PHARMACY_TOOLS: '/pharmacy-tools',
     HMR_TEMPLATES: '/hmr-templates',
     HMR_DASHBOARD: '/hmr',
+    HMR_REVIEW_DETAIL: '/hmr/:id',
     ABOUT: '/about',
     CONTACT: '/contact',
     LOGIN: '/login',
@@ -83,6 +85,13 @@ export const routes: RouteConfig[] = [
         path: ROUTES.HMR_DASHBOARD,
         component: HMRDashboardPage,
         title: 'HMR Dashboard - Buete Consulting',
+        protected: true,
+        roles: ['PRO', 'ADMIN']
+    },
+    {
+        path: ROUTES.HMR_REVIEW_DETAIL,
+        component: HMRReviewDetailPage,
+        title: 'HMR Review Detail - Buete Consulting',
         protected: true,
         roles: ['PRO', 'ADMIN']
     },

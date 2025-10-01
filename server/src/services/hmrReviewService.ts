@@ -5,8 +5,14 @@ import {
   MedicationStatus,
   Prisma,
   SymptomType,
-} from '../generated/prisma';
-import { withTenantContext } from '../db/tenant';
+} from '../generated/prisma'
+import { withTenantContext } from '../db/tenant'
+import {
+  InvalidTransitionError,
+  getTimestampField,
+  isValidTransition,
+  calculateFollowUpDate,
+} from '../utils/workflowValidation'
 import type {
   HmrActionItemCreateInput,
   HmrActionItemUpdateInput,
@@ -17,16 +23,54 @@ import type {
   HmrReviewCreateInput,
   HmrReviewUpdateInput,
   HmrSymptomUpsertInput,
-} from '../validators/hmrReviewSchemas';
+} from '../validators/hmrReviewSchemas'
 
 export type ListHmrReviewsOptions = {
-  status?: HmrReviewStatus;
-  patientId?: number;
-  clinicId?: number;
-  prescriberId?: number;
-  search?: string;
-  includeCompleted?: boolean;
-};
+  status?: HmrReviewStatus
+  patientId?: number
+  clinicId?: number
+  prescriberId?: number
+  search?: string
+  includeCompleted?: boolean
+}
+
+/**
+ * Applies automatic timestamp updates based on status transitions
+ */
+const applyStatusTimestamps = (
+  currentStatus: HmrReviewStatus | null,
+  newStatus: HmrReviewStatus,
+  updatePayload: Prisma.HmrReviewUpdateInput
+): void => {
+  // Get the timestamp field for the new status
+  const timestampField = getTimestampField(newStatus)
+
+  if (timestampField) {
+    // Only set timestamp if it's not already set (allow manual overrides)
+    ;(updatePayload as any)[timestampField] = new Date()
+  }
+
+  // Special case: When moving to INTERVIEW status, also set interviewCompletedAt if moving forward
+  if (newStatus === 'INTERVIEW' && currentStatus !== 'REPORT_DRAFT') {
+    // Starting interview
+    if (!updatePayload.interviewStartedAt) {
+      updatePayload.interviewStartedAt = new Date()
+    }
+  }
+
+  // Special case: When moving to REPORT_DRAFT from INTERVIEW, set interview completed
+  if (newStatus === 'REPORT_DRAFT' && currentStatus === 'INTERVIEW') {
+    if (!updatePayload.interviewCompletedAt) {
+      updatePayload.interviewCompletedAt = new Date()
+    }
+  }
+
+  // Special case: When claiming, calculate follow-up date if not set
+  if (newStatus === 'CLAIMED' && !updatePayload.followUpDueAt) {
+    const followUpDate = calculateFollowUpDate(new Date())
+    updatePayload.followUpDueAt = followUpDate
+  }
+}
 
 const baseInclude: Prisma.HmrReviewInclude = {
   patient: true,
@@ -44,10 +88,10 @@ const baseInclude: Prisma.HmrReviewInclude = {
     take: 20,
     include: { changedBy: true },
   },
-};
+}
 
 const mapMedicationCreate = (
-  med: HmrMedicationCreateInput,
+  med: HmrMedicationCreateInput
 ): Prisma.HmrMedicationCreateWithoutHmrReviewInput => {
   const createData: Prisma.HmrMedicationCreateWithoutHmrReviewInput = {
     name: med.name,
@@ -59,17 +103,17 @@ const mapMedicationCreate = (
     isChanged: med.isChanged ?? null,
     notes: med.notes ?? null,
     verificationRequired: med.verificationRequired ?? null,
-  };
-
-  if (med.medicationId) {
-    createData.medication = { connect: { id: med.medicationId } };
   }
 
-  return createData;
-};
+  if (med.medicationId) {
+    createData.medication = { connect: { id: med.medicationId } }
+  }
+
+  return createData
+}
 
 const mapActionItemCreate = (
-  action: HmrActionItemCreateInput,
+  action: HmrActionItemCreateInput
 ): Prisma.HmrActionItemCreateWithoutHmrReviewInput => {
   const createData: Prisma.HmrActionItemCreateWithoutHmrReviewInput = {
     title: action.title,
@@ -78,159 +122,173 @@ const mapActionItemCreate = (
     status: action.status ?? ActionStatus.OPEN,
     dueDate: action.dueDate ?? null,
     resolutionNotes: action.resolutionNotes ?? null,
-  };
-
-  if (action.assignedToUserId) {
-    createData.assignee = { connect: { id: action.assignedToUserId } };
   }
 
-  return createData;
-};
+  if (action.assignedToUserId) {
+    createData.assignee = { connect: { id: action.assignedToUserId } }
+  }
+
+  return createData
+}
 
 const applyReviewCoreFields = (
   data: HmrReviewUpdateInput,
-  target: Prisma.HmrReviewUpdateInput,
+  target: Prisma.HmrReviewUpdateInput
 ) => {
   if (typeof data.patientId !== 'undefined') {
-    target.patient = { connect: { id: data.patientId } };
+    target.patient = { connect: { id: data.patientId } }
   }
   if (typeof data.prescriberId !== 'undefined') {
     target.prescriber = data.prescriberId
       ? { connect: { id: data.prescriberId } }
-      : { disconnect: true };
+      : { disconnect: true }
   }
   if (typeof data.clinicId !== 'undefined') {
     target.clinic = data.clinicId
       ? { connect: { id: data.clinicId } }
-      : { disconnect: true };
+      : { disconnect: true }
   }
   if (typeof data.referredBy !== 'undefined') {
-    target.referredBy = data.referredBy ?? null;
+    target.referredBy = data.referredBy ?? null
   }
   if (typeof data.referralDate !== 'undefined') {
-    target.referralDate = data.referralDate ?? null;
+    target.referralDate = data.referralDate ?? null
   }
   if (typeof data.referralReason !== 'undefined') {
-    target.referralReason = data.referralReason ?? null;
+    target.referralReason = data.referralReason ?? null
   }
   if (typeof data.referralNotes !== 'undefined') {
-    target.referralNotes = data.referralNotes ?? null;
+    target.referralNotes = data.referralNotes ?? null
   }
   if (typeof data.status !== 'undefined') {
-    target.status = data.status;
+    target.status = data.status
   }
   if (typeof data.acceptedAt !== 'undefined') {
-    target.acceptedAt = data.acceptedAt ?? null;
+    target.acceptedAt = data.acceptedAt ?? null
   }
   if (typeof data.scheduledAt !== 'undefined') {
-    target.scheduledAt = data.scheduledAt ?? null;
+    target.scheduledAt = data.scheduledAt ?? null
   }
   if (typeof data.calendarEventId !== 'undefined') {
-    target.calendarEventId = data.calendarEventId ?? null;
+    target.calendarEventId = data.calendarEventId ?? null
   }
   if (typeof data.visitLocation !== 'undefined') {
-    target.visitLocation = data.visitLocation ?? null;
+    target.visitLocation = data.visitLocation ?? null
   }
   if (typeof data.visitNotes !== 'undefined') {
-    target.visitNotes = data.visitNotes ?? null;
+    target.visitNotes = data.visitNotes ?? null
   }
   if (typeof data.assessmentSummary !== 'undefined') {
-    target.assessmentSummary = data.assessmentSummary ?? null;
+    target.assessmentSummary = data.assessmentSummary ?? null
   }
   if (typeof data.pastMedicalHistory !== 'undefined') {
-    target.pastMedicalHistory = data.pastMedicalHistory ?? null;
+    target.pastMedicalHistory = data.pastMedicalHistory ?? null
   }
   if (typeof data.allergies !== 'undefined') {
-    target.allergies = data.allergies ?? null;
+    target.allergies = data.allergies ?? null
   }
   if (typeof data.pathology !== 'undefined') {
-    target.pathology = data.pathology ?? null;
+    target.pathology = data.pathology ?? null
   }
   if (typeof data.medicalGoals !== 'undefined') {
-    target.medicalGoals = data.medicalGoals ?? null;
+    target.medicalGoals = data.medicalGoals ?? null
   }
   if (typeof data.goalBarriers !== 'undefined') {
-    target.goalBarriers = data.goalBarriers ?? null;
+    target.goalBarriers = data.goalBarriers ?? null
   }
   if (typeof data.livingArrangement !== 'undefined') {
-    target.livingArrangement = data.livingArrangement ?? null;
+    target.livingArrangement = data.livingArrangement ?? null
   }
   if (typeof data.usesWebster !== 'undefined') {
-    target.usesWebster = data.usesWebster ?? null;
+    target.usesWebster = data.usesWebster ?? null
   }
   if (typeof data.livesAlone !== 'undefined') {
-    target.livesAlone = data.livesAlone ?? null;
+    target.livesAlone = data.livesAlone ?? null
   }
   if (typeof data.otherSupports !== 'undefined') {
-    target.otherSupports = data.otherSupports ?? null;
+    target.otherSupports = data.otherSupports ?? null
   }
   if (typeof data.followUpDueAt !== 'undefined') {
-    target.followUpDueAt = data.followUpDueAt ?? null;
+    target.followUpDueAt = data.followUpDueAt ?? null
   }
   if (typeof data.claimedAt !== 'undefined') {
-    target.claimedAt = data.claimedAt ?? null;
+    target.claimedAt = data.claimedAt ?? null
   }
   if (typeof data.reportUrl !== 'undefined') {
-    target.reportUrl = data.reportUrl ?? null;
+    target.reportUrl = data.reportUrl ?? null
   }
   if (typeof data.reportBody !== 'undefined') {
-    target.reportBody = data.reportBody ?? null;
+    target.reportBody = data.reportBody ?? null
   }
-};
+}
 
-export const listHmrReviews = async (ownerId: number, options: ListHmrReviewsOptions = {}) => {
-  const filters: Prisma.HmrReviewWhereInput[] = [];
+export const listHmrReviews = async (
+  ownerId: number,
+  options: ListHmrReviewsOptions = {}
+) => {
+  const filters: Prisma.HmrReviewWhereInput[] = []
 
-  filters.push({ ownerId });
+  filters.push({ ownerId })
 
   if (typeof options.status !== 'undefined') {
-    filters.push({ status: options.status });
+    filters.push({ status: options.status })
   } else if (!options.includeCompleted) {
     filters.push({
       status: { notIn: [HmrReviewStatus.CLAIMED, HmrReviewStatus.CANCELLED] },
-    });
+    })
   }
 
   if (typeof options.patientId === 'number') {
-    filters.push({ patientId: options.patientId });
+    filters.push({ patientId: options.patientId })
   }
   if (typeof options.clinicId === 'number') {
-    filters.push({ clinicId: options.clinicId });
+    filters.push({ clinicId: options.clinicId })
   }
   if (typeof options.prescriberId === 'number') {
-    filters.push({ prescriberId: options.prescriberId });
+    filters.push({ prescriberId: options.prescriberId })
   }
   if (options.search) {
     filters.push({
       OR: [
-        { patient: { firstName: { contains: options.search, mode: 'insensitive' } } },
-        { patient: { lastName: { contains: options.search, mode: 'insensitive' } } },
+        {
+          patient: {
+            firstName: { contains: options.search, mode: 'insensitive' },
+          },
+        },
+        {
+          patient: {
+            lastName: { contains: options.search, mode: 'insensitive' },
+          },
+        },
         { referralReason: { contains: options.search, mode: 'insensitive' } },
       ],
-    });
+    })
   }
 
-  const where: Prisma.HmrReviewWhereInput = { AND: filters };
+  const where: Prisma.HmrReviewWhereInput = { AND: filters }
 
   return withTenantContext(ownerId, (tx) =>
     tx.hmrReview.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: baseInclude,
-    }),
-  );
-};
+    })
+  )
+}
 
 export const getHmrReviewById = async (ownerId: number, id: number) => {
   return withTenantContext(ownerId, (tx) =>
     tx.hmrReview.findFirst({
       where: { id, ownerId },
       include: baseInclude,
-    }),
-  );
-};
+    })
+  )
+}
 
-export const createHmrReview = async (ownerId: number, data: HmrReviewCreateInput) => {
+export const createHmrReview = async (
+  ownerId: number,
+  data: HmrReviewCreateInput
+) => {
   const createData: Prisma.HmrReviewCreateInput = {
     patient: { connect: { id: data.patientId } },
     referredBy: data.referredBy ?? null,
@@ -257,18 +315,20 @@ export const createHmrReview = async (ownerId: number, data: HmrReviewCreateInpu
     claimedAt: data.claimedAt ?? null,
     reportUrl: data.reportUrl ?? null,
     reportBody: data.reportBody ?? null,
-  };
+  }
 
-  createData.owner = { connect: { id: ownerId } };
+  createData.owner = { connect: { id: ownerId } }
 
   if (data.prescriberId) {
-    createData.prescriber = { connect: { id: data.prescriberId } };
+    createData.prescriber = { connect: { id: data.prescriberId } }
   }
   if (data.clinicId) {
-    createData.clinic = { connect: { id: data.clinicId } };
+    createData.clinic = { connect: { id: data.clinicId } }
   }
   if (data.medications?.length) {
-    createData.medications = { create: data.medications.map(mapMedicationCreate) };
+    createData.medications = {
+      create: data.medications.map(mapMedicationCreate),
+    }
   }
   if (data.symptoms?.length) {
     createData.symptoms = {
@@ -278,67 +338,98 @@ export const createHmrReview = async (ownerId: number, data: HmrReviewCreateInpu
         severity: symptom.severity ?? null,
         notes: symptom.notes ?? null,
       })),
-    };
+    }
   }
   if (data.actionItems?.length) {
-    createData.actionItems = { create: data.actionItems.map(mapActionItemCreate) };
+    createData.actionItems = {
+      create: data.actionItems.map(mapActionItemCreate),
+    }
   }
 
   return withTenantContext(ownerId, async (tx) => {
-    const patient = await tx.patient.findFirst({ where: { id: data.patientId, ownerId } });
+    const patient = await tx.patient.findFirst({
+      where: { id: data.patientId, ownerId },
+    })
     if (!patient) {
-      return null;
+      return null
     }
 
     if (data.prescriberId) {
-      const prescriber = await tx.prescriber.findFirst({ where: { id: data.prescriberId, ownerId } });
+      const prescriber = await tx.prescriber.findFirst({
+        where: { id: data.prescriberId, ownerId },
+      })
       if (!prescriber) {
-        return null;
+        return null
       }
     }
 
     if (data.clinicId) {
-      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+      const clinic = await tx.clinic.findFirst({
+        where: { id: data.clinicId, ownerId },
+      })
       if (!clinic) {
-        return null;
+        return null
       }
     }
 
     return tx.hmrReview.create({
       data: createData,
       include: baseInclude,
-    });
-  });
-};
+    })
+  })
+}
 
-export const updateHmrReview = async (ownerId: number, id: number, data: HmrReviewUpdateInput) => {
-  const updatePayload: Prisma.HmrReviewUpdateInput = {};
-  applyReviewCoreFields(data, updatePayload);
+export const updateHmrReview = async (
+  ownerId: number,
+  id: number,
+  data: HmrReviewUpdateInput
+) => {
+  const updatePayload: Prisma.HmrReviewUpdateInput = {}
+  applyReviewCoreFields(data, updatePayload)
 
   return withTenantContext(ownerId, async (tx) => {
-    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } });
+    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } })
     if (!existing) {
-      return null;
+      return null
     }
 
-    if (typeof data.prescriberId !== 'undefined' && data.prescriberId !== null) {
-      const prescriber = await tx.prescriber.findFirst({ where: { id: data.prescriberId, ownerId } });
+    // Validate status transition if status is being changed
+    if (typeof data.status !== 'undefined' && data.status !== existing.status) {
+      if (!isValidTransition(existing.status, data.status)) {
+        throw new InvalidTransitionError(existing.status, data.status)
+      }
+
+      // Apply automatic timestamp updates for status transitions
+      applyStatusTimestamps(existing.status, data.status, updatePayload)
+    }
+
+    if (
+      typeof data.prescriberId !== 'undefined' &&
+      data.prescriberId !== null
+    ) {
+      const prescriber = await tx.prescriber.findFirst({
+        where: { id: data.prescriberId, ownerId },
+      })
       if (!prescriber) {
-        return null;
+        return null
       }
     }
 
     if (typeof data.clinicId !== 'undefined' && data.clinicId !== null) {
-      const clinic = await tx.clinic.findFirst({ where: { id: data.clinicId, ownerId } });
+      const clinic = await tx.clinic.findFirst({
+        where: { id: data.clinicId, ownerId },
+      })
       if (!clinic) {
-        return null;
+        return null
       }
     }
 
     if (typeof data.patientId !== 'undefined') {
-      const patient = await tx.patient.findFirst({ where: { id: data.patientId, ownerId } });
+      const patient = await tx.patient.findFirst({
+        where: { id: data.patientId, ownerId },
+      })
       if (!patient) {
-        return null;
+        return null
       }
     }
 
@@ -346,31 +437,33 @@ export const updateHmrReview = async (ownerId: number, id: number, data: HmrRevi
       where: { id },
       data: updatePayload,
       include: baseInclude,
-    });
-  });
-};
+    })
+  })
+}
 
 export const deleteHmrReview = async (ownerId: number, id: number) => {
   return withTenantContext(ownerId, async (tx) => {
-    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } });
+    const existing = await tx.hmrReview.findFirst({ where: { id, ownerId } })
     if (!existing) {
-      return false;
+      return false
     }
 
-    await tx.hmrReview.delete({ where: { id } });
-    return true;
-  });
-};
+    await tx.hmrReview.delete({ where: { id } })
+    return true
+  })
+}
 
 export const addMedicationToReview = async (
   ownerId: number,
   hmrReviewId: number,
-  input: HmrMedicationCreateInput,
+  input: HmrMedicationCreateInput
 ) => {
   return withTenantContext(ownerId, async (tx) => {
-    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    const review = await tx.hmrReview.findFirst({
+      where: { id: hmrReviewId, ownerId },
+    })
     if (!review) {
-      return null;
+      return null
     }
 
     return tx.hmrMedication.create({
@@ -378,94 +471,99 @@ export const addMedicationToReview = async (
         ...mapMedicationCreate(input),
         hmrReview: { connect: { id: hmrReviewId } },
       },
-    });
-  });
-};
+    })
+  })
+}
 
 export const updateMedicationForReview = async (
   ownerId: number,
   medicationId: number,
-  input: HmrMedicationUpdateInput,
+  input: HmrMedicationUpdateInput
 ) => {
-  const updatePayload: Prisma.HmrMedicationUpdateInput = {};
+  const updatePayload: Prisma.HmrMedicationUpdateInput = {}
 
   if (typeof input.medicationId !== 'undefined') {
     updatePayload.medication = input.medicationId
       ? { connect: { id: input.medicationId } }
-      : { disconnect: true };
+      : { disconnect: true }
   }
   if (typeof input.name !== 'undefined') {
-    updatePayload.name = input.name;
+    updatePayload.name = input.name
   }
   if (typeof input.dose !== 'undefined') {
-    updatePayload.dose = input.dose ?? null;
+    updatePayload.dose = input.dose ?? null
   }
   if (typeof input.frequency !== 'undefined') {
-    updatePayload.frequency = input.frequency ?? null;
+    updatePayload.frequency = input.frequency ?? null
   }
   if (typeof input.indication !== 'undefined') {
-    updatePayload.indication = input.indication ?? null;
+    updatePayload.indication = input.indication ?? null
   }
   if (typeof input.status !== 'undefined') {
-    updatePayload.status = input.status ?? MedicationStatus.CURRENT;
+    updatePayload.status = input.status ?? MedicationStatus.CURRENT
   }
   if (typeof input.isNew !== 'undefined') {
-    updatePayload.isNew = input.isNew ?? null;
+    updatePayload.isNew = input.isNew ?? null
   }
   if (typeof input.isChanged !== 'undefined') {
-    updatePayload.isChanged = input.isChanged ?? null;
+    updatePayload.isChanged = input.isChanged ?? null
   }
   if (typeof input.notes !== 'undefined') {
-    updatePayload.notes = input.notes ?? null;
+    updatePayload.notes = input.notes ?? null
   }
   if (typeof input.verificationRequired !== 'undefined') {
-    updatePayload.verificationRequired = input.verificationRequired ?? null;
+    updatePayload.verificationRequired = input.verificationRequired ?? null
   }
 
   return withTenantContext(ownerId, async (tx) => {
     const medication = await tx.hmrMedication.findFirst({
       where: { id: medicationId, hmrReview: { ownerId } },
-    });
+    })
     if (!medication) {
-      return null;
+      return null
     }
 
     return tx.hmrMedication.update({
       where: { id: medicationId },
       data: updatePayload,
-    });
-  });
-};
+    })
+  })
+}
 
-export const removeMedicationFromReview = async (ownerId: number, medicationId: number) => {
+export const removeMedicationFromReview = async (
+  ownerId: number,
+  medicationId: number
+) => {
   return withTenantContext(ownerId, async (tx) => {
     const deleted = await tx.hmrMedication.deleteMany({
       where: { id: medicationId, hmrReview: { ownerId } },
-    });
-    return deleted.count > 0;
-  });
-};
+    })
+    return deleted.count > 0
+  })
+}
 
 export const upsertSymptomForReview = async (
   ownerId: number,
   hmrReviewId: number,
-  input: HmrSymptomUpsertInput,
+  input: HmrSymptomUpsertInput
 ) => {
-  const updateData: Prisma.HmrSymptomUpdateInput = {};
+  const updateData: Prisma.HmrSymptomUpdateInput = {}
   if (typeof input.present !== 'undefined') {
-    updateData.present = input.present;
+    updateData.present = input.present
   }
   if (typeof input.severity !== 'undefined') {
-    updateData.severity = input.severity ?? null;
+    updateData.severity = input.severity ?? null
   }
   if (typeof input.notes !== 'undefined') {
-    updateData.notes = input.notes ?? null;
+    updateData.notes = input.notes ?? null
   }
 
   return withTenantContext(ownerId, async (tx) => {
-    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    const review = await tx.hmrReview.findFirst({
+      where: { id: hmrReviewId, ownerId },
+    })
     if (!review) {
-      return null;
+      return null
     }
 
     return tx.hmrSymptom.upsert({
@@ -483,14 +581,14 @@ export const upsertSymptomForReview = async (
         severity: input.severity ?? null,
         notes: input.notes ?? null,
       },
-    });
-  });
-};
+    })
+  })
+}
 
 export const deleteSymptomFromReview = async (
   ownerId: number,
   hmrReviewId: number,
-  symptom: SymptomType,
+  symptom: SymptomType
 ) => {
   return withTenantContext(ownerId, async (tx) => {
     const deleted = await tx.hmrSymptom.deleteMany({
@@ -499,20 +597,22 @@ export const deleteSymptomFromReview = async (
         symptom,
         hmrReview: { ownerId },
       },
-    });
-    return deleted.count > 0;
-  });
-};
+    })
+    return deleted.count > 0
+  })
+}
 
 export const createActionItemForReview = async (
   ownerId: number,
   hmrReviewId: number,
-  input: HmrActionItemCreateInput,
+  input: HmrActionItemCreateInput
 ) => {
   return withTenantContext(ownerId, async (tx) => {
-    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    const review = await tx.hmrReview.findFirst({
+      where: { id: hmrReviewId, ownerId },
+    })
     if (!review) {
-      return null;
+      return null
     }
 
     return tx.hmrActionItem.create({
@@ -521,55 +621,60 @@ export const createActionItemForReview = async (
         hmrReview: { connect: { id: hmrReviewId } },
       },
       include: { assignee: true },
-    });
-  });
-};
+    })
+  })
+}
 
 export const updateActionItemForReview = async (
   ownerId: number,
   actionItemId: number,
-  input: HmrActionItemUpdateInput,
+  input: HmrActionItemUpdateInput
 ) => {
-  const updatePayload: Prisma.HmrActionItemUpdateInput = {};
+  const updatePayload: Prisma.HmrActionItemUpdateInput = {}
 
   if (typeof input.title !== 'undefined') {
-    updatePayload.title = input.title;
+    updatePayload.title = input.title
   }
   if (typeof input.description !== 'undefined') {
-    updatePayload.description = input.description ?? null;
+    updatePayload.description = input.description ?? null
   }
   if (typeof input.priority !== 'undefined') {
-    updatePayload.priority = input.priority ?? ActionPriority.MEDIUM;
+    updatePayload.priority = input.priority ?? ActionPriority.MEDIUM
   }
   if (typeof input.status !== 'undefined') {
-    updatePayload.status = input.status ?? ActionStatus.OPEN;
+    updatePayload.status = input.status ?? ActionStatus.OPEN
     updatePayload.completedAt =
-      input.status === ActionStatus.COMPLETED ? new Date() : null;
+      input.status === ActionStatus.COMPLETED ? new Date() : null
   }
   if (typeof input.dueDate !== 'undefined') {
-    updatePayload.dueDate = input.dueDate ?? null;
+    updatePayload.dueDate = input.dueDate ?? null
   }
   if (typeof input.assignedToUserId !== 'undefined') {
     updatePayload.assignee = input.assignedToUserId
       ? { connect: { id: input.assignedToUserId } }
-      : { disconnect: true };
+      : { disconnect: true }
   }
   if (typeof input.resolutionNotes !== 'undefined') {
-    updatePayload.resolutionNotes = input.resolutionNotes ?? null;
+    updatePayload.resolutionNotes = input.resolutionNotes ?? null
   }
 
   return withTenantContext(ownerId, async (tx) => {
     const actionItem = await tx.hmrActionItem.findFirst({
       where: { id: actionItemId, hmrReview: { ownerId } },
-    });
+    })
     if (!actionItem) {
-      return null;
+      return null
     }
 
-    if (typeof input.assignedToUserId !== 'undefined' && input.assignedToUserId) {
-      const user = await tx.user.findFirst({ where: { id: input.assignedToUserId } });
+    if (
+      typeof input.assignedToUserId !== 'undefined' &&
+      input.assignedToUserId
+    ) {
+      const user = await tx.user.findFirst({
+        where: { id: input.assignedToUserId },
+      })
       if (!user) {
-        return null;
+        return null
       }
     }
 
@@ -577,71 +682,78 @@ export const updateActionItemForReview = async (
       where: { id: actionItemId },
       data: updatePayload,
       include: { assignee: true },
-    });
-  });
-};
+    })
+  })
+}
 
-export const deleteActionItemFromReview = async (ownerId: number, actionItemId: number) => {
+export const deleteActionItemFromReview = async (
+  ownerId: number,
+  actionItemId: number
+) => {
   return withTenantContext(ownerId, async (tx) => {
     const deleted = await tx.hmrActionItem.deleteMany({
       where: { id: actionItemId, hmrReview: { ownerId } },
-    });
-    return deleted.count > 0;
-  });
-};
+    })
+    return deleted.count > 0
+  })
+}
 
 export const createAttachmentForReview = async (
   ownerId: number,
   hmrReviewId: number,
-  input: HmrAttachmentCreateInput,
+  input: HmrAttachmentCreateInput
 ) => {
   const createData: Prisma.HmrAttachmentCreateInput = {
     hmrReview: { connect: { id: hmrReviewId } },
     fileName: input.fileName,
     mimeType: input.mimeType ?? null,
     storagePath: input.storagePath,
-  };
+  }
 
   if (input.uploadedByUserId) {
-    createData.uploadedBy = { connect: { id: input.uploadedByUserId } };
+    createData.uploadedBy = { connect: { id: input.uploadedByUserId } }
   }
 
   return withTenantContext(ownerId, async (tx) => {
-    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    const review = await tx.hmrReview.findFirst({
+      where: { id: hmrReviewId, ownerId },
+    })
     if (!review) {
-      return null;
+      return null
     }
 
-    return tx.hmrAttachment.create({ data: createData });
-  });
-};
+    return tx.hmrAttachment.create({ data: createData })
+  })
+}
 
 export const recordAuditLog = async (
   ownerId: number,
   hmrReviewId: number,
-  input: HmrAuditLogCreateInput,
+  input: HmrAuditLogCreateInput
 ) => {
   const createData: Prisma.HmrAuditLogCreateInput = {
     hmrReview: { connect: { id: hmrReviewId } },
     changeType: input.changeType,
-  };
+  }
 
   if (typeof input.oldValue !== 'undefined') {
-    createData.oldValue = input.oldValue as Prisma.InputJsonValue;
+    createData.oldValue = input.oldValue as Prisma.InputJsonValue
   }
   if (typeof input.newValue !== 'undefined') {
-    createData.newValue = input.newValue as Prisma.InputJsonValue;
+    createData.newValue = input.newValue as Prisma.InputJsonValue
   }
   if (input.changedByUserId) {
-    createData.changedBy = { connect: { id: input.changedByUserId } };
+    createData.changedBy = { connect: { id: input.changedByUserId } }
   }
 
   return withTenantContext(ownerId, async (tx) => {
-    const review = await tx.hmrReview.findFirst({ where: { id: hmrReviewId, ownerId } });
+    const review = await tx.hmrReview.findFirst({
+      where: { id: hmrReviewId, ownerId },
+    })
     if (!review) {
-      return null;
+      return null
     }
 
-    return tx.hmrAuditLog.create({ data: createData });
-  });
-};
+    return tx.hmrAuditLog.create({ data: createData })
+  })
+}

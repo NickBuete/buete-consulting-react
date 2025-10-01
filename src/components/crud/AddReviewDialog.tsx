@@ -22,6 +22,7 @@ import {
   SelectItem,
 } from '../ui'
 import type { UseFormReturn } from 'react-hook-form'
+import { WORKFLOW_STAGES } from '../hmr'
 
 export type HmrReviewFormValues = {
   patientId: number | null
@@ -34,9 +35,15 @@ export type HmrReviewFormValues = {
     | 'PENDING'
     | 'ACCEPTED'
     | 'SCHEDULED'
+    | 'DATA_ENTRY'
     | 'IN_PROGRESS'
-    | 'COMPLETED'
+    | 'INTERVIEW'
+    | 'REPORT_DRAFT'
+    | 'REPORT_READY'
+    | 'SENT_TO_PRESCRIBER'
     | 'CLAIMED'
+    | 'FOLLOW_UP_DUE'
+    | 'COMPLETED'
     | 'CANCELLED'
   referralReason: string
 }
@@ -276,19 +283,13 @@ export const AddReviewDialog: React.FC<AddReviewDialogProps> = ({
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[
-                          'PENDING',
-                          'ACCEPTED',
-                          'SCHEDULED',
-                          'IN_PROGRESS',
-                          'COMPLETED',
-                          'CLAIMED',
-                          'CANCELLED',
-                        ].map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s.replace(/_/g, ' ')}
-                          </SelectItem>
-                        ))}
+                        {Object.entries(WORKFLOW_STAGES)
+                          .sort((a, b) => a[1].order - b[1].order)
+                          .map(([status, stage]) => (
+                            <SelectItem key={status} value={status}>
+                              {stage.label} - {stage.description}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </FormControl>

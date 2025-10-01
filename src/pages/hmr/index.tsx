@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useHmrDashboard } from '../../hooks/useHmrDashboard'
 import {
@@ -7,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Badge,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -24,14 +24,14 @@ import {
   AddReviewDialog,
   HmrReviewFormValues,
 } from '../../components/crud/AddReviewDialog'
-import { formatDate, statusVariantMap } from '../../utils/dashboard'
+import { WorkflowStatus } from '../../components/hmr'
+import { formatDate } from '../../utils/dashboard'
 
 const HmrDashboardPage: React.FC = () => {
+  const navigate = useNavigate()
   const [selectedReview, setSelectedReview] = React.useState<any>(null)
   const handleReviewRowClick = (review: any) => {
-    setSelectedReview(review)
-    setReviewDialogOpen(true)
-    reviewForm.reset(review)
+    navigate(`/hmr/${review.id}`)
   }
   const {
     patients,
@@ -272,13 +272,7 @@ const HmrDashboardPage: React.FC = () => {
                               )}
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
-                              <Badge
-                                variant={
-                                  statusVariantMap[review.status] ?? 'outline'
-                                }
-                              >
-                                {review.status.replace('_', ' ')}
-                              </Badge>
+                              <WorkflowStatus status={review.status} />
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
                               {review.prescriber
