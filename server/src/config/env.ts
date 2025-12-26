@@ -13,7 +13,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   PORT: z.string().optional(),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
-  FRONTEND_URL: z.string().url().optional(),
+  ALLOWED_ORIGINS: z.string().optional(),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
@@ -33,7 +33,7 @@ export const env = {
   databaseUrl: rawEnv.data.DATABASE_URL,
   port: Number(rawEnv.data.PORT ?? 4000),
   jwtSecret: rawEnv.data.JWT_SECRET,
-  frontendUrl: rawEnv.data.FRONTEND_URL,
+  allowedOrigins: rawEnv.data.ALLOWED_ORIGINS,
   nodeEnv: rawEnv.data.NODE_ENV,
   logLevel: rawEnv.data.LOG_LEVEL,
 }
