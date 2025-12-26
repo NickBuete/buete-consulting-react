@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && cd server && npm install && npm run prisma:generate && npm run build",
+  "buildCommand": "npm run build && cd server && npm install --include=dev && npm run prisma:generate && npm run build",
   "outputDirectory": "build",
   "functions": {
     "api/index.js": {
