@@ -1,12 +1,11 @@
 {
   "version": 2,
+  "buildCommand": "npm run build && cd server && npm install && npm run prisma:generate && npm run build",
+  "outputDirectory": "build",
   "builds": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
