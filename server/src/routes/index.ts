@@ -16,12 +16,18 @@ import { hmrEducationRouter } from './hmrEducationRoutes'
 import { hmrRecommendationRouter } from './hmrRecommendationRoutes'
 import aiRoutes from './aiRoutes'
 import healthRoutes from './healthRoutes'
+import microsoftAuthRoutes from './microsoftAuthRoutes'
+import bookingRoutes from './bookingRoutes'
 
 export const registerRoutes = (app: Express) => {
   // Health check routes (no authentication required)
   app.use('/api', healthRoutes)
 
+  // Public booking routes (no authentication required for public booking)
+  app.use('/api/booking', bookingRoutes)
+
   app.use('/api/auth', authRouter)
+  app.use('/api/auth/microsoft', microsoftAuthRoutes)
 
   app.use(
     '/api/clients',

@@ -49,20 +49,27 @@ model Subscription {
 }
 
 model User {
-  id                    Int                  @id @default(autoincrement())
-  username              String               @unique @db.VarChar(50)
-  email                 String               @unique @db.VarChar(100)
-  passwordHash          String               @map("password_hash") @db.VarChar(100)
-  role                  UserRole             @default(BASIC)
-  createdAt             DateTime?            @default(now()) @map("created_at") @db.Timestamp(6)
-  assignedActionItems   HmrActionItem[]      @relation("ActionItemAssignee")
-  uploadedAttachments   HmrAttachment[]      @relation("AttachmentUploader")
-  auditLogs             HmrAuditLog[]        @relation("AuditLogUser")
-  patients              Patient[]
-  reviews               HmrReview[]
-  reports               HmrReport[]          @relation("UserReports")
-  educationEntries      HmrEducationAdvice[]
-  recommendationEntries HmrRecommendation[]
+  id                     Int                   @id @default(autoincrement())
+  username               String                @unique @db.VarChar(50)
+  email                  String                @unique @db.VarChar(100)
+  passwordHash           String                @map("password_hash") @db.VarChar(100)
+  role                   UserRole              @default(BASIC)
+  createdAt              DateTime?             @default(now()) @map("created_at") @db.Timestamp(6)
+  microsoftAccessToken   String?               @map("microsoft_access_token") @db.Text
+  microsoftRefreshToken  String?               @map("microsoft_refresh_token") @db.Text
+  microsoftTokenExpiry   DateTime?             @map("microsoft_token_expiry") @db.Timestamp(6)
+  microsoftEmail         String?               @map("microsoft_email") @db.VarChar(150)
+  calendarSyncEnabled    Boolean               @default(false) @map("calendar_sync_enabled")
+  assignedActionItems    HmrActionItem[]       @relation("ActionItemAssignee")
+  uploadedAttachments    HmrAttachment[]       @relation("AttachmentUploader")
+  auditLogs              HmrAuditLog[]         @relation("AuditLogUser")
+  patients               Patient[]
+  reviews                HmrReview[]
+  reports                HmrReport[]           @relation("UserReports")
+  educationEntries       HmrEducationAdvice[]
+  recommendationEntries  HmrRecommendation[]
+  availabilitySlots      AvailabilitySlot[]
+  bookingSettings        BookingSettings?
 
   @@map("users")
 }
@@ -519,4 +526,68 @@ model HmrPathology {
 
   @@index([hmrReviewId])
   @@map("hmr_pathology")
+}
+
+// Booking & Calendar Models
+
+model AvailabilitySlot {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  dayOfWeek   Int      @map("day_of_week") // 0 = Monday, 6 = Sunday
+  startTime   String   @map("start_time") @db.VarChar(5) // HH:MM format
+  endTime     String   @map("end_time") @db.VarChar(5) // HH:MM format
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
+  @@map("availability_slots")
+}
+
+model BookingSettings {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique @map("user_id")
+  bufferTimeBefore      Int      @default(15) @map("buffer_time_before") // Minutes before appointment
+  bufferTimeAfter       Int      @default(15) @map("buffer_time_after") // Minutes after appointment
+  defaultDuration       Int      @default(60) @map("default_duration") // Default appointment duration in minutes
+  allowPublicBooking    Boolean  @default(true) @map("allow_public_booking")
+  requireApproval       Boolean  @default(false) @map("require_approval")
+  bookingUrl            String?  @unique @map("booking_url") @db.VarChar(100) // Custom booking slug
+  confirmationEmailText String?  @map("confirmation_email_text") @db.Text
+  reminderEmailText     String?  @map("reminder_email_text") @db.Text
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("booking_settings")
+}
+
+model ChecklistToken {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @map("hmr_review_id")
+  token       String    @unique @db.VarChar(255)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamp(6)
+  usedAt      DateTime? @map("used_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([hmrReviewId])
+  @@index([token])
+  @@map("checklist_tokens")
+}
+
+model SmsLog {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int?      @map("hmr_review_id")
+  toPhone     String    @map("to_phone") @db.VarChar(20)
+  messageBody String    @map("message_body") @db.Text
+  messageSid  String?   @map("message_sid") @db.VarChar(100)
+  status      String    @default("pending") @db.VarChar(50) // pending, sent, failed
+  errorMsg    String?   @map("error_msg") @db.Text
+  sentAt      DateTime? @map("sent_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([hmrReviewId])
+  @@index([status])
+  @@map("sms_logs")
 }
