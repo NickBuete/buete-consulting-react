@@ -5,6 +5,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // For Supabase connection pooling in production (optional but recommended)
+  directUrl = env("DIRECT_URL")
 }
 
 model Client {
