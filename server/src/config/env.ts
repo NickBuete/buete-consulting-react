@@ -1,8 +1,13 @@
 import { config } from 'dotenv'
 import { z } from 'zod'
 
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env'
-config({ path: envFile })
+// Load .env file if it exists (local development)
+// In production (Vercel), environment variables are injected directly into process.env
+// so we don't need to load from a file
+if (process.env.NODE_ENV !== 'production') {
+  const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env'
+  config({ path: envFile })
+}
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
