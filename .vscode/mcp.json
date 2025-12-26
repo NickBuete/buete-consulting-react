@@ -6,6 +6,19 @@
         "shadcn@latest",
         "mcp"
       ]
+    },
+    "contentful-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@contentful/mcp-server"
+      ],
+      "env": {
+        "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN": "your-CMA-token",
+        "SPACE_ID": "your-space-id",
+        "ENVIRONMENT_ID": "master",
+        "CONTENTFUL_HOST": "api.contentful.com"
+      }
     }
   },
   "servers": {
@@ -15,6 +28,19 @@
         "shadcn@latest",
         "mcp"
       ]
+    },
+    "contentful-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@contentful/mcp-server"
+      ],
+      "env": {
+        "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN": "your-CMA-token",
+        "SPACE_ID": "your-space-id",
+        "ENVIRONMENT_ID": "master",
+        "CONTENTFUL_HOST": "api.contentful.com"
+      }
     }
   }
 }
