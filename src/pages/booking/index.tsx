@@ -4,6 +4,7 @@ import { BookingForm } from '../../components/booking/BookingForm';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Skeleton';
 import type { PublicBookingInfo } from '../../types/booking';
+import { getPublicBookingInfo } from '../../services/booking';
 
 const BookingPage: React.FC = () => {
   const { bookingUrl } = useParams<{ bookingUrl: string }>();
@@ -17,20 +18,7 @@ const BookingPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-        const response = await fetch(
-          `${apiUrl}/api/booking/public/${bookingUrl}`
-        );
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Booking page not found. Please check the URL.');
-          }
-          throw new Error('Failed to load booking information.');
-        }
-
-        const data = await response.json();
+        const data = await getPublicBookingInfo(bookingUrl);
         setBookingInfo(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unexpected error occurred');

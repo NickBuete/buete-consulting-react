@@ -2,7 +2,13 @@
 
 import { configureOfflineQueue, enqueueOfflineAction, processOfflineQueue } from '../offline/offlineQueue';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+const normalizeBaseUrl = (value: string) => value.replace(/\/+$/, '');
+
+const rawBaseUrl = normalizeBaseUrl(process.env.REACT_APP_API_URL || 'http://localhost:4000');
+const hasApiSuffix = rawBaseUrl.endsWith('/api');
+
+export const SERVER_BASE_URL = hasApiSuffix ? rawBaseUrl.slice(0, -4) : rawBaseUrl;
+export const API_BASE_URL = hasApiSuffix ? rawBaseUrl : `${rawBaseUrl}/api`;
 
 // API responses return JSON directly from the backend
 type ApiResponse<T> = T;
@@ -67,11 +73,12 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const requestConfig: RequestConfig = {
+      credentials: 'include',
+      ...config,
       headers: {
         ...this.defaultHeaders,
         ...config.headers,
       },
-      ...config,
     };
 
     try {
@@ -86,7 +93,9 @@ class ApiService {
 
         try {
           const errorBody = await response.json();
-          if (errorBody && typeof errorBody.message === 'string') {
+          if (errorBody && typeof errorBody.error === 'string') {
+            message = errorBody.error;
+          } else if (errorBody && typeof errorBody.message === 'string') {
             message = errorBody.message;
           }
         } catch (parseError) {

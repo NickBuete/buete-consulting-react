@@ -11,6 +11,12 @@ export interface BusySlot {
   end: string;
 }
 
+export interface TimeSlot {
+  time: string;
+  available: boolean;
+  isBusy?: boolean;
+}
+
 export interface BookingSettings {
   requireApproval: boolean;
   bufferTimeBefore: number;

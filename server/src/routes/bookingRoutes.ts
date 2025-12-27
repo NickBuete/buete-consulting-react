@@ -2,20 +2,20 @@ import express from 'express';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
 import { authenticate } from '../middleware/auth';
-import { graphService } from '../services/microsoft/graphClient';
 import { twilioService } from '../services/sms/twilioService';
 import { emailService } from '../services/email/emailService';
 import { generateSecureToken, getTokenExpiry } from '../utils/tokenGenerator';
 import { logger } from '../utils/logger';
 import {
   BOOKING_TIME_ZONE,
-  addDaysToDateString,
   addMinutesToDate,
   buildDateTime,
+  getDateRangeFromToday,
   getDayOfWeekFromDateString,
-  getLocalDateString,
 } from '../utils/bookingTime';
 import { getBusyIntervals, hasBookingConflict } from '../services/bookingAvailability';
+import { createBookingCalendarEvent, updateBookingCalendarEvent } from '../services/bookingCalendar';
+import { upsertBookingPatient } from '../services/bookingPatients';
 import {
   availabilitySlotSchema,
   bookingSettingsSchema,
@@ -23,9 +23,30 @@ import {
   publicBookingSchema,
   rescheduleSchema,
 } from '../schemas/bookingSchemas';
-import crypto from 'crypto';
 
 const router = express.Router();
+
+const isAppointmentWithinAvailability = async (params: {
+  userId: number;
+  appointmentDate: string;
+  appointmentStart: Date;
+  appointmentEnd: Date;
+}) => {
+  const dayOfWeek = getDayOfWeekFromDateString(params.appointmentDate);
+  const availabilitySlots = await prisma.availabilitySlot.findMany({
+    where: {
+      userId: params.userId,
+      dayOfWeek,
+      isAvailable: true,
+    },
+  });
+
+  return availabilitySlots.some((slot) => {
+    const slotStart = buildDateTime(params.appointmentDate, slot.startTime);
+    const slotEnd = buildDateTime(params.appointmentDate, slot.endTime);
+    return params.appointmentStart >= slotStart && params.appointmentEnd <= slotEnd;
+  });
+};
 
 // ========================================
 // Validation Schemas
@@ -242,10 +263,7 @@ router.get(
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
 
-    const todayDate = getLocalDateString(new Date(), BOOKING_TIME_ZONE);
-    const rangeStart = buildDateTime(todayDate, '00:00', BOOKING_TIME_ZONE);
-    const rangeEndDate = addDaysToDateString(todayDate, 90);
-    const rangeEnd = new Date(buildDateTime(rangeEndDate, '00:00', BOOKING_TIME_ZONE).getTime() - 1);
+    const { start: rangeStart, end: rangeEnd } = getDateRangeFromToday(90, BOOKING_TIME_ZONE);
 
     const busyIntervals = await getBusyIntervals(
       settings.userId,
@@ -274,6 +292,33 @@ router.get(
         end: interval.end.toISOString(),
       })),
     });
+  })
+);
+
+/**
+ * Get busy slots for authenticated user
+ * GET /api/booking/busy
+ */
+router.get(
+  '/busy',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const userId = req.user!.id;
+    const settings = await prisma.bookingSettings.findUnique({
+      where: { userId },
+    });
+
+    const durationMinutes = settings?.defaultDuration ?? 60;
+    const { start, end } = getDateRangeFromToday(90, BOOKING_TIME_ZONE);
+
+    const busyIntervals = await getBusyIntervals(userId, start, end, durationMinutes);
+
+    res.json(
+      busyIntervals.map((interval) => ({
+        start: interval.start.toISOString(),
+        end: interval.end.toISOString(),
+      }))
+    );
   })
 );
 
@@ -324,19 +369,11 @@ router.post(
       settings.defaultDuration
     );
 
-    const dayOfWeek = getDayOfWeekFromDateString(validated.appointmentDate);
-    const availabilitySlots = await prisma.availabilitySlot.findMany({
-      where: {
-        userId,
-        dayOfWeek,
-        isAvailable: true,
-      },
-    });
-
-    const isWithinAvailability = availabilitySlots.some((slot) => {
-      const slotStart = buildDateTime(validated.appointmentDate, slot.startTime);
-      const slotEnd = buildDateTime(validated.appointmentDate, slot.endTime);
-      return appointmentDateTime >= slotStart && appointmentEndTime <= slotEnd;
+    const isWithinAvailability = await isAppointmentWithinAvailability({
+      userId,
+      appointmentDate: validated.appointmentDate,
+      appointmentStart: appointmentDateTime,
+      appointmentEnd: appointmentEndTime,
     });
 
     if (!isWithinAvailability) {
@@ -356,39 +393,13 @@ router.post(
       return res.status(409).json({ error: 'Selected time is no longer available' });
     }
 
-    // Format phone number
-    const formattedPhone = twilioService.formatAustralianPhone(
-      validated.patientPhone
-    );
-
-    // Create or find patient
-    let patient = await prisma.patient.findFirst({
-      where: {
-        ownerId: userId,
-        firstName: validated.patientFirstName,
-        lastName: validated.patientLastName,
-      },
+    const { patient, formattedPhone } = await upsertBookingPatient({
+      ownerId: userId,
+      firstName: validated.patientFirstName,
+      lastName: validated.patientLastName,
+      phone: validated.patientPhone,
+      email: validated.patientEmail || null,
     });
-
-    if (!patient) {
-      patient = await prisma.patient.create({
-        data: {
-          ownerId: userId,
-          firstName: validated.patientFirstName,
-          lastName: validated.patientLastName,
-          contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail || null,
-        },
-      });
-    } else {
-      patient = await prisma.patient.update({
-        where: { id: patient.id },
-        data: {
-          contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail || null,
-        },
-      });
-    }
 
     // Create HMR review
     const review = await prisma.hmrReview.create({
@@ -406,60 +417,27 @@ router.post(
     });
 
     // Sync to Microsoft Calendar if enabled
-    let calendarEventId: string | undefined;
+    let calendarEventId: string | null = null;
     if (settings.user.calendarSyncEnabled && settings.user.microsoftAccessToken) {
       try {
-        // Check if token needs refresh
-        let accessToken = settings.user.microsoftAccessToken;
-        if (
-          settings.user.microsoftTokenExpiry &&
-          new Date() >= settings.user.microsoftTokenExpiry
-        ) {
-          const refreshed = await graphService.refreshAccessToken(
-            settings.user.microsoftRefreshToken!
-          );
-          accessToken = refreshed.accessToken;
+        calendarEventId = await createBookingCalendarEvent({
+          user: settings.user,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          referrerName: validated.referrerName,
+          referralReason: validated.referralReason,
+          formattedPhone,
+          appointmentStart: appointmentDateTime,
+          appointmentEnd: appointmentEndTime,
+          patientEmail: validated.patientEmail,
+        });
 
-          // Update tokens in database
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              microsoftAccessToken: refreshed.accessToken,
-              microsoftRefreshToken: refreshed.refreshToken,
-              microsoftTokenExpiry: new Date(
-                Date.now() + refreshed.expiresIn * 1000
-              ),
-            },
+        if (calendarEventId) {
+          await prisma.hmrReview.update({
+            where: { id: review.id },
+            data: { calendarEventId },
           });
+          logger.info(`Calendar event created: ${calendarEventId}`);
         }
-
-        // Create calendar event
-        calendarEventId = await graphService.createCalendarEvent(accessToken, {
-          subject: `HMR: ${patient.firstName} ${patient.lastName}`,
-          body: `<p><strong>Home Medicines Review</strong></p>
-                 <p>Patient: ${patient.firstName} ${patient.lastName}</p>
-                 <p>Referred by: ${validated.referrerName}</p>
-                 <p>Reason: ${validated.referralReason || 'Not specified'}</p>
-                 <p>Phone: ${formattedPhone}</p>`,
-          startDateTime: appointmentDateTime.toISOString(),
-          endDateTime: appointmentEndTime.toISOString(),
-          ...(validated.patientEmail && {
-            attendees: [
-              {
-                emailAddress: validated.patientEmail,
-                name: `${patient.firstName} ${patient.lastName}`,
-              },
-            ],
-          }),
-        });
-
-        // Update review with calendar event ID
-        await prisma.hmrReview.update({
-          where: { id: review.id },
-          data: { calendarEventId },
-        });
-
-        logger.info(`Calendar event created: ${calendarEventId}`);
       } catch (error) {
         logger.error({ err: error }, 'Failed to create calendar event');
         // Continue anyway - booking is still valid
@@ -548,40 +526,10 @@ router.post(
 
     const settings = user.bookingSettings || {
       defaultDuration: 60,
+      bufferTimeBefore: 0,
+      bufferTimeAfter: 0,
       requireApproval: false,
     };
-
-    // Format phone number
-    const formattedPhone = twilioService.formatAustralianPhone(validated.patientPhone);
-
-    // Create or find patient
-    let patient = await prisma.patient.findFirst({
-      where: {
-        ownerId: userId,
-        firstName: validated.patientFirstName,
-        lastName: validated.patientLastName,
-      },
-    });
-
-    if (!patient) {
-      patient = await prisma.patient.create({
-        data: {
-          ownerId: userId,
-          firstName: validated.patientFirstName,
-          lastName: validated.patientLastName,
-          contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail || null,
-        },
-      });
-    } else {
-      patient = await prisma.patient.update({
-        where: { id: patient.id },
-        data: {
-          contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail || null,
-        },
-      });
-    }
 
     // Parse appointment datetime
     const appointmentDateTime = buildDateTime(
@@ -589,9 +537,42 @@ router.post(
       validated.appointmentTime,
       BOOKING_TIME_ZONE
     );
-    const appointmentEndTime = new Date(
-      appointmentDateTime.getTime() + settings.defaultDuration * 60000
+    const appointmentEndTime = addMinutesToDate(
+      appointmentDateTime,
+      settings.defaultDuration || 60
     );
+
+    const isWithinAvailability = await isAppointmentWithinAvailability({
+      userId,
+      appointmentDate: validated.appointmentDate,
+      appointmentStart: appointmentDateTime,
+      appointmentEnd: appointmentEndTime,
+    });
+
+    if (!isWithinAvailability) {
+      return res.status(400).json({ error: 'Selected time is not available' });
+    }
+
+    const hasConflict = await hasBookingConflict(
+      userId,
+      appointmentDateTime,
+      settings.defaultDuration || 60,
+      settings.bufferTimeBefore || 0,
+      settings.bufferTimeAfter || 0,
+      validated.appointmentDate
+    );
+
+    if (hasConflict) {
+      return res.status(409).json({ error: 'Selected time is no longer available' });
+    }
+
+    const { patient, formattedPhone } = await upsertBookingPatient({
+      ownerId: userId,
+      firstName: validated.patientFirstName,
+      lastName: validated.patientLastName,
+      phone: validated.patientPhone,
+      email: validated.patientEmail || null,
+    });
 
     // Create HMR review
     const review = await prisma.hmrReview.create({
@@ -623,42 +604,24 @@ router.post(
     // Sync to Microsoft Calendar if enabled
     if (user.calendarSyncEnabled && user.microsoftAccessToken) {
       try {
-        let accessToken = user.microsoftAccessToken;
-        if (user.microsoftTokenExpiry && new Date() >= user.microsoftTokenExpiry) {
-          const refreshed = await graphService.refreshAccessToken(
-            user.microsoftRefreshToken!
-          );
-          accessToken = refreshed.accessToken;
+        const calendarEventId = await createBookingCalendarEvent({
+          user,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          referrerName: validated.referrerName,
+          referrerClinic: validated.referrerClinic,
+          referralReason: validated.referralReason,
+          formattedPhone,
+          appointmentStart: appointmentDateTime,
+          appointmentEnd: appointmentEndTime,
+          patientEmail: validated.patientEmail,
+        });
 
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              microsoftAccessToken: refreshed.accessToken,
-              microsoftRefreshToken: refreshed.refreshToken,
-              microsoftTokenExpiry: new Date(Date.now() + refreshed.expiresIn * 1000),
-            },
+        if (calendarEventId) {
+          await prisma.hmrReview.update({
+            where: { id: review.id },
+            data: { calendarEventId },
           });
         }
-
-        const calendarEventId = await graphService.createCalendarEvent(accessToken, {
-          subject: `HMR: ${patient.firstName} ${patient.lastName}`,
-          body: `<p><strong>Home Medicines Review</strong></p>
-                 <p>Patient: ${patient.firstName} ${patient.lastName}</p>
-                 <p>Referred by: ${validated.referrerName}</p>
-                 ${validated.referrerClinic ? `<p>Clinic: ${validated.referrerClinic}</p>` : ''}
-                 <p>Reason: ${validated.referralReason || 'Not specified'}</p>
-                 <p>Phone: ${formattedPhone}</p>`,
-          startDateTime: appointmentDateTime.toISOString(),
-          endDateTime: appointmentEndTime.toISOString(),
-          attendees: validated.patientEmail
-            ? [{ emailAddress: validated.patientEmail, name: `${patient.firstName} ${patient.lastName}` }]
-            : [],
-        });
-
-        await prisma.hmrReview.update({
-          where: { id: review.id },
-          data: { calendarEventId },
-        });
       } catch (error) {
         logger.error({ err: error }, 'Failed to create calendar event');
       }
@@ -872,35 +835,24 @@ router.post(
       validated.appointmentTime,
       BOOKING_TIME_ZONE
     );
+    const bookingSettings = await prisma.bookingSettings.findUnique({
+      where: { userId: user.id },
+    });
+    const appointmentDuration = bookingSettings?.defaultDuration ?? 60;
+    const newAppointmentEndTime = addMinutesToDate(
+      newAppointmentDateTime,
+      appointmentDuration
+    );
 
     // Update calendar event if synced
     if (user.calendarSyncEnabled && review.calendarEventId && user.microsoftAccessToken) {
       try {
-        let accessToken = user.microsoftAccessToken;
-        if (user.microsoftTokenExpiry && new Date() >= user.microsoftTokenExpiry) {
-          const refreshed = await graphService.refreshAccessToken(
-            user.microsoftRefreshToken!
-          );
-          accessToken = refreshed.accessToken;
-
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              microsoftAccessToken: refreshed.accessToken,
-              microsoftRefreshToken: refreshed.refreshToken,
-              microsoftTokenExpiry: new Date(Date.now() + refreshed.expiresIn * 1000),
-            },
-          });
-        }
-
-        await graphService.updateCalendarEvent(
-          accessToken,
-          review.calendarEventId,
-          {
-            startDateTime: newAppointmentDateTime.toISOString(),
-            endDateTime: new Date(newAppointmentDateTime.getTime() + 60 * 60000).toISOString(),
-          }
-        );
+        await updateBookingCalendarEvent({
+          user,
+          eventId: review.calendarEventId,
+          appointmentStart: newAppointmentDateTime,
+          appointmentEnd: newAppointmentEndTime,
+        });
       } catch (error) {
         logger.error({ err: error }, 'Failed to update calendar event');
       }

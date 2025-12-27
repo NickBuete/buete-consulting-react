@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Calendar as CalendarIcon, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { getRescheduleInfo, rescheduleBooking } from '../../services/booking';
 
 const rescheduleSchema = z.object({
   appointmentDate: z.string().min(1, 'Please select a date'),
@@ -59,16 +60,7 @@ const ReschedulePage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-        const response = await fetch(`${apiUrl}/api/booking/reschedule/${token}`);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to load booking information');
-        }
-
-        const data = await response.json();
+        const data = await getRescheduleInfo(token);
         setBookingInfo(data);
 
         // Pre-fill with current appointment
@@ -90,21 +82,7 @@ const ReschedulePage: React.FC = () => {
     try {
       setIsSubmitting(true);
       setError(null);
-
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/reschedule/${token}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reschedule appointment');
-      }
-
+      await rescheduleBooking(token, data);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reschedule appointment');

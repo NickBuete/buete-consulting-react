@@ -7,6 +7,11 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Loader2, CheckCircle, Copy } from 'lucide-react';
+import {
+  checkBookingUrlAvailability,
+  getBookingSettings,
+  updateBookingSettings,
+} from '../../services/booking';
 
 const settingsSchema = z.object({
   bookingUrl: z
@@ -59,21 +64,14 @@ export const BookingSettingsForm: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/settings`, {
-        credentials: 'include',
-      });
+      const data = await getBookingSettings();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch settings');
-      }
-
-      const data = await response.json();
-
-      // Set form values
-      Object.keys(data).forEach((key) => {
-        setValue(key as keyof SettingsFormData, data[key]);
-      });
+      setValue('bookingUrl', data.bookingUrl ?? '');
+      setValue('bufferTimeBefore', data.bufferTimeBefore);
+      setValue('bufferTimeAfter', data.bufferTimeAfter);
+      setValue('defaultDuration', data.defaultDuration);
+      setValue('allowPublicBooking', data.allowPublicBooking);
+      setValue('requireApproval', data.requireApproval);
     } catch (err) {
       console.error('Error fetching settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to load settings');
@@ -87,21 +85,7 @@ export const BookingSettingsForm: React.FC = () => {
       setSubmitting(true);
       setError(null);
       setSuccess(false);
-
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save settings');
-      }
+      await updateBookingSettings(data);
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -118,16 +102,7 @@ export const BookingSettingsForm: React.FC = () => {
 
     try {
       setUrlCheckError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(
-        `${apiUrl}/api/booking/check-url?url=${encodeURIComponent(url)}`,
-        {
-          credentials: 'include',
-        }
-      );
-
-      const data = await response.json();
-
+      const data = await checkBookingUrlAvailability(url);
       if (!data.available) {
         setUrlCheckError('This URL is already taken');
       }

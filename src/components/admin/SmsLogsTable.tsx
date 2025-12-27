@@ -11,23 +11,8 @@ import {
 } from '../ui/Dialog';
 import { Loader2, Search, Eye, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface SmsLog {
-  id: number;
-  phoneNumber: string;
-  message: string;
-  status: 'pending' | 'sent' | 'failed';
-  sentAt: string;
-  hmrReviewId?: number;
-  errorMessage?: string;
-}
-
-interface SmsLogsResponse {
-  logs: SmsLog[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+import { fetchSmsLogs as getSmsLogs } from '../../services/sms';
+import type { SmsLog } from '../../services/sms';
 
 export const SmsLogsTable: React.FC = () => {
   const [logs, setLogs] = useState<SmsLog[]>([]);
@@ -51,30 +36,12 @@ export const SmsLogsTable: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
+      const data = await getSmsLogs({
+        page,
+        pageSize,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchQuery || undefined,
       });
-
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter);
-      }
-
-      if (searchQuery) {
-        params.append('search', searchQuery);
-      }
-
-      const response = await fetch(`${apiUrl}/api/sms/logs?${params}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch SMS logs');
-      }
-
-      const data: SmsLogsResponse = await response.json();
       setLogs(data.logs);
       setTotal(data.total);
     } catch (err) {

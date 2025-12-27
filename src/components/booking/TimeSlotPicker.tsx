@@ -1,16 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { format, addMinutes, parse, isBefore, isSameDay } from 'date-fns';
+import React, { useMemo } from 'react';
+import { format } from 'date-fns';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Clock } from 'lucide-react';
 import type { AvailabilitySlot, BusySlot, BookingSettings } from '../../types/booking';
-import { getBookingDayOfWeek } from '../../utils/booking';
-
-interface TimeSlot {
-  time: string; // HH:mm format
-  available: boolean;
-  isBusy?: boolean;
-}
+import { buildTimeSlots, formatBookingTime } from '../../utils/booking';
 
 interface TimeSlotPickerProps {
   availabilitySlots: AvailabilitySlot[];
@@ -29,66 +23,16 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   onSelectTime,
   bookingSettings,
 }) => {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-
-  useEffect(() => {
-    const dayOfWeek = getBookingDayOfWeek(selectedDate);
-    const daySlots = availabilitySlots.filter(
-      (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
-    );
-
-    if (daySlots.length === 0) {
-      setTimeSlots([]);
-      return;
-    }
-
-    const parsedBusySlots = busySlots.map((slot) => ({
-      start: new Date(slot.start),
-      end: new Date(slot.end),
-    }));
-
-    const hasConflict = (slotStart: Date, slotEnd: Date) =>
-      parsedBusySlots.some((busy) => {
-        const bufferedStart = addMinutes(busy.start, -bookingSettings.bufferTimeBefore);
-        const bufferedEnd = addMinutes(busy.end, bookingSettings.bufferTimeAfter);
-        return slotStart < bufferedEnd && slotEnd > bufferedStart;
-      });
-
-    const slots: TimeSlot[] = [];
-    const slotDuration = bookingSettings.defaultDuration || 60;
-    const now = new Date();
-    const isToday = isSameDay(selectedDate, now);
-
-    daySlots.forEach((daySlot) => {
-      const startTime = parse(daySlot.startTime, 'HH:mm', selectedDate);
-      const endTime = parse(daySlot.endTime, 'HH:mm', selectedDate);
-
-      let currentTime = startTime;
-
-      while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
-        const slotEndTime = addMinutes(currentTime, slotDuration);
-
-        if (isBefore(slotEndTime, endTime) || slotEndTime.getTime() === endTime.getTime()) {
-          const isBusy = hasConflict(currentTime, slotEndTime);
-          const isPast = isToday && isBefore(currentTime, now);
-
-          slots.push({
-            time: format(currentTime, 'HH:mm'),
-            available: !isBusy && !isPast,
-            isBusy,
-          });
-        }
-
-        currentTime = addMinutes(
-          currentTime,
-          slotDuration + bookingSettings.bufferTimeBefore + bookingSettings.bufferTimeAfter
-        );
-      }
-    });
-
-    slots.sort((a, b) => a.time.localeCompare(b.time));
-    setTimeSlots(slots);
-  }, [availabilitySlots, busySlots, selectedDate, bookingSettings]);
+  const timeSlots = useMemo(
+    () =>
+      buildTimeSlots({
+        availabilitySlots,
+        busySlots,
+        selectedDate,
+        bookingSettings,
+      }),
+    [availabilitySlots, busySlots, selectedDate, bookingSettings]
+  );
 
   if (timeSlots.length === 0) {
     return (
@@ -114,7 +58,11 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
           {timeSlots.map((slot) => {
             const isSelected = selectedTime === slot.time;
-            const parsedTime = parse(slot.time, 'HH:mm', new Date());
+            const label = slot.available
+              ? formatBookingTime(slot.time)
+              : slot.isBusy
+              ? 'Busy'
+              : formatBookingTime(slot.time);
 
             return (
               <Button
@@ -126,17 +74,13 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
                 onClick={() => onSelectTime(slot.time)}
                 aria-label={
                   slot.available
-                    ? `Select ${format(parsedTime, 'h:mm a')}`
+                    ? `Select ${formatBookingTime(slot.time)}`
                     : slot.isBusy
                     ? 'Busy'
-                    : `Unavailable ${format(parsedTime, 'h:mm a')}`
+                    : `Unavailable ${formatBookingTime(slot.time)}`
                 }
               >
-                {slot.available
-                  ? format(parsedTime, 'h:mm a')
-                  : slot.isBusy
-                  ? 'Busy'
-                  : format(parsedTime, 'h:mm a')}
+                {label}
               </Button>
             );
           })}
@@ -145,7 +89,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
         {selectedTime && (
           <div className="mt-4 p-3 bg-green-50 rounded-md">
             <p className="text-sm text-green-900">
-              <strong>Selected:</strong> {format(parse(selectedTime, 'HH:mm', new Date()), 'h:mm a')}
+              <strong>Selected:</strong> {formatBookingTime(selectedTime)}
             </p>
           </div>
         )}

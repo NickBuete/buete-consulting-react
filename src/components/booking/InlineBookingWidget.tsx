@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -10,37 +9,18 @@ import { Textarea } from '../ui/Textarea';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Calendar as CalendarIcon, Clock, Loader2, CheckCircle } from 'lucide-react';
 import { format, addDays, startOfDay, isSameDay } from 'date-fns';
-import type { AvailabilitySlot } from '../../types/booking';
-import { getBookingDayOfWeek } from '../../utils/booking';
+import type { AvailabilitySlot, BookingSettings, BusySlot } from '../../types/booking';
+import { getBookingDayOfWeek, buildTimeSlots, formatBookingTime } from '../../utils/booking';
+import { inlineBookingSchema } from '../../schemas/booking';
+import {
+  createDirectBooking,
+  getAvailabilitySlots,
+  getBookingSettings,
+  getBusySlots,
+} from '../../services/booking';
+import type { z } from 'zod';
 
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
-
-const bookingSchema = z.object({
-  // Patient Information
-  patientFirstName: z.string().min(1, 'First name is required'),
-  patientLastName: z.string().min(1, 'Last name is required'),
-  patientPhone: z.string().min(10, 'Valid phone number is required'),
-  patientEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-    message: 'Valid email is required',
-  }),
-
-  // Referrer Information
-  referrerName: z.string().min(1, 'Referrer name is required'),
-  referrerEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-    message: 'Valid email is required',
-  }),
-  referrerPhone: z.string().optional(),
-  referrerClinic: z.string().optional(),
-
-  // Appointment Details
-  referralReason: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type BookingFormData = z.infer<typeof bookingSchema>;
+type BookingFormData = z.infer<typeof inlineBookingSchema>;
 
 interface InlineBookingWidgetProps {
   pharmacistId: number;
@@ -54,9 +34,10 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
   showTitle = true,
 }) => {
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
+  const [busySlots, setBusySlots] = useState<BusySlot[]>([]);
+  const [bookingSettings, setBookingSettings] = useState<BookingSettings | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookingStep, setBookingStep] = useState<'date' | 'time' | 'form' | 'success'>('date');
@@ -69,7 +50,7 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
     formState: { errors },
     reset,
   } = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(inlineBookingSchema),
   });
 
   // Generate next 14 days for quick selection
@@ -80,29 +61,29 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pharmacistId]);
 
-  useEffect(() => {
-    if (selectedDate) {
-      generateTimeSlots(selectedDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, availabilitySlots]);
+  const timeSlots = useMemo(
+    () =>
+      buildTimeSlots({
+        availabilitySlots,
+        busySlots,
+        selectedDate,
+        bookingSettings: bookingSettings ?? undefined,
+      }),
+    [availabilitySlots, busySlots, selectedDate, bookingSettings]
+  );
 
   const fetchAvailability = async () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(
-        `${apiUrl}/api/booking/availability?userId=${pharmacistId}`,
-        { credentials: 'include' }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch availability');
-      }
-
-      const data = await response.json();
-      setAvailabilitySlots(data);
+      const [availability, settings, busy] = await Promise.all([
+        getAvailabilitySlots(),
+        getBookingSettings(),
+        getBusySlots(),
+      ]);
+      setAvailabilitySlots(availability);
+      setBookingSettings(settings);
+      setBusySlots(busy);
     } catch (err) {
       console.error('Error fetching availability:', err);
       setError(err instanceof Error ? err.message : 'Failed to load availability');
@@ -111,54 +92,11 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
     }
   };
 
-  const generateTimeSlots = (date: Date) => {
-    const dayOfWeek = getBookingDayOfWeek(date);
-    const slotsForDay = availabilitySlots.filter(
-      (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
-    );
-
-    const slots: TimeSlot[] = [];
-    const slotDuration = 60; // Default 60 minutes
-
-    slotsForDay.forEach((availSlot) => {
-      const [startHour, startMin] = availSlot.startTime.split(':').map(Number);
-      const [endHour, endMin] = availSlot.endTime.split(':').map(Number);
-
-      let currentHour = startHour;
-      let currentMin = startMin;
-
-      while (
-        currentHour < endHour ||
-        (currentHour === endHour && currentMin < endMin)
-      ) {
-        const timeStr = `${currentHour.toString().padStart(2, '0')}:${currentMin
-          .toString()
-          .padStart(2, '0')}`;
-        slots.push({ time: timeStr, available: true });
-
-        currentMin += slotDuration;
-        if (currentMin >= 60) {
-          currentHour += Math.floor(currentMin / 60);
-          currentMin = currentMin % 60;
-        }
-      }
-    });
-
-    setTimeSlots(slots);
-  };
-
   const hasAvailability = (date: Date) => {
     const dayOfWeek = getBookingDayOfWeek(date);
     return availabilitySlots.some(
       (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
     );
-  };
-
-  const formatTime12hr = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   const handleDateSelect = (date: Date) => {
@@ -189,25 +127,12 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
       setIsSubmitting(true);
       setSubmitError(null);
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/direct`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          pharmacistId,
-          appointmentDate: format(selectedDate, 'yyyy-MM-dd'),
-          appointmentTime: selectedTime,
-          ...data,
-        }),
+      await createDirectBooking({
+        pharmacistId,
+        appointmentDate: format(selectedDate, 'yyyy-MM-dd'),
+        appointmentTime: selectedTime,
+        ...data,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create booking');
-      }
 
       // Success - move to success step
       setBookingStep('success');
@@ -374,25 +299,38 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
               </Alert>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                {timeSlots.map((slot) => (
-                  <button
-                    key={slot.time}
-                    onClick={() => handleTimeSelect(slot.time)}
-                    disabled={!slot.available}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${
-                      !slot.available
-                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : selectedTime === slot.time
-                        ? 'bg-blue-50 border-blue-600 text-blue-900'
-                        : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
-                    }`}
-                  >
-                    <Clock className="h-4 w-4 mx-auto mb-1" />
-                    <div className="text-sm font-medium">
-                      {formatTime12hr(slot.time)}
-                    </div>
-                  </button>
-                ))}
+                {timeSlots.map((slot) => {
+                  const label = slot.available
+                    ? formatBookingTime(slot.time)
+                    : slot.isBusy
+                    ? 'Busy'
+                    : formatBookingTime(slot.time);
+
+                  return (
+                    <button
+                      key={slot.time}
+                      onClick={() => handleTimeSelect(slot.time)}
+                      disabled={!slot.available}
+                      className={`p-3 rounded-lg border-2 text-center transition-all ${
+                        !slot.available
+                          ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                          : selectedTime === slot.time
+                          ? 'bg-blue-50 border-blue-600 text-blue-900'
+                          : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer'
+                      }`}
+                      aria-label={
+                        slot.available
+                          ? `Select ${formatBookingTime(slot.time)}`
+                          : slot.isBusy
+                          ? 'Busy'
+                          : `Unavailable ${formatBookingTime(slot.time)}`
+                      }
+                    >
+                      <Clock className="h-4 w-4 mx-auto mb-1" />
+                      <div className="text-sm font-medium">{label}</div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -413,7 +351,7 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
               <div className="text-sm text-blue-900">
                 <div className="font-medium mb-1">Selected Appointment:</div>
                 <div>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</div>
-                <div>{formatTime12hr(selectedTime)}</div>
+                <div>{formatBookingTime(selectedTime)}</div>
               </div>
             </div>
 

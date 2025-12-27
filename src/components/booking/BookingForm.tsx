@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { format } from 'date-fns';
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { TimeSlotPicker } from './TimeSlotPicker';
@@ -13,37 +12,11 @@ import { Textarea } from '../ui/Textarea';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Loader2 } from 'lucide-react';
 import type { AvailabilitySlot, BusySlot, BookingSettings } from '../../types/booking';
+import { publicBookingSchema } from '../../schemas/booking';
+import { createPublicBooking } from '../../services/booking';
+import type { z } from 'zod';
 
-const bookingSchema = z.object({
-  // Patient Information
-  patientFirstName: z.string().min(1, 'First name is required'),
-  patientLastName: z.string().min(1, 'Last name is required'),
-  patientPhone: z.string().min(10, 'Valid phone number is required'),
-  patientEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-    message: 'Valid email is required',
-  }),
-  patientDateOfBirth: z.string().optional(),
-  patientAddressLine1: z.string().optional(),
-  patientSuburb: z.string().optional(),
-  patientState: z.string().optional(),
-  patientPostcode: z.string().optional(),
-
-  // Referrer Information
-  referrerName: z.string().min(1, 'Referrer name is required'),
-  referrerEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-    message: 'Valid email is required',
-  }),
-  referrerPhone: z.string().optional(),
-  referrerClinic: z.string().optional(),
-
-  // Appointment Details
-  appointmentDate: z.string().min(1, 'Please select a date'),
-  appointmentTime: z.string().min(1, 'Please select a time'),
-  referralReason: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type BookingFormData = z.infer<typeof bookingSchema>;
+type BookingFormData = z.infer<typeof publicBookingSchema>;
 
 interface BookingFormProps {
   bookingUrl: string;
@@ -72,7 +45,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     setValue,
     formState: { errors },
   } = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(publicBookingSchema),
   });
 
   // Update form values when date/time are selected
@@ -92,25 +65,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     try {
       setIsSubmitting(true);
       setSubmitError(null);
-
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(
-        `${apiUrl}/api/booking/public/${bookingUrl}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'Failed to create booking');
-      }
-
-      const result = await response.json();
+      const result = await createPublicBooking(bookingUrl, data);
 
       // Navigate to confirmation page with booking details
       navigate('/booking/confirmation', {

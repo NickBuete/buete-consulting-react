@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Copy, ExternalLink, CheckCircle, Loader2, Share2 } from 'lucide-react';
 import type { PublicBookingSettings } from '../../types/booking';
+import { getBookingSettings } from '../../services/booking';
 
 type BookingSettings = Pick<PublicBookingSettings, 'bookingUrl' | 'allowPublicBooking'>;
 
@@ -21,16 +22,7 @@ export const BookingUrlCard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/settings`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch booking settings');
-      }
-
-      const data = await response.json();
+      const data = await getBookingSettings();
       setSettings(data);
     } catch (err) {
       console.error('Error fetching settings:', err);

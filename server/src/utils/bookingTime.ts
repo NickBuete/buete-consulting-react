@@ -81,6 +81,14 @@ export const getDateRangeForDate = (date: string, timeZone = BOOKING_TIME_ZONE) 
   return { start, end };
 };
 
+export const getDateRangeFromToday = (days: number, timeZone = BOOKING_TIME_ZONE) => {
+  const todayDate = getLocalDateString(new Date(), timeZone);
+  const start = buildDateTime(todayDate, '00:00', timeZone);
+  const endDate = addDaysToDateString(todayDate, days);
+  const end = new Date(buildDateTime(endDate, '00:00', timeZone).getTime() - 1);
+  return { start, end };
+};
+
 export const getDayOfWeekFromDateString = (date: string) => {
   const [year, month, day] = date.split('-').map(Number);
   const utcDate = new Date(Date.UTC(year, month - 1, day));

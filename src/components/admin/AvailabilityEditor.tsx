@@ -13,6 +13,13 @@ import {
 } from '../ui/Dialog';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import type { AvailabilitySlot } from '../../types/booking';
+import { formatBookingTime } from '../../utils/booking';
+import {
+  createAvailabilitySlot,
+  deleteAvailabilitySlot,
+  getAvailabilitySlots,
+  updateAvailabilitySlot,
+} from '../../services/booking';
 
 interface SlotFormData {
   dayOfWeek: number;
@@ -52,16 +59,7 @@ export const AvailabilityEditor: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/availability`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch availability');
-      }
-
-      const data = await response.json();
+      const data = await getAvailabilitySlots();
       setSlots(data);
     } catch (err) {
       console.error('Error fetching availability:', err);
@@ -97,16 +95,7 @@ export const AvailabilityEditor: React.FC = () => {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/availability/${slotId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete slot');
-      }
-
+      await deleteAvailabilitySlot(slotId);
       await fetchAvailability();
     } catch (err) {
       console.error('Error deleting slot:', err);
@@ -126,26 +115,10 @@ export const AvailabilityEditor: React.FC = () => {
     try {
       setSubmitting(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-
-      const url = editingSlot
-        ? `${apiUrl}/api/booking/availability/${editingSlot.id}`
-        : `${apiUrl}/api/booking/availability`;
-
-      const method = editingSlot ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save slot');
+      if (editingSlot) {
+        await updateAvailabilitySlot(editingSlot.id, formData);
+      } else {
+        await createAvailabilitySlot(formData);
       }
 
       setIsDialogOpen(false);
@@ -160,22 +133,7 @@ export const AvailabilityEditor: React.FC = () => {
 
   const toggleSlotAvailability = async (slot: AvailabilitySlot) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/booking/availability/${slot.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          isAvailable: !slot.isAvailable,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update slot');
-      }
-
+      await updateAvailabilitySlot(slot.id, { isAvailable: !slot.isAvailable });
       await fetchAvailability();
     } catch (err) {
       console.error('Error toggling slot:', err);
@@ -185,14 +143,6 @@ export const AvailabilityEditor: React.FC = () => {
 
   const getSlotsForDay = (dayOfWeek: number) => {
     return slots.filter((slot) => slot.dayOfWeek === dayOfWeek);
-  };
-
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   if (loading) {
@@ -242,7 +192,7 @@ export const AvailabilityEditor: React.FC = () => {
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-sm font-medium">
-                          {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                          {formatBookingTime(slot.startTime)} - {formatBookingTime(slot.endTime)}
                         </div>
                         <button
                           onClick={() => toggleSlotAvailability(slot)}

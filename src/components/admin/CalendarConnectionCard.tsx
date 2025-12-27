@@ -11,13 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/Dialog';
-
-interface CalendarStatus {
-  connected: boolean;
-  email?: string;
-  lastSync?: string;
-  autoSync?: boolean;
-}
+import {
+  type CalendarStatus,
+  disconnectMicrosoftCalendar,
+  getMicrosoftCalendarStatus,
+  getMicrosoftLoginUrl,
+  syncMicrosoftCalendar,
+  updateMicrosoftAutoSync,
+} from '../../services/microsoftCalendar';
 
 export const CalendarConnectionCard: React.FC = () => {
   const [status, setStatus] = useState<CalendarStatus | null>(null);
@@ -36,16 +37,7 @@ export const CalendarConnectionCard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/auth/microsoft/status`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch calendar status');
-      }
-
-      const data = await response.json();
+      const data = await getMicrosoftCalendarStatus();
       setStatus(data);
     } catch (err) {
       console.error('Error fetching calendar status:', err);
@@ -56,24 +48,14 @@ export const CalendarConnectionCard: React.FC = () => {
   };
 
   const handleConnect = () => {
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-    window.location.href = `${apiUrl}/api/auth/microsoft/login`;
+    window.location.href = getMicrosoftLoginUrl();
   };
 
   const handleDisconnect = async () => {
     try {
       setDisconnecting(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/auth/microsoft/disconnect`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to disconnect calendar');
-      }
-
+      await disconnectMicrosoftCalendar();
       setShowDisconnectDialog(false);
       await fetchCalendarStatus();
     } catch (err) {
@@ -88,16 +70,7 @@ export const CalendarConnectionCard: React.FC = () => {
     try {
       setSyncing(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/auth/microsoft/sync`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to sync calendar');
-      }
-
+      await syncMicrosoftCalendar();
       await fetchCalendarStatus();
     } catch (err) {
       console.error('Error syncing calendar:', err);
@@ -111,22 +84,7 @@ export const CalendarConnectionCard: React.FC = () => {
     if (!status) return;
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/auth/microsoft/auto-sync`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          autoSync: !status.autoSync,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update auto-sync setting');
-      }
-
+      await updateMicrosoftAutoSync(!status.autoSync);
       await fetchCalendarStatus();
     } catch (err) {
       console.error('Error toggling auto-sync:', err);
