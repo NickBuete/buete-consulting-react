@@ -5,7 +5,7 @@
 
 import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
-import { InvalidTransitionError } from '../utils/workflowValidation';
+import { InvalidTransitionError } from '../services/hmr/workflowStateManager';
 
 /**
  * Handles Prisma and custom domain errors, converting them to appropriate HTTP responses

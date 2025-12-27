@@ -3,24 +3,30 @@ import { Router } from 'express'
 import { Prisma, HmrReviewStatus, SymptomType } from '@prisma/client'
 
 import {
-  addMedicationToReview,
-  createActionItemForReview,
-  createAttachmentForReview,
   createHmrReview,
-  deleteActionItemFromReview,
   deleteHmrReview,
-  deleteSymptomFromReview,
   getHmrReviewById,
   listHmrReviews,
-  recordAuditLog,
-  removeMedicationFromReview,
-  updateActionItemForReview,
   updateHmrReview,
-  updateMedicationForReview,
-  upsertSymptomForReview,
   type ListHmrReviewsOptions,
-} from '../services/hmrReviewService'
-import { InvalidTransitionError } from '../utils/workflowValidation'
+} from '../services/hmr/hmrReviewService'
+import {
+  addMedicationToReview,
+  removeMedicationFromReview,
+  updateMedicationForReview,
+} from '../services/hmr/hmrMedicationService'
+import {
+  deleteSymptomFromReview,
+  upsertSymptomForReview,
+} from '../services/hmr/hmrSymptomService'
+import {
+  createActionItemForReview,
+  deleteActionItemFromReview,
+  updateActionItemForReview,
+} from '../services/hmr/hmrActionItemService'
+import { createAttachmentForReview } from '../services/hmr/hmrAttachmentService'
+import { recordAuditLog } from '../services/hmr/hmrAuditService'
+import { InvalidTransitionError } from '../services/hmr/workflowStateManager'
 import { asyncHandler } from './utils/asyncHandler'
 import {
   hmrActionItemCreateSchema,
