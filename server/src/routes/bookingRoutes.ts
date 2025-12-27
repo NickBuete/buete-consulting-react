@@ -5,6 +5,8 @@ import { asyncHandler } from './utils/asyncHandler';
 import { authenticate } from '../middleware/auth';
 import { graphService } from '../services/microsoft/graphClient';
 import { twilioService } from '../services/sms/twilioService';
+import { emailService } from '../services/email/emailService';
+import { generateSecureToken, getTokenExpiry } from '../utils/tokenGenerator';
 import { logger } from '../utils/logger';
 import crypto from 'crypto';
 
@@ -40,10 +42,32 @@ const publicBookingSchema = z.object({
   referrerName: z.string().min(1),
   referrerEmail: z.string().email().optional(),
   referrerPhone: z.string().optional(),
+  referrerClinic: z.string().optional(),
   referralReason: z.string().optional(),
   appointmentDate: z.string(), // ISO date
   appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
   notes: z.string().optional(),
+});
+
+const directBookingSchema = z.object({
+  pharmacistId: z.number(),
+  patientFirstName: z.string().min(1),
+  patientLastName: z.string().min(1),
+  patientPhone: z.string().min(10),
+  patientEmail: z.string().email().optional(),
+  referrerName: z.string().min(1),
+  referrerEmail: z.string().email().optional(),
+  referrerPhone: z.string().optional(),
+  referrerClinic: z.string().optional(),
+  referralReason: z.string().optional(),
+  appointmentDate: z.string(), // ISO date
+  appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
+  notes: z.string().optional(),
+});
+
+const rescheduleSchema = z.object({
+  appointmentDate: z.string(), // ISO date
+  appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
 });
 
 // ========================================
@@ -437,6 +461,447 @@ router.post(
       message: settings.requireApproval
         ? 'Your booking request has been submitted and is pending approval.'
         : 'Your appointment has been confirmed!',
+    });
+  })
+);
+
+// ========================================
+// Direct Booking (Authenticated)
+// ========================================
+
+/**
+ * Create direct booking (from inline widget)
+ * POST /api/booking/direct
+ */
+router.post(
+  '/direct',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const validated = directBookingSchema.parse(req.body);
+    const userId = validated.pharmacistId;
+
+    // Get user and settings
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        bookingSettings: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Pharmacist not found' });
+    }
+
+    const settings = user.bookingSettings || {
+      defaultDuration: 60,
+      requireApproval: false,
+    };
+
+    // Format phone number
+    const formattedPhone = twilioService.formatAustralianPhone(validated.patientPhone);
+
+    // Create or find patient
+    let patient = await prisma.patient.findFirst({
+      where: {
+        ownerId: userId,
+        firstName: validated.patientFirstName,
+        lastName: validated.patientLastName,
+      },
+    });
+
+    if (!patient) {
+      patient = await prisma.patient.create({
+        data: {
+          ownerId: userId,
+          firstName: validated.patientFirstName,
+          lastName: validated.patientLastName,
+          contactPhone: formattedPhone,
+          contactEmail: validated.patientEmail,
+        },
+      });
+    } else {
+      patient = await prisma.patient.update({
+        where: { id: patient.id },
+        data: {
+          contactPhone: formattedPhone,
+          contactEmail: validated.patientEmail,
+        },
+      });
+    }
+
+    // Parse appointment datetime
+    const appointmentDateTime = new Date(
+      `${validated.appointmentDate}T${validated.appointmentTime}:00+10:00`
+    );
+    const appointmentEndTime = new Date(
+      appointmentDateTime.getTime() + settings.defaultDuration * 60000
+    );
+
+    // Create HMR review
+    const review = await prisma.hmrReview.create({
+      data: {
+        ownerId: userId,
+        patientId: patient.id,
+        referredBy: validated.referrerName,
+        referralDate: new Date(),
+        referralReason: validated.referralReason,
+        referralNotes: validated.notes,
+        scheduledAt: appointmentDateTime,
+        status: settings.requireApproval ? 'PENDING' : 'SCHEDULED',
+        visitLocation: 'To be confirmed',
+      },
+    });
+
+    // Generate reschedule token
+    const token = generateSecureToken();
+    const tokenExpiry = getTokenExpiry(30); // 30 days
+
+    await prisma.rescheduleToken.create({
+      data: {
+        hmrReviewId: review.id,
+        token,
+        expiresAt: tokenExpiry,
+      },
+    });
+
+    // Sync to Microsoft Calendar if enabled
+    if (user.calendarSyncEnabled && user.microsoftAccessToken) {
+      try {
+        let accessToken = user.microsoftAccessToken;
+        if (user.microsoftTokenExpiry && new Date() >= user.microsoftTokenExpiry) {
+          const refreshed = await graphService.refreshAccessToken(
+            user.microsoftRefreshToken!
+          );
+          accessToken = refreshed.accessToken;
+
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              microsoftAccessToken: refreshed.accessToken,
+              microsoftRefreshToken: refreshed.refreshToken,
+              microsoftTokenExpiry: new Date(Date.now() + refreshed.expiresIn * 1000),
+            },
+          });
+        }
+
+        const calendarEventId = await graphService.createCalendarEvent(accessToken, {
+          subject: `HMR: ${patient.firstName} ${patient.lastName}`,
+          body: `<p><strong>Home Medicines Review</strong></p>
+                 <p>Patient: ${patient.firstName} ${patient.lastName}</p>
+                 <p>Referred by: ${validated.referrerName}</p>
+                 ${validated.referrerClinic ? `<p>Clinic: ${validated.referrerClinic}</p>` : ''}
+                 <p>Reason: ${validated.referralReason || 'Not specified'}</p>
+                 <p>Phone: ${formattedPhone}</p>`,
+          startDateTime: appointmentDateTime.toISOString(),
+          endDateTime: appointmentEndTime.toISOString(),
+          attendees: validated.patientEmail
+            ? [{ emailAddress: validated.patientEmail, name: `${patient.firstName} ${patient.lastName}` }]
+            : undefined,
+        });
+
+        await prisma.hmrReview.update({
+          where: { id: review.id },
+          data: { calendarEventId },
+        });
+      } catch (error) {
+        logger.error('Failed to create calendar event:', error);
+      }
+    }
+
+    // Send confirmation email
+    if (validated.patientEmail) {
+      try {
+        const rescheduleLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reschedule/${token}`;
+
+        await emailService.sendBookingConfirmation({
+          patientEmail: validated.patientEmail,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          pharmacistName: user.username,
+          appointmentDate: appointmentDateTime.toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          appointmentTime: validated.appointmentTime,
+          rescheduleLink,
+          referrerName: validated.referrerName,
+        });
+      } catch (error) {
+        logger.error('Failed to send confirmation email:', error);
+      }
+    }
+
+    // Send confirmation SMS
+    if (twilioService.isEnabled() && twilioService.isValidAustralianPhone(formattedPhone)) {
+      try {
+        await twilioService.sendAppointmentConfirmation({
+          to: formattedPhone,
+          patientName: patient.firstName,
+          appointmentDate: appointmentDateTime.toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          appointmentTime: validated.appointmentTime,
+        });
+
+        await prisma.smsLog.create({
+          data: {
+            hmrReviewId: review.id,
+            toPhone: formattedPhone,
+            messageBody: 'Appointment confirmation',
+            status: 'sent',
+            sentAt: new Date(),
+          },
+        });
+      } catch (error) {
+        logger.error('Failed to send confirmation SMS:', error);
+        await prisma.smsLog.create({
+          data: {
+            hmrReviewId: review.id,
+            toPhone: formattedPhone,
+            messageBody: 'Appointment confirmation',
+            status: 'failed',
+            errorMsg: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      bookingId: review.id,
+      appointmentDateTime: appointmentDateTime.toISOString(),
+      requiresApproval: settings.requireApproval,
+      message: settings.requireApproval
+        ? 'Your booking request has been submitted and is pending approval.'
+        : 'Your appointment has been confirmed!',
+    });
+  })
+);
+
+// ========================================
+// Reschedule Endpoints (Public)
+// ========================================
+
+/**
+ * Get booking info by reschedule token
+ * GET /api/booking/reschedule/:token
+ */
+router.get(
+  '/reschedule/:token',
+  asyncHandler(async (req, res) => {
+    const { token } = req.params;
+
+    const rescheduleToken = await prisma.rescheduleToken.findUnique({
+      where: { token },
+      include: {
+        hmrReview: {
+          include: {
+            patient: true,
+            owner: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!rescheduleToken) {
+      return res.status(404).json({ error: 'Invalid reschedule link' });
+    }
+
+    if (rescheduleToken.usedAt) {
+      return res.status(400).json({
+        error: 'This reschedule link has already been used',
+      });
+    }
+
+    if (new Date() > rescheduleToken.expiresAt) {
+      return res.status(400).json({
+        error: 'This reschedule link has expired',
+      });
+    }
+
+    const review = rescheduleToken.hmrReview;
+
+    res.json({
+      bookingId: review.id,
+      patient: {
+        firstName: review.patient.firstName,
+        lastName: review.patient.lastName,
+      },
+      pharmacist: {
+        name: review.owner.username,
+      },
+      currentAppointment: {
+        date: review.scheduledAt?.toISOString().split('T')[0],
+        time: review.scheduledAt?.toISOString().split('T')[1].substring(0, 5),
+      },
+      referredBy: review.referredBy,
+    });
+  })
+);
+
+/**
+ * Reschedule booking
+ * POST /api/booking/reschedule/:token
+ */
+router.post(
+  '/reschedule/:token',
+  asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const validated = rescheduleSchema.parse(req.body);
+
+    const rescheduleToken = await prisma.rescheduleToken.findUnique({
+      where: { token },
+      include: {
+        hmrReview: {
+          include: {
+            patient: true,
+            owner: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                microsoftAccessToken: true,
+                microsoftRefreshToken: true,
+                microsoftTokenExpiry: true,
+                calendarSyncEnabled: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!rescheduleToken) {
+      return res.status(404).json({ error: 'Invalid reschedule link' });
+    }
+
+    if (rescheduleToken.usedAt) {
+      return res.status(400).json({
+        error: 'This reschedule link has already been used',
+      });
+    }
+
+    if (new Date() > rescheduleToken.expiresAt) {
+      return res.status(400).json({
+        error: 'This reschedule link has expired',
+      });
+    }
+
+    const review = rescheduleToken.hmrReview;
+    const user = review.owner;
+
+    // Parse new appointment datetime
+    const newAppointmentDateTime = new Date(
+      `${validated.appointmentDate}T${validated.appointmentTime}:00+10:00`
+    );
+
+    // Update calendar event if synced
+    if (user.calendarSyncEnabled && review.calendarEventId && user.microsoftAccessToken) {
+      try {
+        let accessToken = user.microsoftAccessToken;
+        if (user.microsoftTokenExpiry && new Date() >= user.microsoftTokenExpiry) {
+          const refreshed = await graphService.refreshAccessToken(
+            user.microsoftRefreshToken!
+          );
+          accessToken = refreshed.accessToken;
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              microsoftAccessToken: refreshed.accessToken,
+              microsoftRefreshToken: refreshed.refreshToken,
+              microsoftTokenExpiry: new Date(Date.now() + refreshed.expiresIn * 1000),
+            },
+          });
+        }
+
+        await graphService.updateCalendarEvent(
+          accessToken,
+          review.calendarEventId,
+          {
+            startDateTime: newAppointmentDateTime.toISOString(),
+            endDateTime: new Date(newAppointmentDateTime.getTime() + 60 * 60000).toISOString(),
+          }
+        );
+      } catch (error) {
+        logger.error('Failed to update calendar event:', error);
+      }
+    }
+
+    // Update review
+    await prisma.hmrReview.update({
+      where: { id: review.id },
+      data: {
+        scheduledAt: newAppointmentDateTime,
+      },
+    });
+
+    // Mark token as used
+    await prisma.rescheduleToken.update({
+      where: { id: rescheduleToken.id },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // Send confirmation email
+    if (review.patient.contactEmail) {
+      try {
+        await emailService.sendEmail({
+          to: review.patient.contactEmail,
+          subject: 'Appointment Rescheduled - Home Medicines Review',
+          html: `
+            <h2>Appointment Rescheduled</h2>
+            <p>Dear ${review.patient.firstName},</p>
+            <p>Your appointment has been successfully rescheduled to:</p>
+            <p><strong>Date:</strong> ${newAppointmentDateTime.toLocaleDateString('en-AU', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}</p>
+            <p><strong>Time:</strong> ${validated.appointmentTime}</p>
+            <p>If you have any questions, please contact ${user.username}.</p>
+          `,
+        });
+      } catch (error) {
+        logger.error('Failed to send reschedule confirmation email:', error);
+      }
+    }
+
+    // Send SMS confirmation
+    if (review.patient.contactPhone && twilioService.isEnabled()) {
+      try {
+        await twilioService.sendAppointmentConfirmation({
+          to: review.patient.contactPhone,
+          patientName: review.patient.firstName,
+          appointmentDate: newAppointmentDateTime.toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          appointmentTime: validated.appointmentTime,
+        });
+      } catch (error) {
+        logger.error('Failed to send reschedule SMS:', error);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Appointment rescheduled successfully',
+      newAppointmentDateTime: newAppointmentDateTime.toISOString(),
     });
   })
 );

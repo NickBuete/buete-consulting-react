@@ -71,6 +71,7 @@ model User {
   availabilitySlots      AvailabilitySlot[]
   bookingSettings        BookingSettings?
 
+  @@index([microsoftEmail])
   @@map("users")
 }
 
@@ -204,6 +205,7 @@ model Patient {
 
   @@index([clientId])
   @@index([ownerId])
+  @@index([medicareNumber])
   @@map("patients")
 }
 
@@ -280,24 +282,6 @@ model HmrReview {
   reportUrl            String?              @map("report_url") @db.VarChar(255)
   reportBody           String?              @map("report_body")
   reportContent        String?              @map("report_content") // HTML content for TipTap editor
-  // Interview symptom fields
-  dizziness            String?
-  drowsiness           String?
-  fatigue              String?
-  memory               String?
-  anxiety              String?
-  sleep                String?
-  headaches            String?
-  pain                 String?
-  mobility             String?
-  falls                String?
-  bladderControl       String?              @map("bladder_control")
-  bowelControl         String?              @map("bowel_control")
-  nightSymptoms        String?              @map("night_symptoms")
-  signsOfBleeding      String?              @map("signs_of_bleeding")
-  rashes               String?
-  bruising             String?
-  socialSupport        String?              @map("social_support")
   createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamp(6)
   patient              Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -306,6 +290,7 @@ model HmrReview {
   owner                User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   medications          HmrMedication[]
   symptoms             HmrSymptom[]
+  interviewResponses   HmrInterviewResponse[]
   actionItems          HmrActionItem[]
   attachments          HmrAttachment[]
   auditLogs            HmrAuditLog[]
@@ -315,11 +300,14 @@ model HmrReview {
   medicalHistory       HmrMedicalHistory[]
   allergiesTable       HmrAllergy[]
   pathologyResults     HmrPathology[]
+  rescheduleToken      RescheduleToken?
 
   @@index([patientId])
   @@index([prescriberId])
   @@index([clinicId])
   @@index([ownerId])
+  @@index([status])
+  @@index([referralDate])
   @@map("hmr_reviews")
 }
 
@@ -379,7 +367,23 @@ model HmrActionItem {
 
   @@index([hmrReviewId])
   @@index([assignedToUserId])
+  @@index([status])
+  @@index([dueDate])
   @@map("hmr_action_items")
+}
+
+model HmrInterviewResponse {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @map("hmr_review_id")
+  category    String    @db.VarChar(100) // e.g., 'dizziness', 'drowsiness', 'memory', etc.
+  response    String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  hmrReview   HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([hmrReviewId, category])
+  @@index([hmrReviewId])
+  @@map("hmr_interview_responses")
 }
 
 model HmrAttachment {
@@ -590,4 +594,18 @@ model SmsLog {
   @@index([hmrReviewId])
   @@index([status])
   @@map("sms_logs")
+}
+
+model RescheduleToken {
+  id          Int       @id @default(autoincrement())
+  hmrReviewId Int       @unique @map("hmr_review_id")
+  token       String    @unique @db.VarChar(255)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamp(6)
+  usedAt      DateTime? @map("used_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  hmrReview   HmrReview @relation(fields: [hmrReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([token])
+  @@index([hmrReviewId])
+  @@map("reschedule_tokens")
 }

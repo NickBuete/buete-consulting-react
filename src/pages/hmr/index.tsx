@@ -26,9 +26,12 @@ import {
 } from '../../components/crud/AddReviewDialog'
 import { WorkflowStatus } from '../../components/hmr'
 import { formatDate } from '../../utils/dashboard'
+import { InlineBookingWidget } from '../../components/booking/InlineBookingWidget'
+import { useAuth } from '../../context/AuthContext'
 
 const HmrDashboardPage: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [selectedReview, setSelectedReview] = React.useState<any>(null)
   const handleReviewRowClick = (review: any) => {
     navigate(`/hmr/${review.id}`)
@@ -221,6 +224,13 @@ const HmrDashboardPage: React.FC = () => {
               </Button>
             </div>
           </section>
+
+          {/* Inline Booking Widget */}
+          {user && (
+            <section>
+              <InlineBookingWidget pharmacistId={user.id} showTitle={true} />
+            </section>
+          )}
 
           {/* Tabs and Content */}
           <section>
