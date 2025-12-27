@@ -49,20 +49,14 @@ router.post(
 
       const symptoms = review.symptoms
         .filter((s) => s.present)
-        .map(
-          (s) =>
-            \`\${s.symptom}\${s.severity ? \` (\${s.severity})\` : ''}\${
-              s.notes ? \`: \${s.notes}\` : ''
-            }\`
-        )
+        .map((s) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}${s.notes ? `: ${s.notes}` : ''}`)
 
       // Add text-based symptoms from review fields
       const textSymptoms: string[] = []
-      if (review.dizziness) textSymptoms.push(\`Dizziness: \${review.dizziness}\`)
-      if (review.pain) textSymptoms.push(\`Pain: \${review.pain}\`)
-      if (review.falls) textSymptoms.push(\`Falls: \${review.falls}\`)
-      if (review.mobility)
-        textSymptoms.push(\`Mobility issues: \${review.mobility}\`)
+      if (review.dizziness) textSymptoms.push(`Dizziness: ${review.dizziness}`)
+      if (review.pain) textSymptoms.push(`Pain: ${review.pain}`)
+      if (review.falls) textSymptoms.push(`Falls: ${review.falls}`)
+      if (review.mobility) textSymptoms.push(`Mobility issues: ${review.mobility}`)
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
@@ -125,11 +119,11 @@ router.post(
         return res.status(400).json({ error: 'Review not found' })
       }
 
-      const patientName = \`\${review.patient.firstName} \${review.patient.lastName}\`
+      const patientName = `${review.patient.firstName} ${review.patient.lastName}`
 
       const symptoms = review.symptoms
         .filter((s) => s.present)
-        .map((s) => \`\${s.symptom}\${s.severity ? \` (\${s.severity})\` : ''}\`)
+        .map((s) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}`)
 
       // Add text-based symptoms
       const textSymptoms: string[] = []
@@ -199,11 +193,9 @@ router.post(
         })
 
         if (review) {
-          context = \`Patient: \${review.patient.firstName} \${
-            review.patient.lastName
-          }
-Medications: \${review.medications.map((m) => m.name).join(', ')}
-Medical History: \${review.pastMedicalHistory || 'Not provided'}\`
+          context = `Patient: ${review.patient.firstName} ${review.patient.lastName}
+Medications: ${review.medications.map((m) => m.name).join(', ')}
+Medical History: ${review.pastMedicalHistory || 'Not provided'}`
         }
       }
 
