@@ -1,5 +1,4 @@
 import express from 'express';
-import { z } from 'zod';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
 import { authenticate } from '../middleware/auth';
@@ -8,200 +7,29 @@ import { twilioService } from '../services/sms/twilioService';
 import { emailService } from '../services/email/emailService';
 import { generateSecureToken, getTokenExpiry } from '../utils/tokenGenerator';
 import { logger } from '../utils/logger';
+import {
+  BOOKING_TIME_ZONE,
+  addDaysToDateString,
+  addMinutesToDate,
+  buildDateTime,
+  getDayOfWeekFromDateString,
+  getLocalDateString,
+} from '../utils/bookingTime';
+import { getBusyIntervals, hasBookingConflict } from '../services/bookingAvailability';
+import {
+  availabilitySlotSchema,
+  bookingSettingsSchema,
+  directBookingSchema,
+  publicBookingSchema,
+  rescheduleSchema,
+} from '../schemas/bookingSchemas';
 import crypto from 'crypto';
 
 const router = express.Router();
 
-const BOOKING_TIME_ZONE = process.env.BOOKING_TIME_ZONE || 'Australia/Sydney';
-
-const addMinutesToDate = (date: Date, minutes: number) =>
-  new Date(date.getTime() + minutes * 60000);
-
-const getTimeZoneParts = (date: Date, timeZone: string) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-  const parts = formatter.formatToParts(date);
-  const values: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      values[part.type] = part.value;
-    }
-  }
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
-  };
-};
-
-const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
-  const parts = getTimeZoneParts(date, timeZone);
-  const utcTime = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second
-  );
-  return (utcTime - date.getTime()) / 60000;
-};
-
-const buildDateTime = (date: string, time: string, timeZone = BOOKING_TIME_ZONE) => {
-  const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
-  const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-  const offset = getTimeZoneOffsetMinutes(utcDate, timeZone);
-  return new Date(utcDate.getTime() - offset * 60000);
-};
-
-const addDaysToDateString = (date: string, days: number) => {
-  const [year, month, day] = date.split('-').map(Number);
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-  utcDate.setUTCDate(utcDate.getUTCDate() + days);
-  const nextYear = utcDate.getUTCFullYear();
-  const nextMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
-  const nextDay = String(utcDate.getUTCDate()).padStart(2, '0');
-  return `${nextYear}-${nextMonth}-${nextDay}`;
-};
-
-const getLocalDateString = (date: Date, timeZone = BOOKING_TIME_ZONE) => {
-  const parts = getTimeZoneParts(date, timeZone);
-  const month = String(parts.month).padStart(2, '0');
-  const day = String(parts.day).padStart(2, '0');
-  return `${parts.year}-${month}-${day}`;
-};
-
-const getDateRangeForDate = (date: string, timeZone = BOOKING_TIME_ZONE) => {
-  const start = buildDateTime(date, '00:00', timeZone);
-  const nextDate = addDaysToDateString(date, 1);
-  const end = new Date(buildDateTime(nextDate, '00:00', timeZone).getTime() - 1);
-  return { start, end };
-};
-
-const getDayOfWeekFromDateString = (date: string) => {
-  const [year, month, day] = date.split('-').map(Number);
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-  const dayOfWeek = utcDate.getUTCDay();
-  return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-};
-
-const getBusyIntervals = async (
-  userId: number,
-  startDate: Date,
-  endDate: Date,
-  durationMinutes: number
-) => {
-  const reviews = await prisma.hmrReview.findMany({
-    where: {
-      ownerId: userId,
-      status: { not: 'CANCELLED' },
-      scheduledAt: {
-        not: null,
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      scheduledAt: true,
-    },
-  });
-
-  return reviews.map((review) => {
-    const start = review.scheduledAt as Date;
-    const end = addMinutesToDate(start, durationMinutes);
-    return { start, end };
-  });
-};
-
-const hasBookingConflict = async (
-  userId: number,
-  appointmentStart: Date,
-  durationMinutes: number,
-  bufferBefore: number,
-  bufferAfter: number,
-  appointmentDate: string,
-  timeZone = BOOKING_TIME_ZONE
-) => {
-  const { start, end } = getDateRangeForDate(appointmentDate, timeZone);
-  const busyIntervals = await getBusyIntervals(userId, start, end, durationMinutes);
-  const appointmentEnd = addMinutesToDate(appointmentStart, durationMinutes);
-
-  return busyIntervals.some((interval) => {
-    const bufferedStart = addMinutesToDate(interval.start, -bufferBefore);
-    const bufferedEnd = addMinutesToDate(interval.end, bufferAfter);
-    return appointmentStart < bufferedEnd && appointmentEnd > bufferedStart;
-  });
-};
-
 // ========================================
 // Validation Schemas
 // ========================================
-
-const availabilitySlotSchema = z.object({
-  dayOfWeek: z.number().min(0).max(6),
-  startTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
-  endTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
-  isAvailable: z.boolean().optional(),
-});
-
-const bookingSettingsSchema = z.object({
-  bufferTimeBefore: z.number().min(0).max(120).optional(),
-  bufferTimeAfter: z.number().min(0).max(120).optional(),
-  defaultDuration: z.number().min(15).max(240).optional(),
-  allowPublicBooking: z.boolean().optional(),
-  requireApproval: z.boolean().optional(),
-  bookingUrl: z.string().min(3).max(100).optional(),
-  confirmationEmailText: z.string().optional(),
-  reminderEmailText: z.string().optional(),
-});
-
-const publicBookingSchema = z.object({
-  patientFirstName: z.string().min(1),
-  patientLastName: z.string().min(1),
-  patientPhone: z.string().min(10),
-  patientEmail: z.string().email().optional(),
-  referrerName: z.string().min(1),
-  referrerEmail: z.string().email().optional(),
-  referrerPhone: z.string().optional(),
-  referrerClinic: z.string().optional(),
-  referralReason: z.string().optional(),
-  appointmentDate: z.string(), // ISO date
-  appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
-  notes: z.string().optional(),
-});
-
-const directBookingSchema = z.object({
-  pharmacistId: z.number(),
-  patientFirstName: z.string().min(1),
-  patientLastName: z.string().min(1),
-  patientPhone: z.string().min(10),
-  patientEmail: z.string().email().optional(),
-  referrerName: z.string().min(1),
-  referrerEmail: z.string().email().optional(),
-  referrerPhone: z.string().optional(),
-  referrerClinic: z.string().optional(),
-  referralReason: z.string().optional(),
-  appointmentDate: z.string(), // ISO date
-  appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
-  notes: z.string().optional(),
-});
-
-const rescheduleSchema = z.object({
-  appointmentDate: z.string(), // ISO date
-  appointmentTime: z.string().regex(/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/),
-});
 
 // ========================================
 // Availability Slots Management

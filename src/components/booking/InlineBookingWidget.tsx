@@ -10,14 +10,8 @@ import { Textarea } from '../ui/Textarea';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Calendar as CalendarIcon, Clock, Loader2, CheckCircle } from 'lucide-react';
 import { format, addDays, startOfDay, isSameDay } from 'date-fns';
-
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
+import type { AvailabilitySlot } from '../../types/booking';
+import { getBookingDayOfWeek } from '../../utils/booking';
 
 interface TimeSlot {
   time: string;
@@ -118,7 +112,7 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
   };
 
   const generateTimeSlots = (date: Date) => {
-    const dayOfWeek = (date.getDay() + 6) % 7; // Convert to Monday=0
+    const dayOfWeek = getBookingDayOfWeek(date);
     const slotsForDay = availabilitySlots.filter(
       (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
     );
@@ -154,7 +148,7 @@ export const InlineBookingWidget: React.FC<InlineBookingWidgetProps> = ({
   };
 
   const hasAvailability = (date: Date) => {
-    const dayOfWeek = (date.getDay() + 6) % 7;
+    const dayOfWeek = getBookingDayOfWeek(date);
     return availabilitySlots.some(
       (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
     );

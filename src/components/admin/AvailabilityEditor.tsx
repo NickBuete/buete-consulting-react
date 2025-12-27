@@ -12,14 +12,7 @@ import {
   DialogTitle,
 } from '../ui/Dialog';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
-
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
+import type { AvailabilitySlot } from '../../types/booking';
 
 interface SlotFormData {
   dayOfWeek: number;

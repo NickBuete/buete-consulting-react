@@ -129,3 +129,5 @@ export interface HMRReferral {
   status: 'pending' | 'accepted' | 'in-progress' | 'completed' | 'cancelled';
   notes?: string;
 }
+
+export * from './booking';

@@ -3,37 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { BookingForm } from '../../components/booking/BookingForm';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Skeleton';
-
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
-
-interface BusySlot {
-  start: string;
-  end: string;
-}
-
-interface PublicBookingInfo {
-  pharmacist: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  bookingSettings: {
-    allowPublicBooking: boolean;
-    requireApproval: boolean;
-    bufferTimeBefore: number;
-    bufferTimeAfter: number;
-    defaultDuration: number;
-    bookingUrl?: string | null;
-  };
-  availability: AvailabilitySlot[];
-  busySlots: BusySlot[];
-}
+import type { PublicBookingInfo } from '../../types/booking';
 
 const BookingPage: React.FC = () => {
   const { bookingUrl } = useParams<{ bookingUrl: string }>();

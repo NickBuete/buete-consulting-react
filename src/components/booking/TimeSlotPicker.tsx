@@ -3,24 +3,13 @@ import { format, addMinutes, parse, isBefore, isSameDay } from 'date-fns';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Clock } from 'lucide-react';
+import type { AvailabilitySlot, BusySlot, BookingSettings } from '../../types/booking';
+import { getBookingDayOfWeek } from '../../utils/booking';
 
 interface TimeSlot {
   time: string; // HH:mm format
   available: boolean;
   isBusy?: boolean;
-}
-
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
-
-interface BusySlot {
-  start: string;
-  end: string;
 }
 
 interface TimeSlotPickerProps {
@@ -29,11 +18,7 @@ interface TimeSlotPickerProps {
   selectedDate: Date;
   selectedTime: string;
   onSelectTime: (time: string) => void;
-  bookingSettings: {
-    bufferTimeBefore: number;
-    bufferTimeAfter: number;
-    defaultDuration: number;
-  };
+  bookingSettings: BookingSettings;
 }
 
 export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
@@ -47,7 +32,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
 
   useEffect(() => {
-    const dayOfWeek = (selectedDate.getDay() + 6) % 7;
+    const dayOfWeek = getBookingDayOfWeek(selectedDate);
     const daySlots = availabilitySlots.filter(
       (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
     );

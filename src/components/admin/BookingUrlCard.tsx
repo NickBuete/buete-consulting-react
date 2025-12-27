@@ -3,11 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Copy, ExternalLink, CheckCircle, Loader2, Share2 } from 'lucide-react';
+import type { PublicBookingSettings } from '../../types/booking';
 
-interface BookingSettings {
-  bookingUrl: string;
-  allowPublicBooking: boolean;
-}
+type BookingSettings = Pick<PublicBookingSettings, 'bookingUrl' | 'allowPublicBooking'>;
 
 export const BookingUrlCard: React.FC = () => {
   const [settings, setSettings] = useState<BookingSettings | null>(null);

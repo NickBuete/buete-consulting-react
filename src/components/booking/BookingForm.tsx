@@ -12,6 +12,7 @@ import { Label } from '../ui/Label';
 import { Textarea } from '../ui/Textarea';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Loader2 } from 'lucide-react';
+import type { AvailabilitySlot, BusySlot, BookingSettings } from '../../types/booking';
 
 const bookingSchema = z.object({
   // Patient Information
@@ -44,30 +45,12 @@ const bookingSchema = z.object({
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
-
-interface BusySlot {
-  start: string;
-  end: string;
-}
-
 interface BookingFormProps {
   bookingUrl: string;
   pharmacistName: string;
   availabilitySlots: AvailabilitySlot[];
   busySlots: BusySlot[];
-  bookingSettings: {
-    requireApproval: boolean;
-    bufferTimeBefore: number;
-    bufferTimeAfter: number;
-    defaultDuration: number;
-  };
+  bookingSettings: BookingSettings;
 }
 
 export const BookingForm: React.FC<BookingFormProps> = ({

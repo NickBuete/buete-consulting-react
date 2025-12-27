@@ -2,14 +2,8 @@ import React from 'react';
 import { Calendar } from '../ui/Calendar';
 import { Card, CardContent } from '../ui/Card';
 import { addDays, startOfToday } from 'date-fns';
-
-interface AvailabilitySlot {
-  id: number;
-  dayOfWeek: number; // 0 = Monday, 6 = Sunday
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
+import type { AvailabilitySlot } from '../../types/booking';
+import { getBookingDayOfWeek } from '../../utils/booking';
 
 interface AvailabilityCalendarProps {
   availabilitySlots: AvailabilitySlot[];
@@ -34,8 +28,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     // Convert date to day of week (0 = Monday, 6 = Sunday)
     // JavaScript getDay(): 0 = Sunday, 1 = Monday, etc.
     // We need: 0 = Monday, 6 = Sunday
-    let dayOfWeek = date.getDay() - 1;
-    if (dayOfWeek === -1) dayOfWeek = 6; // Sunday
+    const dayOfWeek = getBookingDayOfWeek(date);
 
     // Check if there are any available slots for this day
     const hasAvailableSlots = availabilitySlots.some(
