@@ -1,21 +1,17 @@
+/**
+ * Booking routes
+ * Refactored from 931 lines to follow routes → services pattern
+ * Services handle all business logic, routes handle HTTP orchestration
+ */
+
 import express from 'express';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
+import { handlePrismaError } from '../middleware/prismaErrorHandler';
 import { authenticate } from '../middleware/auth';
-import { twilioService } from '../services/sms/twilioService';
-import { emailService } from '../services/email/emailService';
-import { generateSecureToken, getTokenExpiry } from '../utils/tokenGenerator';
 import { logger } from '../utils/logger';
-import {
-  BOOKING_TIME_ZONE,
-  addMinutesToDate,
-  buildDateTime,
-  getDateRangeFromToday,
-  getDayOfWeekFromDateString,
-} from '../utils/bookingTime';
-import { getBusyIntervals, hasBookingConflict } from '../services/bookingAvailability';
-import { createBookingCalendarEvent, updateBookingCalendarEvent } from '../services/bookingCalendar';
-import { upsertBookingPatient } from '../services/bookingPatients';
+import { BOOKING_TIME_ZONE, getDateRangeFromToday } from '../utils/bookingTime';
+import { getBusyIntervals } from '../services/bookingAvailability';
 import {
   availabilitySlotSchema,
   bookingSettingsSchema,
@@ -23,34 +19,20 @@ import {
   publicBookingSchema,
   rescheduleSchema,
 } from '../schemas/bookingSchemas';
+import {
+  listAvailabilitySlots,
+  createAvailabilitySlot,
+  updateAvailabilitySlot,
+  deleteAvailabilitySlot,
+  getOrCreateBookingSettings,
+  updateBookingSettings,
+  createPublicBooking,
+  createDirectBooking,
+  getBookingByToken,
+  rescheduleBooking,
+} from '../services/booking';
 
 const router = express.Router();
-
-const isAppointmentWithinAvailability = async (params: {
-  userId: number;
-  appointmentDate: string;
-  appointmentStart: Date;
-  appointmentEnd: Date;
-}) => {
-  const dayOfWeek = getDayOfWeekFromDateString(params.appointmentDate);
-  const availabilitySlots = await prisma.availabilitySlot.findMany({
-    where: {
-      userId: params.userId,
-      dayOfWeek,
-      isAvailable: true,
-    },
-  });
-
-  return availabilitySlots.some((slot) => {
-    const slotStart = buildDateTime(params.appointmentDate, slot.startTime);
-    const slotEnd = buildDateTime(params.appointmentDate, slot.endTime);
-    return params.appointmentStart >= slotStart && params.appointmentEnd <= slotEnd;
-  });
-};
-
-// ========================================
-// Validation Schemas
-// ========================================
 
 // ========================================
 // Availability Slots Management
@@ -64,13 +46,8 @@ router.get(
   '/availability',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
-
-    const slots = await prisma.availabilitySlot.findMany({
-      where: { userId },
-      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-    });
-
+    const ownerId = req.user!.id;
+    const slots = await listAvailabilitySlots(ownerId);
     res.json(slots);
   })
 );
@@ -83,19 +60,10 @@ router.post(
   '/availability',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
+    const ownerId = req.user!.id;
     const validated = availabilitySlotSchema.parse(req.body);
 
-    const slot = await prisma.availabilitySlot.create({
-      data: {
-        userId,
-        dayOfWeek: validated.dayOfWeek,
-        startTime: validated.startTime,
-        endTime: validated.endTime,
-        ...(validated.isAvailable !== undefined && { isAvailable: validated.isAvailable }),
-      },
-    });
-
+    const slot = await createAvailabilitySlot(ownerId, validated);
     res.status(201).json(slot);
   })
 );
@@ -108,23 +76,16 @@ router.patch(
   '/availability/:id',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
-    const slotId = parseInt(req.params.id!, 10);
+    const ownerId = req.user!.id;
+    const slotId = parseInt(req.params.id, 10);
     const validated = availabilitySlotSchema.partial().parse(req.body);
 
-    // Filter out undefined values
-    const updateData: any = {};
-    if (validated.dayOfWeek !== undefined) updateData.dayOfWeek = validated.dayOfWeek;
-    if (validated.startTime !== undefined) updateData.startTime = validated.startTime;
-    if (validated.endTime !== undefined) updateData.endTime = validated.endTime;
-    if (validated.isAvailable !== undefined) updateData.isAvailable = validated.isAvailable;
-
-    const slot = await prisma.availabilitySlot.update({
-      where: { id: slotId, userId },
-      data: updateData,
-    });
-
-    res.json(slot);
+    try {
+      const slot = await updateAvailabilitySlot(ownerId, slotId, validated);
+      res.json(slot);
+    } catch (error) {
+      return handlePrismaError(error, res);
+    }
   })
 );
 
@@ -136,14 +97,15 @@ router.delete(
   '/availability/:id',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
-    const slotId = parseInt(req.params.id!, 10);
+    const ownerId = req.user!.id;
+    const slotId = parseInt(req.params.id, 10);
 
-    await prisma.availabilitySlot.delete({
-      where: { id: slotId, userId },
-    });
-
-    res.json({ message: 'Availability slot deleted' });
+    try {
+      await deleteAvailabilitySlot(ownerId, slotId);
+      res.status(204).send();
+    } catch (error) {
+      return handlePrismaError(error, res);
+    }
   })
 );
 
@@ -152,26 +114,15 @@ router.delete(
 // ========================================
 
 /**
- * Get booking settings
+ * Get booking settings (creates defaults if missing)
  * GET /api/booking/settings
  */
 router.get(
   '/settings',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
-
-    let settings = await prisma.bookingSettings.findUnique({
-      where: { userId },
-    });
-
-    // Create default settings if none exist
-    if (!settings) {
-      settings = await prisma.bookingSettings.create({
-        data: { userId },
-      });
-    }
-
+    const ownerId = req.user!.id;
+    const settings = await getOrCreateBookingSettings(ownerId);
     res.json(settings);
   })
 );
@@ -184,37 +135,10 @@ router.patch(
   '/settings',
   authenticate,
   asyncHandler(async (req, res) => {
-    const userId = req.user!.id;
-    const validated = bookingSettingsSchema.parse(req.body);
+    const ownerId = req.user!.id;
+    const validated = bookingSettingsSchema.partial().parse(req.body);
 
-    // Filter out undefined values for create
-    const createData: any = { userId };
-    if (validated.bufferTimeBefore !== undefined) createData.bufferTimeBefore = validated.bufferTimeBefore;
-    if (validated.bufferTimeAfter !== undefined) createData.bufferTimeAfter = validated.bufferTimeAfter;
-    if (validated.defaultDuration !== undefined) createData.defaultDuration = validated.defaultDuration;
-    if (validated.allowPublicBooking !== undefined) createData.allowPublicBooking = validated.allowPublicBooking;
-    if (validated.requireApproval !== undefined) createData.requireApproval = validated.requireApproval;
-    if (validated.bookingUrl !== undefined) createData.bookingUrl = validated.bookingUrl;
-    if (validated.confirmationEmailText !== undefined) createData.confirmationEmailText = validated.confirmationEmailText;
-    if (validated.reminderEmailText !== undefined) createData.reminderEmailText = validated.reminderEmailText;
-
-    // Filter out undefined values for update
-    const updateData: any = {};
-    if (validated.bufferTimeBefore !== undefined) updateData.bufferTimeBefore = validated.bufferTimeBefore;
-    if (validated.bufferTimeAfter !== undefined) updateData.bufferTimeAfter = validated.bufferTimeAfter;
-    if (validated.defaultDuration !== undefined) updateData.defaultDuration = validated.defaultDuration;
-    if (validated.allowPublicBooking !== undefined) updateData.allowPublicBooking = validated.allowPublicBooking;
-    if (validated.requireApproval !== undefined) updateData.requireApproval = validated.requireApproval;
-    if (validated.bookingUrl !== undefined) updateData.bookingUrl = validated.bookingUrl;
-    if (validated.confirmationEmailText !== undefined) updateData.confirmationEmailText = validated.confirmationEmailText;
-    if (validated.reminderEmailText !== undefined) updateData.reminderEmailText = validated.reminderEmailText;
-
-    const settings = await prisma.bookingSettings.upsert({
-      where: { userId },
-      create: createData,
-      update: updateData,
-    });
-
+    const settings = await updateBookingSettings(ownerId, validated);
     res.json(settings);
   })
 );
@@ -304,21 +228,26 @@ router.get(
   authenticate,
   asyncHandler(async (req, res) => {
     const userId = req.user!.id;
+
     const settings = await prisma.bookingSettings.findUnique({
       where: { userId },
     });
 
-    const durationMinutes = settings?.defaultDuration ?? 60;
-    const { start, end } = getDateRangeFromToday(90, BOOKING_TIME_ZONE);
+    const { start: rangeStart, end: rangeEnd } = getDateRangeFromToday(90, BOOKING_TIME_ZONE);
 
-    const busyIntervals = await getBusyIntervals(userId, start, end, durationMinutes);
+    const busyIntervals = await getBusyIntervals(
+      userId,
+      rangeStart,
+      rangeEnd,
+      settings?.defaultDuration ?? 60
+    );
 
-    res.json(
-      busyIntervals.map((interval) => ({
+    res.json({
+      busySlots: busyIntervals.map((interval) => ({
         start: interval.start.toISOString(),
         end: interval.end.toISOString(),
-      }))
-    );
+      })),
+    });
   })
 );
 
@@ -329,171 +258,22 @@ router.get(
 router.post(
   '/public/:bookingUrl',
   asyncHandler(async (req, res) => {
-    const { bookingUrl } = req.params;
     const validated = publicBookingSchema.parse(req.body);
+    const bookingUrl = req.params.bookingUrl;
 
-    if (!bookingUrl) {
-      return res.status(400).json({ error: 'Booking URL is required' });
-    }
-
-    // Get booking settings
-    const settings = await prisma.bookingSettings.findUnique({
-      where: { bookingUrl },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            microsoftAccessToken: true,
-            microsoftRefreshToken: true,
-            microsoftTokenExpiry: true,
-            calendarSyncEnabled: true,
-          },
-        },
-      },
-    });
-
-    if (!settings || !settings.allowPublicBooking) {
-      return res.status(404).json({ error: 'Booking not available' });
-    }
-
-    const userId = settings.userId;
-    const appointmentDateTime = buildDateTime(
-      validated.appointmentDate,
-      validated.appointmentTime,
-      BOOKING_TIME_ZONE
-    );
-    const appointmentEndTime = addMinutesToDate(
-      appointmentDateTime,
-      settings.defaultDuration
-    );
-
-    const isWithinAvailability = await isAppointmentWithinAvailability({
-      userId,
-      appointmentDate: validated.appointmentDate,
-      appointmentStart: appointmentDateTime,
-      appointmentEnd: appointmentEndTime,
-    });
-
-    if (!isWithinAvailability) {
-      return res.status(400).json({ error: 'Selected time is not available' });
-    }
-
-    const hasConflict = await hasBookingConflict(
-      userId,
-      appointmentDateTime,
-      settings.defaultDuration,
-      settings.bufferTimeBefore,
-      settings.bufferTimeAfter,
-      validated.appointmentDate
-    );
-
-    if (hasConflict) {
-      return res.status(409).json({ error: 'Selected time is no longer available' });
-    }
-
-    const { patient, formattedPhone } = await upsertBookingPatient({
-      ownerId: userId,
-      firstName: validated.patientFirstName,
-      lastName: validated.patientLastName,
-      phone: validated.patientPhone,
-      email: validated.patientEmail || null,
-    });
-
-    // Create HMR review
-    const review = await prisma.hmrReview.create({
-      data: {
-        ownerId: userId,
-        patientId: patient.id,
-        referredBy: validated.referrerName,
-        referralDate: new Date(),
-        referralReason: validated.referralReason || null,
-        referralNotes: validated.notes || null,
-        scheduledAt: appointmentDateTime,
-        status: settings.requireApproval ? 'PENDING' : 'SCHEDULED',
-        visitLocation: 'To be confirmed',
-      },
-    });
-
-    // Sync to Microsoft Calendar if enabled
-    let calendarEventId: string | null = null;
-    if (settings.user.calendarSyncEnabled && settings.user.microsoftAccessToken) {
-      try {
-        calendarEventId = await createBookingCalendarEvent({
-          user: settings.user,
-          patientName: `${patient.firstName} ${patient.lastName}`,
-          referrerName: validated.referrerName,
-          referralReason: validated.referralReason,
-          formattedPhone,
-          appointmentStart: appointmentDateTime,
-          appointmentEnd: appointmentEndTime,
-          patientEmail: validated.patientEmail,
-        });
-
-        if (calendarEventId) {
-          await prisma.hmrReview.update({
-            where: { id: review.id },
-            data: { calendarEventId },
-          });
-          logger.info(`Calendar event created: ${calendarEventId}`);
-        }
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to create calendar event');
-        // Continue anyway - booking is still valid
+    try {
+      const result = await createPublicBooking({
+        ...validated,
+        bookingUrl,
+      });
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error({ err: error }, 'Public booking creation failed');
+        return res.status(400).json({ error: error.message });
       }
+      return handlePrismaError(error, res);
     }
-
-    // Send confirmation SMS
-    if (twilioService.isEnabled() && twilioService.isValidAustralianPhone(formattedPhone)) {
-      try {
-        await twilioService.sendAppointmentConfirmation({
-          to: formattedPhone,
-          patientName: patient.firstName,
-          appointmentDate: appointmentDateTime.toLocaleDateString('en-AU', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: BOOKING_TIME_ZONE,
-          }),
-          appointmentTime: validated.appointmentTime,
-        });
-
-        await prisma.smsLog.create({
-          data: {
-            hmrReviewId: review.id,
-            toPhone: formattedPhone,
-            messageBody: 'Appointment confirmation',
-            status: 'sent',
-            sentAt: new Date(),
-          },
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to send confirmation SMS');
-        // Log but don't fail the booking
-        await prisma.smsLog.create({
-          data: {
-            hmrReviewId: review.id,
-            toPhone: formattedPhone,
-            messageBody: 'Appointment confirmation',
-            status: 'failed',
-            errorMsg: error instanceof Error ? error.message : 'Unknown error',
-          },
-        });
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      bookingId: review.id,
-      pharmacistName: settings.user.username,
-      appointmentDateTime: appointmentDateTime.toISOString(),
-      requiresApproval: settings.requireApproval,
-      message: settings.requireApproval
-        ? 'Your booking request has been submitted and is pending approval.'
-        : 'Your appointment has been confirmed!',
-    });
   })
 );
 
@@ -510,196 +290,17 @@ router.post(
   authenticate,
   asyncHandler(async (req, res) => {
     const validated = directBookingSchema.parse(req.body);
-    const userId = validated.pharmacistId;
 
-    // Get user and settings
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        bookingSettings: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'Pharmacist not found' });
-    }
-
-    const settings = user.bookingSettings || {
-      defaultDuration: 60,
-      bufferTimeBefore: 0,
-      bufferTimeAfter: 0,
-      requireApproval: false,
-    };
-
-    // Parse appointment datetime
-    const appointmentDateTime = buildDateTime(
-      validated.appointmentDate,
-      validated.appointmentTime,
-      BOOKING_TIME_ZONE
-    );
-    const appointmentEndTime = addMinutesToDate(
-      appointmentDateTime,
-      settings.defaultDuration || 60
-    );
-
-    const isWithinAvailability = await isAppointmentWithinAvailability({
-      userId,
-      appointmentDate: validated.appointmentDate,
-      appointmentStart: appointmentDateTime,
-      appointmentEnd: appointmentEndTime,
-    });
-
-    if (!isWithinAvailability) {
-      return res.status(400).json({ error: 'Selected time is not available' });
-    }
-
-    const hasConflict = await hasBookingConflict(
-      userId,
-      appointmentDateTime,
-      settings.defaultDuration || 60,
-      settings.bufferTimeBefore || 0,
-      settings.bufferTimeAfter || 0,
-      validated.appointmentDate
-    );
-
-    if (hasConflict) {
-      return res.status(409).json({ error: 'Selected time is no longer available' });
-    }
-
-    const { patient, formattedPhone } = await upsertBookingPatient({
-      ownerId: userId,
-      firstName: validated.patientFirstName,
-      lastName: validated.patientLastName,
-      phone: validated.patientPhone,
-      email: validated.patientEmail || null,
-    });
-
-    // Create HMR review
-    const review = await prisma.hmrReview.create({
-      data: {
-        ownerId: userId,
-        patientId: patient.id,
-        referredBy: validated.referrerName,
-        referralDate: new Date(),
-        referralReason: validated.referralReason || null,
-        referralNotes: validated.notes || null,
-        scheduledAt: appointmentDateTime,
-        status: settings.requireApproval ? 'PENDING' : 'SCHEDULED',
-        visitLocation: 'To be confirmed',
-      },
-    });
-
-    // Generate reschedule token
-    const token = generateSecureToken();
-    const tokenExpiry = getTokenExpiry(30); // 30 days
-
-    await prisma.rescheduleToken.create({
-      data: {
-        hmrReviewId: review.id,
-        token,
-        expiresAt: tokenExpiry,
-      },
-    });
-
-    // Sync to Microsoft Calendar if enabled
-    if (user.calendarSyncEnabled && user.microsoftAccessToken) {
-      try {
-        const calendarEventId = await createBookingCalendarEvent({
-          user,
-          patientName: `${patient.firstName} ${patient.lastName}`,
-          referrerName: validated.referrerName,
-          referrerClinic: validated.referrerClinic,
-          referralReason: validated.referralReason,
-          formattedPhone,
-          appointmentStart: appointmentDateTime,
-          appointmentEnd: appointmentEndTime,
-          patientEmail: validated.patientEmail,
-        });
-
-        if (calendarEventId) {
-          await prisma.hmrReview.update({
-            where: { id: review.id },
-            data: { calendarEventId },
-          });
-        }
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to create calendar event');
+    try {
+      const result = await createDirectBooking(validated);
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error({ err: error }, 'Direct booking creation failed');
+        return res.status(400).json({ error: error.message });
       }
+      return handlePrismaError(error, res);
     }
-
-    // Send confirmation email
-    if (validated.patientEmail) {
-      try {
-        const rescheduleLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reschedule/${token}`;
-
-        await emailService.sendBookingConfirmation({
-          patientEmail: validated.patientEmail,
-          patientName: `${patient.firstName} ${patient.lastName}`,
-          pharmacistName: user.username,
-          appointmentDate: appointmentDateTime.toLocaleDateString('en-AU', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: BOOKING_TIME_ZONE,
-          }),
-          appointmentTime: validated.appointmentTime,
-          rescheduleLink,
-          referrerName: validated.referrerName,
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to send confirmation email');
-      }
-    }
-
-    // Send confirmation SMS
-    if (twilioService.isEnabled() && twilioService.isValidAustralianPhone(formattedPhone)) {
-      try {
-        await twilioService.sendAppointmentConfirmation({
-          to: formattedPhone,
-          patientName: patient.firstName,
-          appointmentDate: appointmentDateTime.toLocaleDateString('en-AU', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: BOOKING_TIME_ZONE,
-          }),
-          appointmentTime: validated.appointmentTime,
-        });
-
-        await prisma.smsLog.create({
-          data: {
-            hmrReviewId: review.id,
-            toPhone: formattedPhone,
-            messageBody: 'Appointment confirmation',
-            status: 'sent',
-            sentAt: new Date(),
-          },
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to send confirmation SMS');
-        await prisma.smsLog.create({
-          data: {
-            hmrReviewId: review.id,
-            toPhone: formattedPhone,
-            messageBody: 'Appointment confirmation',
-            status: 'failed',
-            errorMsg: error instanceof Error ? error.message : 'Unknown error',
-          },
-        });
-      }
-    }
-
-    res.status(201).json({
-      success: true,
-      bookingId: review.id,
-      appointmentDateTime: appointmentDateTime.toISOString(),
-      requiresApproval: settings.requireApproval,
-      message: settings.requireApproval
-        ? 'Your booking request has been submitted and is pending approval.'
-        : 'Your appointment has been confirmed!',
-    });
   })
 );
 
@@ -716,61 +317,17 @@ router.get(
   asyncHandler(async (req, res) => {
     const { token } = req.params;
 
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required' });
-    }
+    const result = await getBookingByToken(token);
 
-    const rescheduleToken = await prisma.rescheduleToken.findUnique({
-      where: { token },
-      include: {
-        hmrReview: {
-          include: {
-            patient: true,
-            owner: {
-              select: {
-                id: true,
-                username: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!rescheduleToken) {
+    if (!result) {
       return res.status(404).json({ error: 'Invalid reschedule link' });
     }
 
-    if (rescheduleToken.usedAt) {
-      return res.status(400).json({
-        error: 'This reschedule link has already been used',
-      });
+    if (result.expired) {
+      return res.status(400).json({ error: 'This reschedule link has expired' });
     }
 
-    if (new Date() > rescheduleToken.expiresAt) {
-      return res.status(400).json({
-        error: 'This reschedule link has expired',
-      });
-    }
-
-    const review = rescheduleToken.hmrReview;
-
-    res.json({
-      bookingId: review.id,
-      patient: {
-        firstName: review.patient.firstName,
-        lastName: review.patient.lastName,
-      },
-      pharmacist: {
-        name: review.owner.username,
-      },
-      currentAppointment: {
-        date: review.scheduledAt?.toISOString().split('T')[0],
-        time: review.scheduledAt?.toISOString().split('T')[1]?.substring(0, 5),
-      },
-      referredBy: review.referredBy,
-    });
+    res.json(result);
   })
 );
 
@@ -784,148 +341,17 @@ router.post(
     const { token } = req.params;
     const validated = rescheduleSchema.parse(req.body);
 
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required' });
-    }
-
-    const rescheduleToken = await prisma.rescheduleToken.findUnique({
-      where: { token },
-      include: {
-        hmrReview: {
-          include: {
-            patient: true,
-            owner: {
-              select: {
-                id: true,
-                username: true,
-                email: true,
-                microsoftAccessToken: true,
-                microsoftRefreshToken: true,
-                microsoftTokenExpiry: true,
-                calendarSyncEnabled: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!rescheduleToken) {
-      return res.status(404).json({ error: 'Invalid reschedule link' });
-    }
-
-    if (rescheduleToken.usedAt) {
-      return res.status(400).json({
-        error: 'This reschedule link has already been used',
-      });
-    }
-
-    if (new Date() > rescheduleToken.expiresAt) {
-      return res.status(400).json({
-        error: 'This reschedule link has expired',
-      });
-    }
-
-    const review = rescheduleToken.hmrReview;
-    const user = review.owner;
-
-    // Parse new appointment datetime
-    const newAppointmentDateTime = buildDateTime(
-      validated.appointmentDate,
-      validated.appointmentTime,
-      BOOKING_TIME_ZONE
-    );
-    const bookingSettings = await prisma.bookingSettings.findUnique({
-      where: { userId: user.id },
-    });
-    const appointmentDuration = bookingSettings?.defaultDuration ?? 60;
-    const newAppointmentEndTime = addMinutesToDate(
-      newAppointmentDateTime,
-      appointmentDuration
-    );
-
-    // Update calendar event if synced
-    if (user.calendarSyncEnabled && review.calendarEventId && user.microsoftAccessToken) {
-      try {
-        await updateBookingCalendarEvent({
-          user,
-          eventId: review.calendarEventId,
-          appointmentStart: newAppointmentDateTime,
-          appointmentEnd: newAppointmentEndTime,
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to update calendar event');
+    try {
+      const result = await rescheduleBooking(token, validated);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error({ err: error }, 'Reschedule failed');
+        return res.status(400).json({ error: error.message });
       }
+      return handlePrismaError(error, res);
     }
-
-    // Update review
-    await prisma.hmrReview.update({
-      where: { id: review.id },
-      data: {
-        scheduledAt: newAppointmentDateTime,
-      },
-    });
-
-    // Mark token as used
-    await prisma.rescheduleToken.update({
-      where: { id: rescheduleToken.id },
-      data: {
-        usedAt: new Date(),
-      },
-    });
-
-    // Send confirmation email
-    if (review.patient.contactEmail) {
-      try {
-        await emailService.sendEmail({
-          to: review.patient.contactEmail,
-          subject: 'Appointment Rescheduled - Home Medicines Review',
-          html: `
-            <h2>Appointment Rescheduled</h2>
-            <p>Dear ${review.patient.firstName},</p>
-            <p>Your appointment has been successfully rescheduled to:</p>
-            <p><strong>Date:</strong> ${newAppointmentDateTime.toLocaleDateString('en-AU', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              timeZone: BOOKING_TIME_ZONE,
-            })}</p>
-            <p><strong>Time:</strong> ${validated.appointmentTime}</p>
-            <p>If you have any questions, please contact ${user.username}.</p>
-          `,
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to send reschedule confirmation email');
-      }
-    }
-
-    // Send SMS confirmation
-    if (review.patient.contactPhone && twilioService.isEnabled()) {
-      try {
-        await twilioService.sendAppointmentConfirmation({
-          to: review.patient.contactPhone,
-          patientName: review.patient.firstName,
-          appointmentDate: newAppointmentDateTime.toLocaleDateString('en-AU', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: BOOKING_TIME_ZONE,
-          }),
-          appointmentTime: validated.appointmentTime,
-        });
-      } catch (error) {
-        logger.error({ err: error }, 'Failed to send reschedule SMS');
-      }
-    }
-
-    res.json({
-      success: true,
-      message: 'Appointment rescheduled successfully',
-      newAppointmentDateTime: newAppointmentDateTime.toISOString(),
-    });
   })
 );
 
-export default router;
+export const bookingRouter = router;
