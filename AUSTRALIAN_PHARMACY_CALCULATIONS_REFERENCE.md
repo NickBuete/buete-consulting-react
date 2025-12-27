@@ -75,7 +75,7 @@ Where:
 **Example**: Dilute 10 mL of 100 mg/mL solution to 50 mg/mL
 ```
 100 mg/mL × 10 mL = 50 mg/mL × V2
-V2 = 20 mL (add 10 mL diluent)
+V2 = 20 mL (total volume, so add 10 mL diluent)
 ```
 
 ### 2. Percentage Strength Conversions
@@ -239,12 +239,12 @@ Loading = 25-30 mg/kg (actual body weight)
 | Oxycodone | Parenteral | 2-3 |
 | Hydromorphone | Oral | 4 |
 | Hydromorphone | Parenteral | 10-15 |
-| Fentanyl | Patch (mcg/hr) | 2.4 (per mcg/hr) |
-| Fentanyl | Parenteral (mcg) | 0.1 (per mcg) |
+| Fentanyl | Patch (microgram/hr) | 2.4 (per microgram/hr) |
+| Fentanyl | Parenteral (microgram) | 0.1 (per microgram) |
 | Tramadol | Oral | 0.1 |
 | Codeine | Oral | 0.15 |
 | Tapentadol | Oral | 0.3-0.4 |
-| Buprenorphine | Patch (mcg/hr) | 12.6 (per mcg/hr) |
+| Buprenorphine | Patch (microgram/hr) | 12.6 (per microgram/hr) |
 | Methadone | Oral | Variable (1-20)* |
 
 *Methadone conversion is complex and dose-dependent. Specialist consultation recommended.
@@ -259,9 +259,9 @@ MME = Daily dose of opioid × Conversion factor
 MME = 40 mg × 1.5 = 60 mg oral morphine equivalents per day
 ```
 
-**Example 2**: Fentanyl patch 25 mcg/hr
+**Example 2**: Fentanyl patch 25 microgram/hr
 ```
-MME = 25 mcg/hr × 2.4 = 60 mg oral morphine equivalents per day
+MME = 25 microgram/hr × 2.4 = 60 mg oral morphine equivalents per day
 ```
 
 **Example 3**: Morphine 10mg PO TDS + Endone 10mg PO PRN (taken 4 times)
@@ -291,8 +291,8 @@ Step 3: Divide into doses = 15 mg TDS or 22.5 mg BD
 
 **Approximate Equivalent Daily Doses:**
 
-| Oral Morphine (mg/day) | Fentanyl Patch (mcg/hr) |
-|------------------------|-------------------------|
+| Oral Morphine (mg/day) | Fentanyl Patch (microgram/hr) |
+|------------------------|-------------------------------|
 | 30-60 | 12 |
 | 60-90 | 25 |
 | 90-150 | 50 |
@@ -312,13 +312,13 @@ Step 3: Divide into doses = 15 mg TDS or 22.5 mg BD
 ### 1. Weight Conversions
 
 ```
-1 kg = 1000 g = 1,000,000 mg = 1,000,000,000 mcg = 1,000,000,000,000 nanograms
+1 kg = 1000 g = 1,000,000 mg = 1,000,000,000 micrograms = 1,000,000,000,000 nanograms
 1 g = 1000 mg
-1 mg = 1000 mcg (micrograms)
-1 mcg = 1000 nanograms
+1 mg = 1000 micrograms
+1 microgram = 1000 nanograms
 ```
 
-**Australian Terminology**: Use "microgram" (mcg) not "μg" to avoid errors
+**Australian Terminology**: Always write "microgram" in full (not "mcg" or "μg") to avoid medication errors. Similarly, write "unit" in full (not "U").
 
 ### 2. Volume Conversions
 
@@ -326,8 +326,10 @@ Step 3: Divide into doses = 15 mg TDS or 22.5 mg BD
 1 L = 1000 mL
 1 mL = 1 cc (cubic centimeter)
 1 teaspoon = 5 mL
-1 tablespoon = 15 mL (Australia) or 20 mL (some resources)
+1 tablespoon = 15 mL (Australian standard)
 ```
+
+**Note**: Some international resources use 20 mL for tablespoon. In Australian practice, use 15 mL.
 
 **Oral dosing devices (Australian standard):**
 - Medicine cups marked in mL
@@ -359,7 +361,7 @@ Step 3: Divide into doses = 15 mg TDS or 22.5 mg BD
 
 - **Insulin**: Measured in units (U)
 - **Heparin**: Units or IU
-- **Vitamins**: IU or mcg
+- **Vitamins**: IU or microgram
 - **Penicillin**: Units or mg
 
 **Important**: Always use "units" spelled out, never "U" (error-prone)
@@ -492,22 +494,22 @@ Concentration = 400 mg / 250 mL = 1.6 mg/mL
 
 ### 4. Dose Rate Calculations
 
-**mcg/kg/min to mL/hr**:
+**microgram/kg/min to mL/hr**:
 ```
-Rate (mL/hr) = [Dose (mcg/kg/min) × Weight (kg) × 60] / Concentration (mcg/mL)
+Rate (mL/hr) = [Dose (microgram/kg/min) × Weight (kg) × 60] / Concentration (microgram/mL)
 ```
 
-**Example**: Dobutamine 5 mcg/kg/min, patient 80kg, concentration 1000 mcg/mL
+**Example**: Dobutamine 5 microgram/kg/min, patient 80kg, concentration 1000 microgram/mL
 ```
 Rate = (5 × 80 × 60) / 1000 = 24 mL/hr
 ```
 
 ### 5. Common Infusion Concentrations (Australian ICU)
 
-**Noradrenaline**: 40 mcg/mL (4mg in 100mL)
-**Adrenaline**: 40 mcg/mL (4mg in 100mL)
-**Dopamine**: 1600 mcg/mL (400mg in 250mL)
-**Dobutamine**: 1000 mcg/mL (250mg in 250mL)
+**Noradrenaline**: 40 microgram/mL (4mg in 100mL)
+**Adrenaline**: 40 microgram/mL (4mg in 100mL)
+**Dopamine**: 1600 microgram/mL (400mg in 250mL)
+**Dobutamine**: 1000 microgram/mL (250mg in 250mL)
 **Amiodarone**: 1.8 mg/mL (450mg in 250mL)
 **Insulin**: 1 unit/mL (50 units in 50mL)
 
@@ -684,11 +686,11 @@ Most vaccines require reconstitution:
 ### 4. Anaphylaxis Management
 
 **Adrenaline (1:1000, 1mg/mL) IM doses:**
-- Adult: 0.5 mL (500 mcg)
-- Child >12 years: 0.5 mL (500 mcg)
-- Child 6-12 years: 0.3 mL (300 mcg)
-- Child 3-6 years: 0.15 mL (150 mcg)
-- Infant <3 years: 0.1 mL (100 mcg)
+- Adult: 0.5 mL (500 microgram)
+- Child >12 years: 0.5 mL (500 microgram)
+- Child 6-12 years: 0.3 mL (300 microgram)
+- Child 3-6 years: 0.15 mL (150 microgram)
+- Infant <3 years: 0.1 mL (100 microgram)
 
 **Repeat every 5 minutes if needed**
 
