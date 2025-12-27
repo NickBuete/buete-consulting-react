@@ -18,7 +18,7 @@ import {
   directBookingSchema,
   publicBookingSchema,
   rescheduleSchema,
-} from '../schemas/bookingSchemas';
+} from '../validators/bookingSchemas';
 import {
   listAvailabilitySlots,
   createAvailabilitySlot,

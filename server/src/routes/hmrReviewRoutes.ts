@@ -28,6 +28,8 @@ import { createAttachmentForReview } from '../services/hmr/hmrAttachmentService'
 import { recordAuditLog } from '../services/hmr/hmrAuditService'
 import { InvalidTransitionError } from '../services/hmr/workflowStateManager'
 import { asyncHandler } from './utils/asyncHandler'
+import { parseId } from './utils/parseId'
+import { handlePrismaError } from '../middleware/prismaErrorHandler'
 import {
   hmrActionItemCreateSchema,
   hmrActionItemUpdateSchema,
@@ -41,39 +43,6 @@ import {
 } from '../validators/hmrReviewSchemas'
 
 const router = Router()
-
-const parseId = (value: string | undefined) => {
-  if (!value) {
-    return null
-  }
-  const id = Number.parseInt(value, 10)
-  if (Number.isNaN(id)) {
-    return null
-  }
-  return id
-}
-
-const handlePrismaError = (error: unknown, res: Response) => {
-  // Handle workflow validation errors
-  if (error instanceof InvalidTransitionError) {
-    return res.status(422).json({
-      message: error.message,
-      currentStatus: error.currentStatus,
-      attemptedStatus: error.attemptedStatus,
-    })
-  }
-
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'Duplicate record detected' })
-    }
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Record not found' })
-    }
-  }
-
-  throw error
-}
 
 router.get(
   '/reviews',
