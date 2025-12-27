@@ -31,7 +31,7 @@ interface BookingInfo {
     date: string;
     time: string;
   };
-  referredBy: string;
+  referredBy?: string | null;
 }
 
 const ReschedulePage: React.FC = () => {
@@ -83,6 +83,11 @@ const ReschedulePage: React.FC = () => {
   }, [token, setValue]);
 
   const onSubmit = async (data: RescheduleFormData) => {
+    if (!token) {
+      setError('Invalid reschedule token');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
