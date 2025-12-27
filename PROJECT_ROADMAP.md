@@ -138,82 +138,194 @@ A comprehensive platform for pharmacy consultants that:
 
 ## Implementation Roadmap
 
-### **Phase 1: Critical HMR Workflow Gaps** 🚀 **IN PROGRESS**
+### **Phase 1: Critical HMR Workflow Backend** ✅ **COMPLETE**
 
-**Timeline:** Weeks 1-4
+**Completed:** 2025-12-27
 **Priority:** HIGH - Essential for daily HMR operations
 
+#### Objectives ✅
+1. ✅ Enable external referrers to book appointments (backend ready)
+2. ✅ Automate patient reminders and confirmations (services ready)
+3. ✅ Improve AI report quality with OpenAI (service implemented)
+4. ⏳ Showcase portfolio with Gardens Pharmacy case study (deferred to Phase 3)
+
+#### Completed Tasks
+
+##### 1.1 Microsoft Calendar Integration ✅
+- ✅ Set up Microsoft Graph API OAuth2 flow
+  - ✅ Azure AD app registration complete
+  - ✅ OAuth callback endpoints implemented
+  - ✅ Token refresh mechanism built
+- ✅ Calendar event creation service ready
+- ✅ Sync scheduled appointments to Outlook/Office 365
+- ✅ Two-way sync (update/cancel events)
+- ✅ Store `calendarEventId` in HMR reviews (schema updated)
+- ✅ Handle timezone conversions (Australia/Sydney)
+
+##### 1.2 External Booking Page Backend ✅
+- ✅ Public booking API (`/api/booking/public/:bookingUrl`)
+- ✅ Availability management endpoints
+- ✅ Booking form validation schemas
+- ✅ Automatic HMR review creation with PENDING status
+- ✅ Buffer time configuration (before/after appointments)
+- ✅ Booking settings management
+- ✅ Custom booking URL slugs
+
+##### 1.3 SMS Reminder System ✅
+- ✅ Twilio account setup & configuration
+- ✅ SMS service abstraction layer implemented
+- ✅ SMS delivery status tracking (sms_logs table)
+- ✅ Phone number validation (Australian format)
+- ✅ SMS templates (reminder, confirmation, cancellation)
+- ⏳ Scheduled job for 24hr reminders (Phase 2 - frontend trigger needed)
+
+##### 1.4 Patient Pre-Appointment Checklist Backend ✅
+- ✅ Secure token storage (checklist_tokens table)
+- ✅ Token generation mechanism ready
+- ⏳ Public checklist page (`/checklist/:token`) - Phase 2 frontend
+- ⏳ Checklist content and UI - Phase 2 frontend
+
+##### 1.5 OpenAI GPT-4 Integration ✅
+- ✅ OpenAI SDK installed
+- ✅ OpenAI service wrapper created
+- ✅ Environment variable configuration
+- ✅ HMR report generation service
+- ✅ Patient education content generation
+- ✅ Token usage tracking capability
+- ⏳ Frontend UI for model selection - Phase 2
+- ⏳ Report regeneration UI - Phase 2
+
+##### 1.6 Gardens Pharmacy Case Study
+- ⏳ Deferred to Phase 3 (portfolio enhancement)
+
+**Backend Success Criteria:** ✅ ALL COMPLETE
+- ✅ Database schema includes all Phase 1 tables
+- ✅ Microsoft Graph OAuth service operational
+- ✅ Booking API endpoints functional
+- ✅ Twilio SMS service initialized
+- ✅ OpenAI GPT-4 service initialized
+- ✅ Environment variables configured
+- ✅ Server running successfully
+
+---
+
+### **Phase 2: Frontend Components** 🚀 **NEXT**
+
+**Timeline:** Current Sprint
+**Priority:** HIGH - Complete the user-facing features
+
 #### Objectives
-1. Enable external referrers to book appointments
-2. Automate patient reminders and confirmations
-3. Improve AI report quality with OpenAI
-4. Showcase portfolio with Gardens Pharmacy case study
+1. Build public booking interface for external referrers
+2. Create admin booking management UI
+3. Implement patient checklist webpage
+4. Integrate AI generation into HMR workflow UI
+5. Add Microsoft Calendar connection in settings
 
 #### Tasks
 
-##### 1.1 Microsoft Calendar Integration
-- [ ] Set up Microsoft Graph API OAuth2 flow
-  - [ ] Azure AD app registration
-  - [ ] OAuth callback endpoints
-  - [ ] Token refresh mechanism
-- [ ] Calendar event creation from HMR reviews
-- [ ] Sync scheduled appointments to Outlook/Office 365
-- [ ] Two-way sync (update/cancel events)
-- [ ] Store `calendarEventId` in HMR reviews
-- [ ] Handle timezone conversions (Australia/Sydney)
+##### 2.1 Public Booking Page UI
+- [ ] Create `/book/:bookingUrl` route
+- [ ] Build booking form component
+  - [ ] Patient information fields
+  - [ ] Referrer details fields
+  - [ ] Appointment date/time picker
+  - [ ] Reason for referral textarea
+- [ ] Availability calendar display component
+- [ ] Time slot selection component
+- [ ] Form validation with Zod
+- [ ] Success confirmation page
+- [ ] Error handling and user feedback
+- [ ] Mobile-responsive design
+- [ ] Loading states during submission
 
-##### 1.2 External Booking Page
-- [ ] Public booking page (`/book/:pharmacistId`)
-- [ ] Time slot availability display
-- [ ] Booking form (patient info, referrer details, reason)
-- [ ] reCAPTCHA spam prevention
-- [ ] Email confirmation to referrer
-- [ ] Email notification to pharmacist
-- [ ] Automatic HMR review creation with PENDING status
-- [ ] Buffer time between appointments (configurable)
-- [ ] Blocked/unavailable time management
-- [ ] Multi-day availability calendar UI
+##### 2.2 Admin Booking Management
+- [ ] Create `/admin/booking` section
+- [ ] Availability slots editor
+  - [ ] Weekly schedule grid UI
+  - [ ] Add/edit/delete time slots
+  - [ ] Enable/disable slots toggle
+- [ ] Booking settings form
+  - [ ] Buffer time configuration
+  - [ ] Default duration setting
+  - [ ] Public booking toggle
+  - [ ] Require approval toggle
+  - [ ] Custom booking URL input
+  - [ ] Email template editors
+- [ ] Calendar connection status card
+  - [ ] Connection indicator (connected/disconnected)
+  - [ ] Microsoft account email display
+  - [ ] Connect/disconnect buttons
+- [ ] SMS logs viewer table
+  - [ ] Filter by status
+  - [ ] Search by phone number
+  - [ ] View message content
 
-##### 1.3 SMS Reminder System
-- [ ] Twilio account setup & configuration
-- [ ] SMS service abstraction layer
-- [ ] Scheduled job for 24hr reminders
-  - [ ] Check appointments due in 24 hours
-  - [ ] Send SMS with appointment details
-  - [ ] Include link to checklist page
-- [ ] SMS delivery status tracking
-- [ ] Opt-out mechanism (STOP keyword)
-- [ ] SMS cost tracking
-- [ ] Fallback to email if SMS fails
+##### 2.3 Patient Checklist Page
+- [ ] Create `/checklist/:token` public route
+- [ ] Token validation and expiry check
+- [ ] Checklist content display
+  - [ ] What to prepare section
+  - [ ] What to bring section
+  - [ ] What to expect section
+  - [ ] Appointment details display
+- [ ] Confirmation button
+- [ ] Mobile-optimized layout
+- [ ] Print-friendly styling
+- [ ] Expired token error page
 
-##### 1.4 Patient Pre-Appointment Checklist
-- [ ] Public checklist page (`/hmr/checklist/:token`)
-- [ ] Secure token generation (JWT with expiry)
-- [ ] Checklist content:
-  - [ ] What to prepare (medication list, questions)
-  - [ ] What to bring (Medicare card, medications)
-  - [ ] What to expect (interview duration, topics)
-  - [ ] Consent form information
-- [ ] Optional: Pre-fill medication list
-- [ ] Confirmation button (marks patient as ready)
-- [ ] Mobile-optimized design
+##### 2.4 AI Report Generation UI
+- [ ] Add "Generate with AI" button to HMR detail page
+- [ ] AI generation modal/dialog
+  - [ ] Section selection (recommendations, assessment, education)
+  - [ ] Model selection dropdown (if multiple providers)
+  - [ ] Generate button with loading state
+- [ ] Report preview/edit component
+- [ ] Insert generated content into TipTap editor
+- [ ] Token usage display
+- [ ] Cost estimation display
+- [ ] Generation history/audit trail view
 
-##### 1.5 OpenAI GPT-4 Integration
-- [ ] Install OpenAI SDK
-- [ ] Create OpenAI service wrapper
-- [ ] Environment variable configuration
-- [ ] Prompt engineering for HMR reports
-  - [ ] Structured output format
-  - [ ] Clinical guideline citations
-  - [ ] Medication interaction highlighting
-  - [ ] Recommendation prioritization
-- [ ] Model selection UI (Bedrock vs OpenAI)
-- [ ] Token usage tracking
-- [ ] Cost estimation per report
-- [ ] Report regeneration with different models
-- [ ] Audit trail for AI generations
+##### 2.5 Microsoft Calendar Connection UI
+- [ ] Create `/settings/integrations` page
+- [ ] Calendar integration card
+  - [ ] Status indicator with icon
+  - [ ] Connected account email
+  - [ ] Last sync timestamp
+  - [ ] "Connect to Microsoft" button
+  - [ ] "Disconnect" button with confirmation
+  - [ ] Calendar sync toggle (enable/disable)
+- [ ] OAuth flow handling
+  - [ ] Redirect to Microsoft login
+  - [ ] Handle callback success/error
+  - [ ] Display success message
+- [ ] Error handling for expired tokens
+- [ ] Auto-refresh token UI feedback
 
-##### 1.6 Gardens Pharmacy Case Study
+##### 2.6 Automated Reminder Scheduling
+- [ ] Create cron job / scheduled task
+  - [ ] Check appointments 24hrs ahead
+  - [ ] Generate checklist token
+  - [ ] Send SMS with checklist link
+  - [ ] Log SMS delivery
+- [ ] Manual reminder trigger UI (optional)
+- [ ] Reminder settings configuration
+
+**Success Criteria:**
+- [ ] Referrers can book appointments via public link
+- [ ] Admins can configure availability and settings
+- [ ] Patients can access checklist via SMS link
+- [ ] HMR reports can be generated with AI from UI
+- [ ] Users can connect/disconnect Microsoft calendar
+- [ ] Automated SMS reminders sent 24hrs before appointments
+
+---
+
+### **Phase 3: Enhanced Functionality & Portfolio**
+
+**Timeline:** Future Sprint
+**Priority:** MEDIUM - Improves efficiency and professionalism
+
+#### 3.1 Gardens Pharmacy Case Study
 - [ ] Content gathering
   - [ ] Screenshots (desktop, mobile, tablet)
   - [ ] Project metrics (timeline, features, traffic)
@@ -226,20 +338,7 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Live site link
 - [ ] Add to templates showcase page
 
-**Success Criteria:**
-- [ ] Referrers can book appointments via public link
-- [ ] Patients receive SMS 24hrs before with checklist link
-- [ ] HMR reports generated with OpenAI GPT-4
-- [ ] Gardens Pharmacy showcased with full case study
-
----
-
-### **Phase 2: Enhanced Functionality**
-
-**Timeline:** Weeks 5-8
-**Priority:** MEDIUM - Improves efficiency and professionalism
-
-#### 2.1 Additional Pharmacy Calculators
+#### 3.2 Additional Pharmacy Calculators
 - [ ] BMI/BSA Calculator (Mosteller formula)
 - [ ] Paediatric Dose Calculator (mg/kg, mg/m²)
 - [ ] IV Infusion Rate Calculator
@@ -247,7 +346,7 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Adjusted Body Weight Calculator
 - [ ] eGFR Calculator (CKD-EPI, MDRD)
 
-#### 2.2 Reporting & Analytics Dashboard
+#### 3.3 Reporting & Analytics Dashboard
 - [ ] HMR metrics overview
   - [ ] Total reviews by status
   - [ ] Average time per status
@@ -263,21 +362,21 @@ A comprehensive platform for pharmacy consultants that:
   - [ ] Common conditions
 - [ ] Export functionality (CSV, PDF)
 
-#### 2.3 Referrer Portal
+#### 3.4 Referrer Portal
 - [ ] Secure login for prescribers
 - [ ] View status of their referrals
 - [ ] Download completed reports
 - [ ] Submit new referrals online
 - [ ] Notification preferences
 
-#### 2.4 E-Signature Capture
+#### 3.5 E-Signature Capture
 - [ ] Canvas-based signature component
 - [ ] Signature storage (base64 or S3)
 - [ ] Consent form templates
 - [ ] Signature verification/audit trail
 - [ ] PDF generation with signature
 
-#### 2.5 Photo Upload for Medications
+#### 3.6 Photo Upload for Medications
 - [ ] S3-compatible storage setup (Cloudflare R2, AWS S3)
 - [ ] Image upload component
 - [ ] Image compression/optimization
@@ -294,12 +393,12 @@ A comprehensive platform for pharmacy consultants that:
 
 ---
 
-### **Phase 3: Business Operations**
+### **Phase 4: Business Operations**
 
-**Timeline:** Weeks 9-12
+**Timeline:** Future Sprint
 **Priority:** MEDIUM - Revenue tracking and growth
 
-#### 3.1 Billing & Claims Management
+#### 4.1 Billing & Claims Management
 - [ ] Claim record model (Medicare item numbers)
 - [ ] Claim submission tracking
 - [ ] Payment status tracking
@@ -307,7 +406,7 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Resubmission management
 - [ ] Claim amount calculator (current Medicare rates)
 
-#### 3.2 Invoice Generation
+#### 4.2 Invoice Generation
 - [ ] Invoice template design
 - [ ] PDF generation (puppeteer or PDFKit)
 - [ ] Automatic invoice numbering
@@ -315,20 +414,20 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Send invoice via email
 - [ ] Invoice history & search
 
-#### 3.3 Financial Reporting
+#### 4.3 Financial Reporting
 - [ ] Monthly revenue reports
 - [ ] Outstanding claims report
 - [ ] Financial year summary
 - [ ] GST reporting
 - [ ] Payment aging report
 
-#### 3.4 Xero Integration (Optional)
+#### 4.4 Xero Integration (Optional)
 - [ ] Xero OAuth setup
 - [ ] Create invoices in Xero
 - [ ] Sync payment status
 - [ ] Contact sync (patients/clinics)
 
-#### 3.5 Patient Portal
+#### 4.5 Patient Portal
 - [ ] Patient registration & login
 - [ ] View their HMR reports
 - [ ] Download PDF summaries
@@ -344,33 +443,33 @@ A comprehensive platform for pharmacy consultants that:
 
 ---
 
-### **Phase 4: Advanced Features**
+### **Phase 5: Advanced Features**
 
-**Timeline:** Weeks 13-16
+**Timeline:** Future Sprint
 **Priority:** LOW - Nice-to-have innovations
 
-#### 4.1 Drug Interaction Checking
+#### 5.1 Drug Interaction Checking
 - [ ] API integration (Drugs.com, Medscape, or MIMS)
 - [ ] Real-time interaction checking during medication entry
 - [ ] Severity classification
 - [ ] Clinical significance notes
 - [ ] Interaction report in HMR summary
 
-#### 4.2 Patient Satisfaction Surveys
+#### 5.2 Patient Satisfaction Surveys
 - [ ] Survey template builder
 - [ ] Email survey after HMR completion
 - [ ] Anonymous response collection
 - [ ] NPS (Net Promoter Score) calculation
 - [ ] Feedback dashboard
 
-#### 4.3 CPD Tracking Module
+#### 5.3 CPD Tracking Module
 - [ ] CPD activity logging
 - [ ] Upload certificates
 - [ ] Renewal reminders (AHPRA, insurance)
 - [ ] CPD points calculation
 - [ ] Annual summary export
 
-#### 4.4 Advanced Analytics
+#### 5.4 Advanced Analytics
 - [ ] Intervention impact tracking
   - [ ] Medications ceased
   - [ ] Medications initiated
@@ -380,7 +479,7 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Predictive analytics (HMR completion time)
 - [ ] Patient risk stratification
 
-#### 4.5 Multi-Pharmacist Collaboration
+#### 5.5 Multi-Pharmacist Collaboration
 - [ ] Team workspaces
 - [ ] Internal messaging/comments on reviews
 - [ ] Task assignment within reviews
@@ -388,7 +487,7 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Supervisor approval gates
 - [ ] Activity feed
 
-#### 4.6 Mobile App (React Native)
+#### 5.6 Mobile App (React Native)
 - [ ] iOS & Android builds
 - [ ] Push notifications
 - [ ] Offline-first architecture
@@ -429,20 +528,11 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Automated backup verification
 
 ### Additional Tools
-- [ ] Pregnancy/Lactation Safety Checker
+
 - [ ] Compounding Calculator (dilutions, alligation)
-- [ ] PBS Authority Code Finder
-- [ ] S8 Register Template Generator
-- [ ] Immunisation Schedule Checker
-- [ ] Dose administration aid suitability checker
 
-### Integration Ideas
-- [ ] HealthLink messaging
-- [ ] Erx/electronic prescribing integration
-- [ ] Practice management software integration
-- [ ] Pathology result imports (SNOMED codes)
 
----
+
 
 ## Technical Debt & Infrastructure
 
@@ -541,7 +631,8 @@ A comprehensive platform for pharmacy consultants that:
 
 ## Version History
 
-| Date       | Version | Changes                              |
-|------------|---------|--------------------------------------|
-| 2025-12-27 | 1.0     | Initial roadmap created              |
+| Date       | Version | Changes                                           |
+|------------|---------|--------------------------------------------------|
+| 2025-12-27 | 1.0     | Initial roadmap created                          |
+| 2025-12-27 | 2.0     | Phase 1 backend complete, phases reorganized     |
 

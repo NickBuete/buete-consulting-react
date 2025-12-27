@@ -11,7 +11,7 @@ import { Router } from 'express';
 const router = Router();
 
 // Stub routes that return helpful migration messages
-router.all('*', (req, res) => {
+router.use((_req, res) => {
   res.status(410).json({
     error: 'These endpoints have been deprecated',
     message: 'Please use the new AI endpoints: /api/ai/recommendations, /api/ai/assessment-summary, /api/ai/enhance-section',
