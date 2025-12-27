@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Calendar } from '../ui/Calendar';
 import { Card, CardContent } from '../ui/Card';
-import { Skeleton } from '../ui/Skeleton';
 import { addDays, startOfToday } from 'date-fns';
 
 interface AvailabilitySlot {
@@ -13,50 +12,16 @@ interface AvailabilitySlot {
 }
 
 interface AvailabilityCalendarProps {
-  pharmacistId: number;
+  availabilitySlots: AvailabilitySlot[];
   selectedDate: Date | undefined;
   onSelectDate: (date: Date | undefined) => void;
 }
 
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
-  pharmacistId,
+  availabilitySlots,
   selectedDate,
   onSelectDate,
 }) => {
-  const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-        const response = await fetch(
-          `${apiUrl}/api/booking/availability?userId=${pharmacistId}`
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to load availability');
-        }
-
-        const data = await response.json();
-        setAvailabilitySlots(data);
-      } catch (err) {
-        console.error('Error fetching availability:', err);
-        setError('Unable to load available dates');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (pharmacistId) {
-      fetchAvailability();
-    }
-  }, [pharmacistId]);
-
   // Determine if a date is available based on day of week
   const isDateAvailable = (date: Date): boolean => {
     const today = startOfToday();
@@ -84,26 +49,6 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const disabledDates = (date: Date): boolean => {
     return !isDateAvailable(date);
   };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <Skeleton className="h-80 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-red-600 text-sm">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (availabilitySlots.length === 0) {
     return (

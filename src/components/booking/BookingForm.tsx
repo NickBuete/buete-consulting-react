@@ -44,9 +44,24 @@ const bookingSchema = z.object({
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
+interface AvailabilitySlot {
+  id: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
+interface BusySlot {
+  start: string;
+  end: string;
+}
+
 interface BookingFormProps {
   bookingUrl: string;
-  pharmacistId: number;
+  pharmacistName: string;
+  availabilitySlots: AvailabilitySlot[];
+  busySlots: BusySlot[];
   bookingSettings: {
     requireApproval: boolean;
     bufferTimeBefore: number;
@@ -57,7 +72,9 @@ interface BookingFormProps {
 
 export const BookingForm: React.FC<BookingFormProps> = ({
   bookingUrl,
-  pharmacistId,
+  pharmacistName,
+  availabilitySlots,
+  busySlots,
   bookingSettings,
 }) => {
   const navigate = useNavigate();
@@ -107,7 +124,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create booking');
+        throw new Error(errorData.error || errorData.message || 'Failed to create booking');
       }
 
       const result = await response.json();
@@ -115,11 +132,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       // Navigate to confirmation page with booking details
       navigate('/booking/confirmation', {
         state: {
-          bookingId: result.reviewId,
+          bookingId: result.bookingId,
           patientName: `${data.patientFirstName} ${data.patientLastName}`,
           patientPhone: data.patientPhone,
           patientEmail: data.patientEmail,
-          pharmacistName: result.pharmacistName,
+          pharmacistName: result.pharmacistName || pharmacistName,
           appointmentDate: data.appointmentDate,
           appointmentTime: data.appointmentTime,
           requiresApproval: bookingSettings.requireApproval,
@@ -149,7 +166,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           1. Select a Date
         </h2>
         <AvailabilityCalendar
-          pharmacistId={pharmacistId}
+          availabilitySlots={availabilitySlots}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
@@ -165,7 +182,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             2. Select a Time
           </h2>
           <TimeSlotPicker
-            pharmacistId={pharmacistId}
+            availabilitySlots={availabilitySlots}
+            busySlots={busySlots}
             selectedDate={selectedDate}
             selectedTime={selectedTime}
             onSelectTime={setSelectedTime}

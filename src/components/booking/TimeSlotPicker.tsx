@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { format, addMinutes, parse, isBefore } from 'date-fns';
+import { format, addMinutes, parse, isBefore, isSameDay } from 'date-fns';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Skeleton } from '../ui/Skeleton';
 import { Clock } from 'lucide-react';
 
 interface TimeSlot {
   time: string; // HH:mm format
   available: boolean;
+  isBusy?: boolean;
 }
 
 interface AvailabilitySlot {
@@ -18,8 +18,14 @@ interface AvailabilitySlot {
   isAvailable: boolean;
 }
 
+interface BusySlot {
+  start: string;
+  end: string;
+}
+
 interface TimeSlotPickerProps {
-  pharmacistId: number;
+  availabilitySlots: AvailabilitySlot[];
+  busySlots: BusySlot[];
   selectedDate: Date;
   selectedTime: string;
   onSelectTime: (time: string) => void;
@@ -31,116 +37,73 @@ interface TimeSlotPickerProps {
 }
 
 export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
-  pharmacistId,
+  availabilitySlots,
+  busySlots,
   selectedDate,
   selectedTime,
   onSelectTime,
   bookingSettings,
 }) => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const generateTimeSlots = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const dayOfWeek = (selectedDate.getDay() + 6) % 7;
+    const daySlots = availabilitySlots.filter(
+      (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
+    );
 
-        // Fetch availability slots
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-        const response = await fetch(
-          `${apiUrl}/api/booking/availability?userId=${pharmacistId}`
-        );
+    if (daySlots.length === 0) {
+      setTimeSlots([]);
+      return;
+    }
 
-        if (!response.ok) {
-          throw new Error('Failed to load availability');
+    const parsedBusySlots = busySlots.map((slot) => ({
+      start: new Date(slot.start),
+      end: new Date(slot.end),
+    }));
+
+    const hasConflict = (slotStart: Date, slotEnd: Date) =>
+      parsedBusySlots.some((busy) => {
+        const bufferedStart = addMinutes(busy.start, -bookingSettings.bufferTimeBefore);
+        const bufferedEnd = addMinutes(busy.end, bookingSettings.bufferTimeAfter);
+        return slotStart < bufferedEnd && slotEnd > bufferedStart;
+      });
+
+    const slots: TimeSlot[] = [];
+    const slotDuration = bookingSettings.defaultDuration || 60;
+    const now = new Date();
+    const isToday = isSameDay(selectedDate, now);
+
+    daySlots.forEach((daySlot) => {
+      const startTime = parse(daySlot.startTime, 'HH:mm', selectedDate);
+      const endTime = parse(daySlot.endTime, 'HH:mm', selectedDate);
+
+      let currentTime = startTime;
+
+      while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
+        const slotEndTime = addMinutes(currentTime, slotDuration);
+
+        if (isBefore(slotEndTime, endTime) || slotEndTime.getTime() === endTime.getTime()) {
+          const isBusy = hasConflict(currentTime, slotEndTime);
+          const isPast = isToday && isBefore(currentTime, now);
+
+          slots.push({
+            time: format(currentTime, 'HH:mm'),
+            available: !isBusy && !isPast,
+            isBusy,
+          });
         }
 
-        const availabilitySlots: AvailabilitySlot[] = await response.json();
-
-        // Convert selected date to day of week (0 = Monday, 6 = Sunday)
-        let dayOfWeek = selectedDate.getDay() - 1;
-        if (dayOfWeek === -1) dayOfWeek = 6;
-
-        // Filter slots for selected day
-        const daySlots = availabilitySlots.filter(
-          (slot) => slot.dayOfWeek === dayOfWeek && slot.isAvailable
+        currentTime = addMinutes(
+          currentTime,
+          slotDuration + bookingSettings.bufferTimeBefore + bookingSettings.bufferTimeAfter
         );
-
-        if (daySlots.length === 0) {
-          setTimeSlots([]);
-          setLoading(false);
-          return;
-        }
-
-        // Generate time slots based on availability
-        const slots: TimeSlot[] = [];
-        const slotDuration = bookingSettings.defaultDuration || 60; // minutes
-
-        daySlots.forEach((daySlot) => {
-          const startTime = parse(daySlot.startTime, 'HH:mm', selectedDate);
-          const endTime = parse(daySlot.endTime, 'HH:mm', selectedDate);
-
-          let currentTime = startTime;
-
-          while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
-            const slotEndTime = addMinutes(currentTime, slotDuration);
-
-            // Check if slot fits within availability window
-            if (isBefore(slotEndTime, endTime) || slotEndTime.getTime() === endTime.getTime()) {
-              slots.push({
-                time: format(currentTime, 'HH:mm'),
-                available: true, // TODO: Check against existing bookings
-              });
-            }
-
-            // Move to next slot (add duration + buffer)
-            currentTime = addMinutes(
-              currentTime,
-              slotDuration + bookingSettings.bufferTimeBefore + bookingSettings.bufferTimeAfter
-            );
-          }
-        });
-
-        // Sort slots by time
-        slots.sort((a, b) => a.time.localeCompare(b.time));
-
-        setTimeSlots(slots);
-      } catch (err) {
-        console.error('Error generating time slots:', err);
-        setError('Unable to load available times');
-      } finally {
-        setLoading(false);
       }
-    };
+    });
 
-    generateTimeSlots();
-  }, [pharmacistId, selectedDate, bookingSettings]);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-red-600 text-sm">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+    slots.sort((a, b) => a.time.localeCompare(b.time));
+    setTimeSlots(slots);
+  }, [availabilitySlots, busySlots, selectedDate, bookingSettings]);
 
   if (timeSlots.length === 0) {
     return (
@@ -176,8 +139,19 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
                 className={`h-12 ${!slot.available && 'opacity-50 cursor-not-allowed'}`}
                 disabled={!slot.available}
                 onClick={() => onSelectTime(slot.time)}
+                aria-label={
+                  slot.available
+                    ? `Select ${format(parsedTime, 'h:mm a')}`
+                    : slot.isBusy
+                    ? 'Busy'
+                    : `Unavailable ${format(parsedTime, 'h:mm a')}`
+                }
               >
-                {format(parsedTime, 'h:mm a')}
+                {slot.available
+                  ? format(parsedTime, 'h:mm a')
+                  : slot.isBusy
+                  ? 'Busy'
+                  : format(parsedTime, 'h:mm a')}
               </Button>
             );
           })}

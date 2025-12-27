@@ -12,6 +12,66 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+const addMinutesToDate = (date: Date, minutes: number) =>
+  new Date(date.getTime() + minutes * 60000);
+
+const getDayRange = (date: Date) => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const buildDateTime = (date: string, time: string) =>
+  new Date(`${date}T${time}:00+10:00`);
+
+const getBusyIntervals = async (
+  userId: number,
+  startDate: Date,
+  endDate: Date,
+  durationMinutes: number
+) => {
+  const reviews = await prisma.hmrReview.findMany({
+    where: {
+      ownerId: userId,
+      status: { not: 'CANCELLED' },
+      scheduledAt: {
+        not: null,
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    select: {
+      scheduledAt: true,
+    },
+  });
+
+  return reviews.map((review) => {
+    const start = review.scheduledAt as Date;
+    const end = addMinutesToDate(start, durationMinutes);
+    return { start, end };
+  });
+};
+
+const hasBookingConflict = async (
+  userId: number,
+  appointmentStart: Date,
+  durationMinutes: number,
+  bufferBefore: number,
+  bufferAfter: number
+) => {
+  const { start, end } = getDayRange(appointmentStart);
+  const busyIntervals = await getBusyIntervals(userId, start, end, durationMinutes);
+  const appointmentEnd = addMinutesToDate(appointmentStart, durationMinutes);
+
+  return busyIntervals.some((interval) => {
+    const bufferedStart = addMinutesToDate(interval.start, -bufferBefore);
+    const bufferedEnd = addMinutesToDate(interval.end, bufferAfter);
+    return appointmentStart < bufferedEnd && appointmentEnd > bufferedStart;
+  });
+};
+
 // ========================================
 // Validation Schemas
 // ========================================
@@ -281,16 +341,38 @@ router.get(
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
 
+    const rangeStart = new Date();
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeEnd.getDate() + 90);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    const busyIntervals = await getBusyIntervals(
+      settings.userId,
+      rangeStart,
+      rangeEnd,
+      settings.defaultDuration
+    );
+
     res.json({
       pharmacist: {
+        id: settings.user.id,
         name: settings.user.username,
         email: settings.user.email,
       },
-      settings: {
-        defaultDuration: settings.defaultDuration,
+      bookingSettings: {
+        allowPublicBooking: settings.allowPublicBooking,
         requireApproval: settings.requireApproval,
+        bufferTimeBefore: settings.bufferTimeBefore,
+        bufferTimeAfter: settings.bufferTimeAfter,
+        defaultDuration: settings.defaultDuration,
+        bookingUrl: settings.bookingUrl,
       },
       availability: slots,
+      busySlots: busyIntervals.map((interval) => ({
+        start: interval.start.toISOString(),
+        end: interval.end.toISOString(),
+      })),
     });
   })
 );
@@ -332,6 +414,45 @@ router.post(
     }
 
     const userId = settings.userId;
+    const appointmentDateTime = buildDateTime(
+      validated.appointmentDate,
+      validated.appointmentTime
+    );
+    const appointmentEndTime = addMinutesToDate(
+      appointmentDateTime,
+      settings.defaultDuration
+    );
+
+    const dayOfWeek = (appointmentDateTime.getDay() + 6) % 7;
+    const availabilitySlots = await prisma.availabilitySlot.findMany({
+      where: {
+        userId,
+        dayOfWeek,
+        isAvailable: true,
+      },
+    });
+
+    const isWithinAvailability = availabilitySlots.some((slot) => {
+      const slotStart = buildDateTime(validated.appointmentDate, slot.startTime);
+      const slotEnd = buildDateTime(validated.appointmentDate, slot.endTime);
+      return appointmentDateTime >= slotStart && appointmentEndTime <= slotEnd;
+    });
+
+    if (!isWithinAvailability) {
+      return res.status(400).json({ error: 'Selected time is not available' });
+    }
+
+    const hasConflict = await hasBookingConflict(
+      userId,
+      appointmentDateTime,
+      settings.defaultDuration,
+      settings.bufferTimeBefore,
+      settings.bufferTimeAfter
+    );
+
+    if (hasConflict) {
+      return res.status(409).json({ error: 'Selected time is no longer available' });
+    }
 
     // Format phone number
     const formattedPhone = twilioService.formatAustralianPhone(
@@ -366,14 +487,6 @@ router.post(
         },
       });
     }
-
-    // Parse appointment datetime
-    const appointmentDateTime = new Date(
-      `${validated.appointmentDate}T${validated.appointmentTime}:00+10:00`
-    );
-    const appointmentEndTime = new Date(
-      appointmentDateTime.getTime() + settings.defaultDuration * 60000
-    );
 
     // Create HMR review
     const review = await prisma.hmrReview.create({
@@ -493,6 +606,7 @@ router.post(
     res.status(201).json({
       success: true,
       bookingId: review.id,
+      pharmacistName: settings.user.username,
       appointmentDateTime: appointmentDateTime.toISOString(),
       requiresApproval: settings.requireApproval,
       message: settings.requireApproval

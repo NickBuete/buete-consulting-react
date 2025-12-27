@@ -4,24 +4,41 @@ import { BookingForm } from '../../components/booking/BookingForm';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Skeleton } from '../../components/ui/Skeleton';
 
-interface PharmacistInfo {
+interface AvailabilitySlot {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
+interface BusySlot {
+  start: string;
+  end: string;
+}
+
+interface PublicBookingInfo {
+  pharmacist: {
+    id: number;
+    name: string;
+    email: string;
+  };
   bookingSettings: {
     allowPublicBooking: boolean;
     requireApproval: boolean;
     bufferTimeBefore: number;
     bufferTimeAfter: number;
     defaultDuration: number;
+    bookingUrl?: string | null;
   };
+  availability: AvailabilitySlot[];
+  busySlots: BusySlot[];
 }
 
 const BookingPage: React.FC = () => {
   const { bookingUrl } = useParams<{ bookingUrl: string }>();
   const navigate = useNavigate();
-  const [pharmacist, setPharmacist] = useState<PharmacistInfo | null>(null);
+  const [bookingInfo, setBookingInfo] = useState<PublicBookingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +61,7 @@ const BookingPage: React.FC = () => {
         }
 
         const data = await response.json();
-        setPharmacist(data);
+        setBookingInfo(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       } finally {
@@ -73,7 +90,7 @@ const BookingPage: React.FC = () => {
     );
   }
 
-  if (error || !pharmacist) {
+  if (error || !bookingInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
@@ -95,7 +112,7 @@ const BookingPage: React.FC = () => {
     );
   }
 
-  if (!pharmacist.bookingSettings.allowPublicBooking) {
+  if (!bookingInfo.bookingSettings.allowPublicBooking) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
@@ -118,9 +135,9 @@ const BookingPage: React.FC = () => {
             Book an Appointment
           </h1>
           <p className="mt-3 text-lg text-gray-600">
-            with {pharmacist.firstName} {pharmacist.lastName}
+            with {bookingInfo.pharmacist.name}
           </p>
-          {pharmacist.bookingSettings.requireApproval && (
+          {bookingInfo.bookingSettings.requireApproval && (
             <p className="mt-2 text-sm text-amber-600">
               Note: All bookings require approval
             </p>
@@ -131,8 +148,10 @@ const BookingPage: React.FC = () => {
         <div className="bg-white shadow-lg rounded-lg p-6 sm:p-8">
           <BookingForm
             bookingUrl={bookingUrl!}
-            pharmacistId={pharmacist.id}
-            bookingSettings={pharmacist.bookingSettings}
+            pharmacistName={bookingInfo.pharmacist.name}
+            availabilitySlots={bookingInfo.availability}
+            busySlots={bookingInfo.busySlots}
+            bookingSettings={bookingInfo.bookingSettings}
           />
         </div>
 
@@ -142,7 +161,7 @@ const BookingPage: React.FC = () => {
             By booking an appointment, you agree to our terms and conditions.
           </p>
           <p className="mt-2">
-            Need help? Contact us at {pharmacist.email}
+            Need help? Contact us at {bookingInfo.pharmacist.email}
           </p>
         </div>
       </div>
