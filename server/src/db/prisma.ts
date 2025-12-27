@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { env } from '../config/env';
 
 declare global {
@@ -6,9 +8,17 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
+// Create PostgreSQL connection pool
+const pool = new pg.Pool({
+  connectionString: env.databaseUrl,
+});
+
+// Create Prisma adapter
+const adapter = new PrismaPg(pool);
+
 const prismaClient = globalThis.prisma ??
   new PrismaClient({
-    datasources: { db: { url: env.databaseUrl } },
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
