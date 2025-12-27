@@ -32,6 +32,7 @@ router.post(
           patient: true,
           medications: true,
           symptoms: true,
+          interviewResponses: true,
         },
       })
 
@@ -40,28 +41,31 @@ router.post(
       }
 
       // Prepare patient data
-      const patientAge = review.patient.dateOfBirth
+      const patientAge = (review as any).patient.dateOfBirth
         ? Math.floor(
-            (Date.now() - new Date(review.patient.dateOfBirth).getTime()) /
+            (Date.now() - new Date((review as any).patient.dateOfBirth).getTime()) /
               (365.25 * 24 * 60 * 60 * 1000)
           )
         : undefined
 
-      const symptoms = review.symptoms
-        .filter((s) => s.present)
-        .map((s) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}${s.notes ? `: ${s.notes}` : ''}`)
+      const symptoms = (review as any).symptoms
+        .filter((s: any) => s.present)
+        .map((s: any) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}${s.notes ? `: ${s.notes}` : ''}`)
 
-      // Add text-based symptoms from review fields
+      // Add text-based symptoms from interview responses
       const textSymptoms: string[] = []
-      if (review.dizziness) textSymptoms.push(`Dizziness: ${review.dizziness}`)
-      if (review.pain) textSymptoms.push(`Pain: ${review.pain}`)
-      if (review.falls) textSymptoms.push(`Falls: ${review.falls}`)
-      if (review.mobility) textSymptoms.push(`Mobility issues: ${review.mobility}`)
+      if ((review as any).interviewResponses) {
+        (review as any).interviewResponses.forEach((response: any) => {
+          if (response.response) {
+            textSymptoms.push(`${response.category}: ${response.response}`)
+          }
+        })
+      }
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
       const recommendations = await openaiService.generateHmrRecommendations({
-        medications: review.medications.map((med) => ({
+        medications: (review as any).medications.map((med: any) => ({
           name: med.name,
           ...(med.dose && { dose: med.dose }),
           ...(med.frequency && { frequency: med.frequency }),
@@ -112,6 +116,7 @@ router.post(
           patient: true,
           medications: true,
           symptoms: true,
+          interviewResponses: true,
         },
       })
 
@@ -119,24 +124,28 @@ router.post(
         return res.status(400).json({ error: 'Review not found' })
       }
 
-      const patientName = `${review.patient.firstName} ${review.patient.lastName}`
+      const patientName = `${(review as any).patient.firstName} ${(review as any).patient.lastName}`
 
-      const symptoms = review.symptoms
-        .filter((s) => s.present)
-        .map((s) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}`)
+      const symptoms = (review as any).symptoms
+        .filter((s: any) => s.present)
+        .map((s: any) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}`)
 
-      // Add text-based symptoms
+      // Add text-based symptoms from interview responses
       const textSymptoms: string[] = []
-      if (review.dizziness) textSymptoms.push('dizziness')
-      if (review.pain) textSymptoms.push('pain')
-      if (review.falls) textSymptoms.push('falls history')
-      if (review.mobility) textSymptoms.push('mobility concerns')
+      if ((review as any).interviewResponses) {
+        (review as any).interviewResponses.forEach((response: any) => {
+          if (response.response) {
+            // For summary, just include the category name if there's a response
+            textSymptoms.push(response.category)
+          }
+        })
+      }
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
       const summary = await openaiService.generateAssessmentSummary({
         name: patientName,
-        medications: review.medications.map((med) => ({
+        medications: (review as any).medications.map((med: any) => ({
           name: med.name,
           ...(med.dose && { dose: med.dose }),
           ...(med.frequency && { frequency: med.frequency }),
@@ -147,7 +156,6 @@ router.post(
         ...(review.livingArrangement && {
           livingArrangement: review.livingArrangement,
         }),
-        ...(review.socialSupport && { socialSupport: review.socialSupport }),
       })
 
       res.json({ summary })

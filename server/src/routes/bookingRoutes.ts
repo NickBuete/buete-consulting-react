@@ -107,7 +107,10 @@ router.post(
     const slot = await prisma.availabilitySlot.create({
       data: {
         userId,
-        ...validated,
+        dayOfWeek: validated.dayOfWeek,
+        startTime: validated.startTime,
+        endTime: validated.endTime,
+        ...(validated.isAvailable !== undefined && { isAvailable: validated.isAvailable }),
       },
     });
 
@@ -124,12 +127,19 @@ router.patch(
   authenticate,
   asyncHandler(async (req, res) => {
     const userId = req.user!.id;
-    const slotId = parseInt(req.params.id, 10);
+    const slotId = parseInt(req.params.id!, 10);
     const validated = availabilitySlotSchema.partial().parse(req.body);
+
+    // Filter out undefined values
+    const updateData: any = {};
+    if (validated.dayOfWeek !== undefined) updateData.dayOfWeek = validated.dayOfWeek;
+    if (validated.startTime !== undefined) updateData.startTime = validated.startTime;
+    if (validated.endTime !== undefined) updateData.endTime = validated.endTime;
+    if (validated.isAvailable !== undefined) updateData.isAvailable = validated.isAvailable;
 
     const slot = await prisma.availabilitySlot.update({
       where: { id: slotId, userId },
-      data: validated,
+      data: updateData,
     });
 
     res.json(slot);
@@ -145,7 +155,7 @@ router.delete(
   authenticate,
   asyncHandler(async (req, res) => {
     const userId = req.user!.id;
-    const slotId = parseInt(req.params.id, 10);
+    const slotId = parseInt(req.params.id!, 10);
 
     await prisma.availabilitySlot.delete({
       where: { id: slotId, userId },
@@ -195,13 +205,32 @@ router.patch(
     const userId = req.user!.id;
     const validated = bookingSettingsSchema.parse(req.body);
 
+    // Filter out undefined values for create
+    const createData: any = { userId };
+    if (validated.bufferTimeBefore !== undefined) createData.bufferTimeBefore = validated.bufferTimeBefore;
+    if (validated.bufferTimeAfter !== undefined) createData.bufferTimeAfter = validated.bufferTimeAfter;
+    if (validated.defaultDuration !== undefined) createData.defaultDuration = validated.defaultDuration;
+    if (validated.allowPublicBooking !== undefined) createData.allowPublicBooking = validated.allowPublicBooking;
+    if (validated.requireApproval !== undefined) createData.requireApproval = validated.requireApproval;
+    if (validated.bookingUrl !== undefined) createData.bookingUrl = validated.bookingUrl;
+    if (validated.confirmationEmailText !== undefined) createData.confirmationEmailText = validated.confirmationEmailText;
+    if (validated.reminderEmailText !== undefined) createData.reminderEmailText = validated.reminderEmailText;
+
+    // Filter out undefined values for update
+    const updateData: any = {};
+    if (validated.bufferTimeBefore !== undefined) updateData.bufferTimeBefore = validated.bufferTimeBefore;
+    if (validated.bufferTimeAfter !== undefined) updateData.bufferTimeAfter = validated.bufferTimeAfter;
+    if (validated.defaultDuration !== undefined) updateData.defaultDuration = validated.defaultDuration;
+    if (validated.allowPublicBooking !== undefined) updateData.allowPublicBooking = validated.allowPublicBooking;
+    if (validated.requireApproval !== undefined) updateData.requireApproval = validated.requireApproval;
+    if (validated.bookingUrl !== undefined) updateData.bookingUrl = validated.bookingUrl;
+    if (validated.confirmationEmailText !== undefined) updateData.confirmationEmailText = validated.confirmationEmailText;
+    if (validated.reminderEmailText !== undefined) updateData.reminderEmailText = validated.reminderEmailText;
+
     const settings = await prisma.bookingSettings.upsert({
       where: { userId },
-      create: {
-        userId,
-        ...validated,
-      },
-      update: validated,
+      create: createData,
+      update: updateData,
     });
 
     res.json(settings);
@@ -220,6 +249,10 @@ router.get(
   '/public/:bookingUrl',
   asyncHandler(async (req, res) => {
     const { bookingUrl } = req.params;
+
+    if (!bookingUrl) {
+      return res.status(400).json({ error: 'Booking URL is required' });
+    }
 
     const settings = await prisma.bookingSettings.findUnique({
       where: { bookingUrl },
@@ -272,6 +305,10 @@ router.post(
     const { bookingUrl } = req.params;
     const validated = publicBookingSchema.parse(req.body);
 
+    if (!bookingUrl) {
+      return res.status(400).json({ error: 'Booking URL is required' });
+    }
+
     // Get booking settings
     const settings = await prisma.bookingSettings.findUnique({
       where: { bookingUrl },
@@ -317,7 +354,7 @@ router.post(
           firstName: validated.patientFirstName,
           lastName: validated.patientLastName,
           contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail,
+          contactEmail: validated.patientEmail || null,
         },
       });
     } else {
@@ -325,7 +362,7 @@ router.post(
         where: { id: patient.id },
         data: {
           contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail,
+          contactEmail: validated.patientEmail || null,
         },
       });
     }
@@ -345,8 +382,8 @@ router.post(
         patientId: patient.id,
         referredBy: validated.referrerName,
         referralDate: new Date(),
-        referralReason: validated.referralReason,
-        referralNotes: validated.notes,
+        referralReason: validated.referralReason || null,
+        referralNotes: validated.notes || null,
         scheduledAt: appointmentDateTime,
         status: settings.requireApproval ? 'PENDING' : 'SCHEDULED',
         visitLocation: 'To be confirmed',
@@ -391,14 +428,14 @@ router.post(
                  <p>Phone: ${formattedPhone}</p>`,
           startDateTime: appointmentDateTime.toISOString(),
           endDateTime: appointmentEndTime.toISOString(),
-          attendees: validated.patientEmail
-            ? [
-                {
-                  emailAddress: validated.patientEmail,
-                  name: `${patient.firstName} ${patient.lastName}`,
-                },
-              ]
-            : undefined,
+          ...(validated.patientEmail && {
+            attendees: [
+              {
+                emailAddress: validated.patientEmail,
+                name: `${patient.firstName} ${patient.lastName}`,
+              },
+            ],
+          }),
         });
 
         // Update review with calendar event ID
@@ -409,7 +446,7 @@ router.post(
 
         logger.info(`Calendar event created: ${calendarEventId}`);
       } catch (error) {
-        logger.error('Failed to create calendar event:', error);
+        logger.error({ err: error }, 'Failed to create calendar event');
         // Continue anyway - booking is still valid
       }
     }
@@ -439,7 +476,7 @@ router.post(
           },
         });
       } catch (error) {
-        logger.error('Failed to send confirmation SMS:', error);
+        logger.error({ err: error }, 'Failed to send confirmation SMS');
         // Log but don't fail the booking
         await prisma.smsLog.create({
           data: {
@@ -516,7 +553,7 @@ router.post(
           firstName: validated.patientFirstName,
           lastName: validated.patientLastName,
           contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail,
+          contactEmail: validated.patientEmail || null,
         },
       });
     } else {
@@ -524,7 +561,7 @@ router.post(
         where: { id: patient.id },
         data: {
           contactPhone: formattedPhone,
-          contactEmail: validated.patientEmail,
+          contactEmail: validated.patientEmail || null,
         },
       });
     }
@@ -544,8 +581,8 @@ router.post(
         patientId: patient.id,
         referredBy: validated.referrerName,
         referralDate: new Date(),
-        referralReason: validated.referralReason,
-        referralNotes: validated.notes,
+        referralReason: validated.referralReason || null,
+        referralNotes: validated.notes || null,
         scheduledAt: appointmentDateTime,
         status: settings.requireApproval ? 'PENDING' : 'SCHEDULED',
         visitLocation: 'To be confirmed',
@@ -596,7 +633,7 @@ router.post(
           endDateTime: appointmentEndTime.toISOString(),
           attendees: validated.patientEmail
             ? [{ emailAddress: validated.patientEmail, name: `${patient.firstName} ${patient.lastName}` }]
-            : undefined,
+            : [],
         });
 
         await prisma.hmrReview.update({
@@ -604,7 +641,7 @@ router.post(
           data: { calendarEventId },
         });
       } catch (error) {
-        logger.error('Failed to create calendar event:', error);
+        logger.error({ err: error }, 'Failed to create calendar event');
       }
     }
 
@@ -628,7 +665,7 @@ router.post(
           referrerName: validated.referrerName,
         });
       } catch (error) {
-        logger.error('Failed to send confirmation email:', error);
+        logger.error({ err: error }, 'Failed to send confirmation email');
       }
     }
 
@@ -657,7 +694,7 @@ router.post(
           },
         });
       } catch (error) {
-        logger.error('Failed to send confirmation SMS:', error);
+        logger.error({ err: error }, 'Failed to send confirmation SMS');
         await prisma.smsLog.create({
           data: {
             hmrReviewId: review.id,
@@ -694,6 +731,10 @@ router.get(
   '/reschedule/:token',
   asyncHandler(async (req, res) => {
     const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
 
     const rescheduleToken = await prisma.rescheduleToken.findUnique({
       where: { token },
@@ -742,7 +783,7 @@ router.get(
       },
       currentAppointment: {
         date: review.scheduledAt?.toISOString().split('T')[0],
-        time: review.scheduledAt?.toISOString().split('T')[1].substring(0, 5),
+        time: review.scheduledAt?.toISOString().split('T')[1]?.substring(0, 5),
       },
       referredBy: review.referredBy,
     });
@@ -758,6 +799,10 @@ router.post(
   asyncHandler(async (req, res) => {
     const { token } = req.params;
     const validated = rescheduleSchema.parse(req.body);
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
 
     const rescheduleToken = await prisma.rescheduleToken.findUnique({
       where: { token },
@@ -834,7 +879,7 @@ router.post(
           }
         );
       } catch (error) {
-        logger.error('Failed to update calendar event:', error);
+        logger.error({ err: error }, 'Failed to update calendar event');
       }
     }
 
@@ -875,7 +920,7 @@ router.post(
           `,
         });
       } catch (error) {
-        logger.error('Failed to send reschedule confirmation email:', error);
+        logger.error({ err: error }, 'Failed to send reschedule confirmation email');
       }
     }
 
@@ -894,7 +939,7 @@ router.post(
           appointmentTime: validated.appointmentTime,
         });
       } catch (error) {
-        logger.error('Failed to send reschedule SMS:', error);
+        logger.error({ err: error }, 'Failed to send reschedule SMS');
       }
     }
 

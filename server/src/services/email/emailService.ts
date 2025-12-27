@@ -62,14 +62,14 @@ class EmailService {
         this.emailEnabled = false;
       }
     } catch (error) {
-      logger.error('Failed to initialize email service', error);
+      logger.error({ err: error }, 'Failed to initialize email service');
       this.emailEnabled = false;
     }
   }
 
   async sendEmail(params: EmailParams): Promise<void> {
     if (!this.emailEnabled || !this.transporter) {
-      logger.info('Email service disabled - email not sent', { to: params.to });
+      logger.info({ to: params.to }, 'Email service disabled - email not sent');
       return;
     }
 
@@ -85,16 +85,13 @@ class EmailService {
         text: params.text || params.html.replace(/<[^>]*>/g, ''), // Strip HTML as fallback
       });
 
-      logger.info('Email sent successfully', {
-        messageId: info.messageId,
-        to: params.to,
-      });
+      logger.info({ messageId: info.messageId, to: params.to }, 'Email sent successfully');
     } catch (error) {
-      logger.error('Failed to send email', {
-        error,
+      logger.error({
+        err: error,
         to: params.to,
         subject: params.subject,
-      });
+      }, 'Failed to send email');
       throw error;
     }
   }
@@ -279,7 +276,7 @@ class EmailService {
       logger.info('Email service connection verified');
       return true;
     } catch (error) {
-      logger.error('Email service connection test failed', error);
+      logger.error({ err: error }, 'Email service connection test failed');
       return false;
     }
   }

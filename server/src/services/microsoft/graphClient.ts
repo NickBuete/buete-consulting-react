@@ -85,7 +85,7 @@ export class GraphService {
 
       return {
         accessToken: tokenResponse.accessToken,
-        refreshToken: tokenResponse.refreshToken || '',
+        refreshToken: '', // MSAL doesn't return refresh tokens in the response
         expiresIn: tokenResponse.expiresOn
           ? Math.floor((tokenResponse.expiresOn.getTime() - Date.now()) / 1000)
           : 3600,
@@ -110,13 +110,13 @@ export class GraphService {
         scopes: ['Calendars.ReadWrite', 'User.Read', 'offline_access'],
       });
 
-      if (!tokenResponse.accessToken) {
+      if (!tokenResponse || !tokenResponse.accessToken) {
         throw new Error('No access token received');
       }
 
       return {
         accessToken: tokenResponse.accessToken,
-        refreshToken: tokenResponse.refreshToken || refreshToken,
+        refreshToken: refreshToken, // Keep the original refresh token
         expiresIn: tokenResponse.expiresOn
           ? Math.floor((tokenResponse.expiresOn.getTime() - Date.now()) / 1000)
           : 3600,

@@ -37,7 +37,7 @@ router.get(
     const { code, state, error, error_description } = req.query;
 
     if (error) {
-      logger.error('Microsoft OAuth error:', { error, error_description });
+      logger.error({ error, error_description }, 'Microsoft OAuth error');
       return res.status(400).send(`
         <html>
           <body>
@@ -104,7 +104,7 @@ router.get(
         </html>
       `);
     } catch (error: any) {
-      logger.error('Error processing Microsoft callback:', error);
+      logger.error({ err: error }, 'Error processing Microsoft callback');
       res.status(500).send(`
         <html>
           <body>
@@ -163,6 +163,7 @@ router.get(
         calendarSyncEnabled: true,
         microsoftEmail: true,
         microsoftTokenExpiry: true,
+        microsoftAccessToken: true,
       },
     });
 
@@ -170,7 +171,7 @@ router.get(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const isConnected = user.calendarSyncEnabled && user.microsoftAccessToken;
+    const isConnected = user.calendarSyncEnabled && !!user.microsoftAccessToken;
     const isExpired = user.microsoftTokenExpiry
       ? new Date() > user.microsoftTokenExpiry
       : false;
