@@ -5,17 +5,17 @@
 
 import { prisma } from '../../db/prisma';
 import { withTenantContext } from '../../db/tenant';
-import type { AvailabilitySlot, DayOfWeek } from '@prisma/client';
+import type { AvailabilitySlot } from '@prisma/client';
 
 export interface AvailabilitySlotCreateInput {
-  dayOfWeek: DayOfWeek;
+  dayOfWeek: number; // 0 = Monday, 6 = Sunday
   startTime: string;
   endTime: string;
   isAvailable?: boolean;
 }
 
 export interface AvailabilitySlotUpdateInput {
-  dayOfWeek?: DayOfWeek;
+  dayOfWeek?: number;
   startTime?: string;
   endTime?: string;
   isAvailable?: boolean;

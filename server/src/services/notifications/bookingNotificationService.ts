@@ -85,9 +85,10 @@ export const sendBookingConfirmation = async (
   // Send confirmation SMS
   if (twilioService.isEnabled() && twilioService.isValidAustralianPhone(params.patientPhone)) {
     try {
+      const firstName = params.patientName.split(' ')[0] || params.patientName;
       await twilioService.sendAppointmentConfirmation({
         to: params.patientPhone,
-        patientName: params.patientName.split(' ')[0], // First name only for SMS
+        patientName: firstName, // First name only for SMS
         appointmentDate: formattedDate,
         appointmentTime: params.appointmentTime,
       });
@@ -184,9 +185,10 @@ export const sendRescheduleNotification = async (
   // Send reschedule SMS
   if (twilioService.isEnabled() && twilioService.isValidAustralianPhone(params.patientPhone)) {
     try {
+      const firstName = params.patientName.split(' ')[0] || params.patientName;
       await twilioService.sendAppointmentConfirmation({
         to: params.patientPhone,
-        patientName: params.patientName.split(' ')[0], // First name only for SMS
+        patientName: firstName, // First name only for SMS
         appointmentDate: formattedDate,
         appointmentTime: params.appointmentTime,
       });

@@ -62,6 +62,8 @@ export const createPublicBooking = async (data: PublicBookingInput) => {
           email: true,
           calendarSyncEnabled: true,
           microsoftAccessToken: true,
+          microsoftRefreshToken: true,
+          microsoftTokenExpiry: true,
         },
       },
     },
