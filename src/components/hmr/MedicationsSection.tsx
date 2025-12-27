@@ -132,12 +132,9 @@ export const MedicationsSection: React.FC<MedicationsSectionProps> = ({
                       </label>
                       <div className="mt-1">
                         <MedicationAutocomplete
-                          value={med.name}
+                          initialValue={med.name}
                           onSelect={(selected) =>
                             handleMedicationSelect(index, selected)
-                          }
-                          onChange={(value) =>
-                            updateMedication(index, 'name', value)
                           }
                         />
                       </div>

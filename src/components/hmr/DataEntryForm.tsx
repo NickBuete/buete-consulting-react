@@ -21,9 +21,6 @@ import {
 } from './MedicationsSection';
 
 interface DataEntryFormValues {
-  pastMedicalHistory: string;
-  allergies: string;
-  pathology: string;
   medications: MedicationEntry[];
 }
 
@@ -42,9 +39,6 @@ export const DataEntryForm: React.FC<DataEntryFormProps> = ({
 }) => {
   const form = useForm<DataEntryFormValues>({
     defaultValues: {
-      pastMedicalHistory: review.pastMedicalHistory || '',
-      allergies: review.allergies || '',
-      pathology: review.pathology || '',
       medications:
         review.medications?.map((m) => ({
           name: m.name,
@@ -100,21 +94,11 @@ export const DataEntryForm: React.FC<DataEntryFormProps> = ({
 
   const handleSubmit = async (values: DataEntryFormValues) => {
     await onSubmit({
-      pastMedicalHistory: values.pastMedicalHistory,
-      allergies: values.allergies,
-      pathology: values.pathology,
       medicalHistory: medicalHistory.filter(
         (entry) => entry.condition.trim() !== ''
       ),
       allergiesTable: allergies.filter((entry) => entry.allergen.trim() !== ''),
       pathologyResults: pathology.filter((entry) => entry.test.trim() !== ''),
-      medications: medications.map((med) => ({
-        name: med.name,
-        dose: med.dose || null,
-        frequency: med.frequency || null,
-        indication: med.indication || null,
-        notes: med.notes || null,
-      })),
     });
   };
 
