@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/Tabs';
 import { AvailabilityEditor } from '../../../components/admin/AvailabilityEditor';
 import { BookingSettingsForm } from '../../../components/admin/BookingSettingsForm';
+import { BookingUrlCard } from '../../../components/admin/BookingUrlCard';
 import { CalendarConnectionCard } from '../../../components/admin/CalendarConnectionCard';
 import { SmsLogsTable } from '../../../components/admin/SmsLogsTable';
 import { Calendar, Settings, Link2, MessageSquare } from 'lucide-react';
@@ -56,6 +57,7 @@ const BookingDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
+          <BookingUrlCard />
           <Card>
             <CardHeader>
               <CardTitle>Booking Settings</CardTitle>
