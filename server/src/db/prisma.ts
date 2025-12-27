@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
-import { env } from '../config/env';
+import { Pool } from 'pg';
 
 declare global {
   // eslint-disable-next-line no-var, vars-on-top
@@ -9,10 +8,14 @@ declare global {
 }
 
 // Create PostgreSQL connection pool
-console.log('DATABASE_URL type:', typeof env.databaseUrl, 'value:', env.databaseUrl);
-const pool = new pg.Pool({
-  connectionString: env.databaseUrl,
-});
+// In Prisma v7, we use pg.Pool directly with the connection string from env
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL must be set');
+}
+
+const pool = new Pool({ connectionString });
 
 // Create Prisma adapter
 const adapter = new PrismaPg(pool);
