@@ -18,7 +18,9 @@ const bookingSchema = z.object({
   patientFirstName: z.string().min(1, 'First name is required'),
   patientLastName: z.string().min(1, 'Last name is required'),
   patientPhone: z.string().min(10, 'Valid phone number is required'),
-  patientEmail: z.union([z.string().email('Valid email is required'), z.literal('')]).optional(),
+  patientEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+    message: 'Valid email is required',
+  }),
   patientDateOfBirth: z.string().optional(),
   patientAddressLine1: z.string().optional(),
   patientSuburb: z.string().optional(),
@@ -27,7 +29,9 @@ const bookingSchema = z.object({
 
   // Referrer Information
   referrerName: z.string().min(1, 'Referrer name is required'),
-  referrerEmail: z.union([z.string().email('Valid email is required'), z.literal('')]).optional(),
+  referrerEmail: z.string().optional().refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+    message: 'Valid email is required',
+  }),
   referrerPhone: z.string().optional(),
   referrerClinic: z.string().optional(),
 
