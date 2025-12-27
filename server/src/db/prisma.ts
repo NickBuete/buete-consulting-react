@@ -9,6 +9,7 @@ declare global {
 }
 
 // Create PostgreSQL connection pool
+console.log('DATABASE_URL type:', typeof env.databaseUrl, 'value:', env.databaseUrl);
 const pool = new pg.Pool({
   connectionString: env.databaseUrl,
 });
