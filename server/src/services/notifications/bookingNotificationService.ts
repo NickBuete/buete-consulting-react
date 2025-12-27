@@ -57,17 +57,22 @@ export const sendBookingConfirmation = async (
   });
 
   // Send confirmation email
-  if (params.patientEmail) {
+  if (params.patientEmail && params.rescheduleLink) {
     try {
-      await emailService.sendBookingConfirmation({
+      const emailParams: Parameters<typeof emailService.sendBookingConfirmation>[0] = {
         patientEmail: params.patientEmail,
         patientName: params.patientName,
         pharmacistName: params.pharmacistName,
         appointmentDate: formattedDate,
         appointmentTime: params.appointmentTime,
         rescheduleLink: params.rescheduleLink,
-        referrerName: params.referrerName,
-      });
+      };
+
+      if (params.referrerName) {
+        emailParams.referrerName = params.referrerName;
+      }
+
+      await emailService.sendBookingConfirmation(emailParams);
       result.emailSent = true;
       logger.info({ reviewId: params.reviewId, email: params.patientEmail }, 'Booking confirmation email sent');
     } catch (error) {
@@ -150,18 +155,23 @@ export const sendRescheduleNotification = async (
   });
 
   // Send reschedule email
-  if (params.patientEmail) {
+  if (params.patientEmail && params.rescheduleLink) {
     try {
-      // Using the same sendBookingConfirmation method as it handles reschedule links
-      await emailService.sendBookingConfirmation({
+      const emailParams: Parameters<typeof emailService.sendBookingConfirmation>[0] = {
         patientEmail: params.patientEmail,
         patientName: params.patientName,
         pharmacistName: params.pharmacistName,
         appointmentDate: formattedDate,
         appointmentTime: params.appointmentTime,
         rescheduleLink: params.rescheduleLink,
-        referrerName: params.referrerName,
-      });
+      };
+
+      if (params.referrerName) {
+        emailParams.referrerName = params.referrerName;
+      }
+
+      // Using the same sendBookingConfirmation method as it handles reschedule links
+      await emailService.sendBookingConfirmation(emailParams);
       result.emailSent = true;
       logger.info({ reviewId: params.reviewId, email: params.patientEmail }, 'Reschedule confirmation email sent');
     } catch (error) {

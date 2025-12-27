@@ -50,15 +50,25 @@ const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
 };
 
 export const buildDateTime = (date: string, time: string, timeZone = BOOKING_TIME_ZONE) => {
-  const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
+  const dateParts = date.split('-').map(Number);
+  const timeParts = time.split(':').map(Number);
+
+  const year = dateParts[0]!;
+  const month = dateParts[1]!;
+  const day = dateParts[2]!;
+  const hour = timeParts[0]!;
+  const minute = timeParts[1]!;
+
   const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
   const offset = getTimeZoneOffsetMinutes(utcDate, timeZone);
   return new Date(utcDate.getTime() - offset * 60000);
 };
 
 export const addDaysToDateString = (date: string, days: number) => {
-  const [year, month, day] = date.split('-').map(Number);
+  const parts = date.split('-').map(Number);
+  const year = parts[0]!;
+  const month = parts[1]!;
+  const day = parts[2]!;
   const utcDate = new Date(Date.UTC(year, month - 1, day));
   utcDate.setUTCDate(utcDate.getUTCDate() + days);
   const nextYear = utcDate.getUTCFullYear();
@@ -90,7 +100,10 @@ export const getDateRangeFromToday = (days: number, timeZone = BOOKING_TIME_ZONE
 };
 
 export const getDayOfWeekFromDateString = (date: string) => {
-  const [year, month, day] = date.split('-').map(Number);
+  const parts = date.split('-').map(Number);
+  const year = parts[0]!;
+  const month = parts[1]!;
+  const day = parts[2]!;
   const utcDate = new Date(Date.UTC(year, month - 1, day));
   const dayOfWeek = utcDate.getUTCDay();
   return dayOfWeek === 0 ? 6 : dayOfWeek - 1;

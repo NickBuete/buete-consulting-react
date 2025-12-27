@@ -77,29 +77,40 @@ export const createBookingCalendarEvent = async (params: {
     return null;
   }
 
-  const attendees = params.patientEmail
-    ? [
-        {
-          emailAddress: params.patientEmail,
-          name: params.patientName,
-        },
-      ]
-    : undefined;
-
-  const eventId = await graphService.createCalendarEvent(accessToken, {
+  const eventParams: {
+    subject: string;
+    body: string;
+    startDateTime: string;
+    endDateTime: string;
+    attendees?: Array<{ emailAddress: string; name: string }>;
+    location?: string;
+  } = {
     subject: `HMR: ${params.patientName}`,
     body: buildBookingEventBody({
       patientName: params.patientName,
       referrerName: params.referrerName,
-      referrerClinic: params.referrerClinic,
-      referralReason: params.referralReason,
+      referrerClinic: params.referrerClinic ?? null,
+      referralReason: params.referralReason ?? null,
       formattedPhone: params.formattedPhone,
     }),
     startDateTime: params.appointmentStart.toISOString(),
     endDateTime: params.appointmentEnd.toISOString(),
-    attendees,
-    location: params.location,
-  });
+  };
+
+  if (params.patientEmail) {
+    eventParams.attendees = [
+      {
+        emailAddress: params.patientEmail,
+        name: params.patientName,
+      },
+    ];
+  }
+
+  if (params.location) {
+    eventParams.location = params.location;
+  }
+
+  const eventId = await graphService.createCalendarEvent(accessToken, eventParams);
 
   return eventId;
 };
