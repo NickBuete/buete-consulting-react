@@ -55,7 +55,7 @@ All Phase 1 backend services are complete and verified:
   - Referrer name (required)
   - Referrer email (optional)
   - Referrer phone (optional)
-  - Clinic/Organization (optional)
+  - Clinic/Organisation (optional)
 
 - **Appointment Details Section**
   - Date picker (shows available dates)
@@ -261,14 +261,13 @@ All Phase 1 backend services are complete and verified:
   - Recent pathology results
 
 - **What to Bring Section**
-  - Medicare card
   - All medication bottles/boxes
   - List of over-the-counter medications
   - List of supplements/vitamins
   - Pharmacy prescription bags
 
 - **What to Expect Section**
-  - Interview duration (~60 minutes)
+  - Interview duration (~45 minutes)
   - Topics that will be covered
   - Consent form information
   - Follow-up process
