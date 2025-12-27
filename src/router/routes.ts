@@ -20,6 +20,8 @@ const ContactPage = React.lazy(() => import('../pages/contact'))
 const LoginPage = React.lazy(() => import('../pages/auth/Login'))
 const RegisterPage = React.lazy(() => import('../pages/auth/Register'))
 const UnauthorizedPage = React.lazy(() => import('../pages/auth/Unauthorized'))
+const BookingPage = React.lazy(() => import('../pages/booking'))
+const BookingConfirmationPage = React.lazy(() => import('../pages/booking/BookingConfirmation'))
 
 // 1. Route path constants
 export const ROUTES = {
@@ -36,6 +38,8 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   UNAUTHORIZED: '/unauthorized',
+  BOOKING: '/book/:bookingUrl',
+  BOOKING_CONFIRMATION: '/booking/confirmation',
 } as const
 
 //2. Route interface
@@ -127,6 +131,18 @@ export const routes: RouteConfig[] = [
     path: ROUTES.UNAUTHORIZED,
     component: UnauthorizedPage,
     title: 'Access Denied - Buete Consulting',
+    protected: false,
+  },
+  {
+    path: ROUTES.BOOKING,
+    component: BookingPage,
+    title: 'Book an Appointment - Buete Consulting',
+    protected: false,
+  },
+  {
+    path: ROUTES.BOOKING_CONFIRMATION,
+    component: BookingConfirmationPage,
+    title: 'Booking Confirmed - Buete Consulting',
     protected: false,
   },
 ]
