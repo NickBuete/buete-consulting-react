@@ -1,3 +1,13 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+
+# Disallow authentication and admin pages
+Disallow: /login
+Disallow: /register
+Disallow: /hmr/
+Disallow: /admin/
+Disallow: /unauthorized
+
+# Sitemap
+Sitemap: https://bueteconsulting.au/sitemap.xml
