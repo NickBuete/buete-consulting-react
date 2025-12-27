@@ -471,10 +471,10 @@ A comprehensive platform for pharmacy consultants that:
 
 #### 5.4 Advanced Analytics
 - [ ] Intervention impact tracking
-  - [ ] Medications ceased
-  - [ ] Medications initiated
-  - [ ] Dose changes
-  - [ ] GP acceptance rate
+- [ ] Medications ceased
+- [ ] Medications initiated
+- [ ] Dose changes
+- [ ] GP acceptance rate
 - [ ] Benchmarking against industry averages
 - [ ] Predictive analytics (HMR completion time)
 - [ ] Patient risk stratification
@@ -532,8 +532,6 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Compounding Calculator (dilutions, alligation)
 
 
-
-
 ## Technical Debt & Infrastructure
 
 ### Backend Improvements
@@ -566,35 +564,6 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] User guide/help center
 - [ ] Video tutorials
 - [ ] Onboarding checklist for new users
-
----
-
-## Success Metrics
-
-### User Engagement
-- Active users per month
-- HMR reviews completed per pharmacist
-- Average time per HMR workflow
-- Feature adoption rates
-
-### Business Metrics
-- Revenue per month
-- Claims submitted vs accepted
-- Client retention rate
-- Referrer growth rate
-
-### Technical Metrics
-- Page load time (< 2s)
-- API response time (< 200ms p95)
-- Uptime (> 99.5%)
-- Error rate (< 0.1%)
-- Mobile performance score (> 90)
-
-### Quality Metrics
-- Patient satisfaction (NPS > 50)
-- Referrer satisfaction
-- Report turnaround time (< 7 days)
-- Follow-up completion rate
 
 ---
 
