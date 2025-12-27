@@ -11,6 +11,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DIRECT_URL: z.string().optional(),
   PORT: z.string().optional(),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   ALLOWED_ORIGINS: z.string().optional(),
@@ -31,6 +32,7 @@ if (!rawEnv.success) {
 
 export const env = {
   databaseUrl: rawEnv.data.DATABASE_URL,
+  directUrl: rawEnv.data.DIRECT_URL || rawEnv.data.DATABASE_URL,
   port: Number(rawEnv.data.PORT ?? 4000),
   jwtSecret: rawEnv.data.JWT_SECRET,
   allowedOrigins: rawEnv.data.ALLOWED_ORIGINS,
