@@ -15,6 +15,12 @@ const BookingPage: React.FC = () => {
 
   useEffect(() => {
     const fetchPharmacistInfo = async () => {
+      if (!bookingUrl) {
+        setError('Invalid booking URL');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -27,9 +33,7 @@ const BookingPage: React.FC = () => {
       }
     };
 
-    if (bookingUrl) {
-      fetchPharmacistInfo();
-    }
+    fetchPharmacistInfo();
   }, [bookingUrl]);
 
   if (loading) {

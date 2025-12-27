@@ -57,6 +57,12 @@ const ReschedulePage: React.FC = () => {
 
   useEffect(() => {
     const fetchBookingInfo = async () => {
+      if (!token) {
+        setError('Invalid reschedule token');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -73,9 +79,7 @@ const ReschedulePage: React.FC = () => {
       }
     };
 
-    if (token) {
-      fetchBookingInfo();
-    }
+    fetchBookingInfo();
   }, [token, setValue]);
 
   const onSubmit = async (data: RescheduleFormData) => {
