@@ -1,9 +1,5 @@
 import { Router, Request, Response } from 'express'
-import {
-  generateHmrRecommendations,
-  generateAssessmentSummary,
-  enhanceReportSection,
-} from '../services/bedrockService'
+import { openaiService } from '../services/ai/openaiClient'
 import { authenticate } from '../middleware/auth'
 import { aiLimiter } from '../middleware/rateLimiter'
 import { aiLogger } from '../utils/logger'
@@ -40,7 +36,7 @@ router.post(
       })
 
       if (!review) {
-        return res.status(404).json({ error: 'Review not found' })
+        return res.status(400).json({ error: 'Review not found' })
       }
 
       // Prepare patient data
@@ -55,22 +51,22 @@ router.post(
         .filter((s) => s.present)
         .map(
           (s) =>
-            `${s.symptom}${s.severity ? ` (${s.severity})` : ''}${
-              s.notes ? `: ${s.notes}` : ''
-            }`
+            \`\${s.symptom}\${s.severity ? \` (\${s.severity})\` : ''}\${
+              s.notes ? \`: \${s.notes}\` : ''
+            }\`
         )
 
       // Add text-based symptoms from review fields
       const textSymptoms: string[] = []
-      if (review.dizziness) textSymptoms.push(`Dizziness: ${review.dizziness}`)
-      if (review.pain) textSymptoms.push(`Pain: ${review.pain}`)
-      if (review.falls) textSymptoms.push(`Falls: ${review.falls}`)
+      if (review.dizziness) textSymptoms.push(\`Dizziness: \${review.dizziness}\`)
+      if (review.pain) textSymptoms.push(\`Pain: \${review.pain}\`)
+      if (review.falls) textSymptoms.push(\`Falls: \${review.falls}\`)
       if (review.mobility)
-        textSymptoms.push(`Mobility issues: ${review.mobility}`)
+        textSymptoms.push(\`Mobility issues: \${review.mobility}\`)
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
-      const recommendations = await generateHmrRecommendations({
+      const recommendations = await openaiService.generateHmrRecommendations({
         medications: review.medications.map((med) => ({
           name: med.name,
           ...(med.dose && { dose: med.dose }),
@@ -126,14 +122,14 @@ router.post(
       })
 
       if (!review) {
-        return res.status(404).json({ error: 'Review not found' })
+        return res.status(400).json({ error: 'Review not found' })
       }
 
-      const patientName = `${review.patient.firstName} ${review.patient.lastName}`
+      const patientName = \`\${review.patient.firstName} \${review.patient.lastName}\`
 
       const symptoms = review.symptoms
         .filter((s) => s.present)
-        .map((s) => `${s.symptom}${s.severity ? ` (${s.severity})` : ''}`)
+        .map((s) => \`\${s.symptom}\${s.severity ? \` (\${s.severity})\` : ''}\`)
 
       // Add text-based symptoms
       const textSymptoms: string[] = []
@@ -144,7 +140,7 @@ router.post(
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
-      const summary = await generateAssessmentSummary({
+      const summary = await openaiService.generateAssessmentSummary({
         name: patientName,
         medications: review.medications.map((med) => ({
           name: med.name,
@@ -203,15 +199,15 @@ router.post(
         })
 
         if (review) {
-          context = `Patient: ${review.patient.firstName} ${
+          context = \`Patient: \${review.patient.firstName} \${
             review.patient.lastName
           }
-Medications: ${review.medications.map((m) => m.name).join(', ')}
-Medical History: ${review.pastMedicalHistory || 'Not provided'}`
+Medications: \${review.medications.map((m) => m.name).join(', ')}
+Medical History: \${review.pastMedicalHistory || 'Not provided'}\`
         }
       }
 
-      const enhanced = await enhanceReportSection(
+      const enhanced = await openaiService.enhanceReportSection(
         sectionTitle,
         content,
         context
@@ -237,19 +233,15 @@ Medical History: ${review.pastMedicalHistory || 'Not provided'}`
  */
 router.get('/health', async (_req: Request, res: Response) => {
   try {
-    // Check if AWS credentials are configured
-    const isConfigured = !!(
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      process.env.AWS_REGION
-    )
+    const isConfigured = openaiService.isConfigured()
 
     res.json({
       status: isConfigured ? 'configured' : 'not_configured',
-      region: process.env.AWS_REGION || 'not_set',
+      provider: 'openai',
+      model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
       message: isConfigured
-        ? 'AWS Bedrock is configured and ready'
-        : 'AWS credentials not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION environment variables.',
+        ? 'OpenAI is configured and ready'
+        : 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.',
     })
   } catch (error) {
     res.status(500).json({

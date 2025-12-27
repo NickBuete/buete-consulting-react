@@ -243,6 +243,124 @@ Keep it brief (2-3 paragraphs) and easy to understand.`;
   }
 
   /**
+   * Generate HMR recommendations for medications
+   */
+  async generateHmrRecommendations(params: {
+    medications: Array<{ name: string; dose?: string; frequency?: string; indication?: string }>;
+    symptoms?: string[];
+    medicalHistory?: string;
+    allergies?: string;
+    age?: number;
+    goals?: string;
+  }): Promise<string[]> {
+    if (!this.isConfigured()) {
+      throw new Error('OpenAI service is not configured');
+    }
+
+    const medicationList = params.medications
+      .map((med, index) => {
+        let text = `${index + 1}. ${med.name}`;
+        if (med.dose) text += ` - ${med.dose}`;
+        if (med.frequency) text += ` ${med.frequency}`;
+        if (med.indication) text += ` (for ${med.indication})`;
+        return text;
+      })
+      .join('\n');
+
+    const systemPrompt = `You are an expert Australian clinical pharmacist conducting a Home Medicines Review. Generate specific, actionable recommendations for drug-related problems. Focus on safety, efficacy, and adherence. Reference Australian guidelines (PBS, TGA, AMH) where relevant.`;
+
+    const userPrompt = `Based on this medication review, provide specific clinical recommendations:
+
+**Medications:**
+${medicationList}
+
+${params.symptoms?.length ? `**Symptoms:** ${params.symptoms.join(', ')}` : ''}
+${params.medicalHistory ? `**Medical History:** ${params.medicalHistory}` : ''}
+${params.allergies ? `**Allergies:** ${params.allergies}` : ''}
+${params.age ? `**Age:** ${params.age} years` : ''}
+${params.goals ? `**Patient Goals:** ${params.goals}` : ''}
+
+Provide 3-5 specific clinical recommendations as a JSON array of strings. Each recommendation should be concise, actionable, and evidence-based.`;
+
+    const response = await this.generateChatCompletion([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ]);
+
+    try {
+      return JSON.parse(response);
+    } catch {
+      return response.split('\n').filter((line) => line.trim().length > 0).slice(0, 5);
+    }
+  }
+
+  /**
+   * Generate assessment summary for HMR
+   */
+  async generateAssessmentSummary(params: {
+    name: string;
+    medications: Array<{ name: string; dose?: string; frequency?: string }>;
+    symptoms?: string[];
+    goals?: string;
+    barriers?: string;
+    livingArrangement?: string;
+    socialSupport?: string;
+  }): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('OpenAI service is not configured');
+    }
+
+    const medicationList = params.medications.map((med) => med.name).join(', ');
+
+    const systemPrompt = `You are an Australian clinical pharmacist writing an assessment summary for a Home Medicines Review. Be concise, professional, and focus on key clinical findings.`;
+
+    const userPrompt = `Write a brief clinical assessment summary for:
+
+**Patient:** ${params.name}
+**Medications:** ${medicationList}
+${params.symptoms?.length ? `**Symptoms:** ${params.symptoms.join(', ')}` : ''}
+${params.goals ? `**Patient Goals:** ${params.goals}` : ''}
+${params.barriers ? `**Barriers:** ${params.barriers}` : ''}
+${params.livingArrangement ? `**Living Arrangement:** ${params.livingArrangement}` : ''}
+${params.socialSupport ? `**Social Support:** ${params.socialSupport}` : ''}
+
+Provide a 2-3 paragraph clinical assessment suitable for an HMR report.`;
+
+    return this.generateChatCompletion([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ]);
+  }
+
+  /**
+   * Enhance a specific section of the report
+   */
+  async enhanceReportSection(
+    sectionTitle: string,
+    content: string,
+    context?: string
+  ): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('OpenAI service is not configured');
+    }
+
+    const systemPrompt = `You are an Australian clinical pharmacist reviewing and enhancing Home Medicines Review documentation. Improve clarity, professionalism, and clinical accuracy while maintaining the original intent.`;
+
+    const userPrompt = `Enhance this "${sectionTitle}" section:
+
+${content}
+
+${context ? `\n**Additional Context:**\n${context}` : ''}
+
+Improve the wording for professionalism and clarity while keeping it concise and clinically accurate.`;
+
+    return this.generateChatCompletion([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ]);
+  }
+
+  /**
    * Get token count estimate for text
    */
   estimateTokens(text: string): number {

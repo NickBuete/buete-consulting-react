@@ -31,17 +31,27 @@ services:
       - "4000:4000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/buete_consulting
+      DIRECT_URL: postgresql://postgres:postgres@postgres:5432/buete_consulting
       JWT_SECRET: dev-jwt-secret-change-in-production-min-32-chars
       NODE_ENV: production
       PORT: 4000
-      # AWS credentials (optional - only if you want to test Bedrock locally)
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      BEDROCK_REGION: ${BEDROCK_REGION:-us-east-1}
-      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-anthropic.claude-3-5-sonnet-20241022-v2:0}
-      BEDROCK_MAX_TOKENS: ${BEDROCK_MAX_TOKENS:-4096}
-      BEDROCK_TEMPERATURE: ${BEDROCK_TEMPERATURE:-0.3}
+      # Microsoft Graph API (Office 365)
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://localhost:4000/api/auth/microsoft/callback}
+      # Twilio SMS
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      SMS_ENABLED: ${SMS_ENABLED:-false}
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4-turbo-preview}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-4000}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0.3}
+      AI_PROVIDER: openai
+      # CORS
       ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
     depends_on:
       postgres:
