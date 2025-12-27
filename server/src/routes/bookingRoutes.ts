@@ -8,6 +8,7 @@ import express from 'express';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
 import { handlePrismaError } from '../middleware/prismaErrorHandler';
+import { parseId } from './utils/parseId';
 import { authenticate } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { BOOKING_TIME_ZONE, getDateRangeFromToday } from '../utils/bookingTime';
@@ -77,7 +78,10 @@ router.patch(
   authenticate,
   asyncHandler(async (req, res) => {
     const ownerId = req.user!.id;
-    const slotId = parseInt(req.params.id, 10);
+    const slotId = parseId(req.params.id);
+    if (!slotId) {
+      return res.status(400).json({ message: 'Invalid slot ID' });
+    }
     const validated = availabilitySlotSchema.partial().parse(req.body);
 
     try {
@@ -98,7 +102,10 @@ router.delete(
   authenticate,
   asyncHandler(async (req, res) => {
     const ownerId = req.user!.id;
-    const slotId = parseInt(req.params.id, 10);
+    const slotId = parseId(req.params.id);
+    if (!slotId) {
+      return res.status(400).json({ message: 'Invalid slot ID' });
+    }
 
     try {
       await deleteAvailabilitySlot(ownerId, slotId);
@@ -258,8 +265,12 @@ router.get(
 router.post(
   '/public/:bookingUrl',
   asyncHandler(async (req, res) => {
-    const validated = publicBookingSchema.parse(req.body);
     const bookingUrl = req.params.bookingUrl;
+    if (!bookingUrl) {
+      return res.status(400).json({ message: 'Booking URL is required' });
+    }
+
+    const validated = publicBookingSchema.parse(req.body);
 
     try {
       const result = await createPublicBooking({
@@ -316,6 +327,9 @@ router.get(
   '/reschedule/:token',
   asyncHandler(async (req, res) => {
     const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ error: 'Reschedule token is required' });
+    }
 
     const result = await getBookingByToken(token);
 
@@ -339,6 +353,10 @@ router.post(
   '/reschedule/:token',
   asyncHandler(async (req, res) => {
     const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ error: 'Reschedule token is required' });
+    }
+
     const validated = rescheduleSchema.parse(req.body);
 
     try {

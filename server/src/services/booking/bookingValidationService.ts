@@ -6,7 +6,6 @@
 
 import { prisma } from '../../db/prisma';
 import { getDayOfWeekFromDateString, buildDateTime } from '../../utils/bookingTime';
-import { hasBookingConflict } from '../bookingAvailability';
 
 /**
  * Validates if an appointment falls within an availability slot
@@ -33,21 +32,6 @@ export const isAppointmentWithinAvailability = async (params: {
     const slotEnd = buildDateTime(params.appointmentDate, slot.endTime);
     return params.appointmentStart >= slotStart && params.appointmentEnd <= slotEnd;
   });
-};
-
-/**
- * Validates that a booking doesn't conflict with existing bookings
- * @param pharmacistId - ID of the pharmacist
- * @param appointmentStart - Start time of appointment
- * @param appointmentEnd - End time of appointment
- * @returns True if there's a conflict, false otherwise
- */
-export const validateBookingConflicts = async (
-  pharmacistId: number,
-  appointmentStart: Date,
-  appointmentEnd: Date
-): Promise<boolean> => {
-  return hasBookingConflict(pharmacistId, appointmentStart, appointmentEnd);
 };
 
 /**
