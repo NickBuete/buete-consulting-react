@@ -37,13 +37,12 @@
 #### Availability Calendar
 - **File:** `src/components/booking/AvailabilityCalendar.tsx`
 - **Features:**
-  - Fetches pharmacist's availability slots
+  - Receives pharmacist availability slots from BookingPage payload
   - Highlights available dates (next 90 days)
   - Disables past dates
   - Disables dates with no availability
   - Uses shadcn/ui Calendar component
-  - Loading skeleton while fetching
-  - Error handling
+  - Empty state when no availability
 
 #### Time Slot Picker
 - **File:** `src/components/booking/TimeSlotPicker.tsx`
@@ -52,10 +51,12 @@
     - Availability slots for selected day
     - Default appointment duration
     - Buffer time before/after
+    - Busy slots from existing bookings (shown as "Busy")
   - Displays slots in grid layout (responsive)
   - Shows selected time with visual feedback
   - Converts 24hr to 12hr format for display
   - Handles multiple availability windows per day
+  - Prevents selecting busy slots
 
 #### Booking Confirmation Page
 - **File:** `src/pages/booking/BookingConfirmation.tsx`
@@ -149,39 +150,39 @@ npm install date-fns lucide-react
 ### Endpoints Used
 
 #### GET `/api/booking/public/:bookingUrl`
-**Purpose:** Fetch pharmacist info and booking settings
+**Purpose:** Fetch pharmacist info, booking settings, availability, and busy slots
 
 **Response:**
 ```json
 {
-  "id": 1,
-  "firstName": "John",
-  "lastName": "Smith",
-  "email": "john@example.com",
+  "pharmacist": {
+    "id": 1,
+    "name": "John Smith",
+    "email": "john@example.com"
+  },
   "bookingSettings": {
     "allowPublicBooking": true,
     "requireApproval": false,
     "bufferTimeBefore": 15,
     "bufferTimeAfter": 15,
     "defaultDuration": 60
-  }
+  },
+  "availability": [
+    {
+      "id": 1,
+      "dayOfWeek": 0,
+      "startTime": "09:00",
+      "endTime": "17:00",
+      "isAvailable": true
+    }
+  ],
+  "busySlots": [
+    {
+      "start": "2025-12-30T00:00:00.000Z",
+      "end": "2025-12-30T01:00:00.000Z"
+    }
+  ]
 }
-```
-
-#### GET `/api/booking/availability?userId={id}`
-**Purpose:** Fetch availability slots for calendar/time picker
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "dayOfWeek": 0,
-    "startTime": "09:00",
-    "endTime": "17:00",
-    "isAvailable": true
-  }
-]
 ```
 
 #### POST `/api/booking/public/:bookingUrl`
@@ -204,7 +205,7 @@ npm install date-fns lucide-react
 **Response:**
 ```json
 {
-  "reviewId": 123,
+  "bookingId": 123,
   "pharmacistName": "John Smith",
   "message": "Booking created successfully"
 }
@@ -218,6 +219,7 @@ npm install date-fns lucide-react
 - [x] Public booking page accessible via custom URL
 - [x] Calendar shows only available dates
 - [x] Time slots generated based on availability + settings
+- [x] Busy slots shown as unavailable ("Busy")
 - [x] Form validation with Zod
 - [x] Patient and referrer information collection
 - [x] Submission to backend API
@@ -238,6 +240,7 @@ npm install date-fns lucide-react
 - [x] Disable past dates
 - [x] Only show available dates based on weekly schedule
 - [x] Calculate time slots with buffer time
+- [x] Prevent booking conflicts with existing appointments
 - [x] Handle approval workflow messaging
 - [x] Handle optional vs required fields
 - [x] Australian phone format support
@@ -356,10 +359,9 @@ src/
 ### 2. Backend Endpoints Needed (Already Exist ✅)
 - ✅ `GET /api/booking/public/:bookingUrl`
 - ✅ `POST /api/booking/public/:bookingUrl`
-- ✅ `GET /api/booking/availability?userId={id}`
+- ✅ `GET /api/booking/availability` (admin only)
 
 ### 3. Optional Backend Enhancements
-- [ ] Add `/api/booking/public/:bookingUrl/check-conflicts` endpoint
 - [ ] Add rate limiting to booking endpoint
 - [ ] Add booking cancellation endpoint for public use
 
@@ -377,6 +379,7 @@ Continue with other Phase 2 components from [PHASE2_PLAN.md](PHASE2_PLAN.md):
 ### Date/Time Handling
 - All times stored in 24hr format (`HH:mm`)
 - Display converted to 12hr format (`h:mm a`)
+- Booking times normalized to Australia/Sydney (DST-safe)
 - Day of week: 0 = Monday, 6 = Sunday (different from JS getDay())
 
 ### Form State Management

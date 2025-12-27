@@ -12,19 +12,90 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+const BOOKING_TIME_ZONE = process.env.BOOKING_TIME_ZONE || 'Australia/Sydney';
+
 const addMinutesToDate = (date: Date, minutes: number) =>
   new Date(date.getTime() + minutes * 60000);
 
-const getDayRange = (date: Date) => {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
+const getTimeZoneParts = (date: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const values: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      values[part.type] = part.value;
+    }
+  }
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+};
+
+const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
+  const parts = getTimeZoneParts(date, timeZone);
+  const utcTime = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+  return (utcTime - date.getTime()) / 60000;
+};
+
+const buildDateTime = (date: string, time: string, timeZone = BOOKING_TIME_ZONE) => {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const offset = getTimeZoneOffsetMinutes(utcDate, timeZone);
+  return new Date(utcDate.getTime() - offset * 60000);
+};
+
+const addDaysToDateString = (date: string, days: number) => {
+  const [year, month, day] = date.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  utcDate.setUTCDate(utcDate.getUTCDate() + days);
+  const nextYear = utcDate.getUTCFullYear();
+  const nextMonth = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+  const nextDay = String(utcDate.getUTCDate()).padStart(2, '0');
+  return `${nextYear}-${nextMonth}-${nextDay}`;
+};
+
+const getLocalDateString = (date: Date, timeZone = BOOKING_TIME_ZONE) => {
+  const parts = getTimeZoneParts(date, timeZone);
+  const month = String(parts.month).padStart(2, '0');
+  const day = String(parts.day).padStart(2, '0');
+  return `${parts.year}-${month}-${day}`;
+};
+
+const getDateRangeForDate = (date: string, timeZone = BOOKING_TIME_ZONE) => {
+  const start = buildDateTime(date, '00:00', timeZone);
+  const nextDate = addDaysToDateString(date, 1);
+  const end = new Date(buildDateTime(nextDate, '00:00', timeZone).getTime() - 1);
   return { start, end };
 };
 
-const buildDateTime = (date: string, time: string) =>
-  new Date(`${date}T${time}:00+10:00`);
+const getDayOfWeekFromDateString = (date: string) => {
+  const [year, month, day] = date.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+  const dayOfWeek = utcDate.getUTCDay();
+  return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+};
 
 const getBusyIntervals = async (
   userId: number,
@@ -59,9 +130,11 @@ const hasBookingConflict = async (
   appointmentStart: Date,
   durationMinutes: number,
   bufferBefore: number,
-  bufferAfter: number
+  bufferAfter: number,
+  appointmentDate: string,
+  timeZone = BOOKING_TIME_ZONE
 ) => {
-  const { start, end } = getDayRange(appointmentStart);
+  const { start, end } = getDateRangeForDate(appointmentDate, timeZone);
   const busyIntervals = await getBusyIntervals(userId, start, end, durationMinutes);
   const appointmentEnd = addMinutesToDate(appointmentStart, durationMinutes);
 
@@ -341,11 +414,10 @@ router.get(
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
 
-    const rangeStart = new Date();
-    rangeStart.setHours(0, 0, 0, 0);
-    const rangeEnd = new Date(rangeStart);
-    rangeEnd.setDate(rangeEnd.getDate() + 90);
-    rangeEnd.setHours(23, 59, 59, 999);
+    const todayDate = getLocalDateString(new Date(), BOOKING_TIME_ZONE);
+    const rangeStart = buildDateTime(todayDate, '00:00', BOOKING_TIME_ZONE);
+    const rangeEndDate = addDaysToDateString(todayDate, 90);
+    const rangeEnd = new Date(buildDateTime(rangeEndDate, '00:00', BOOKING_TIME_ZONE).getTime() - 1);
 
     const busyIntervals = await getBusyIntervals(
       settings.userId,
@@ -416,14 +488,15 @@ router.post(
     const userId = settings.userId;
     const appointmentDateTime = buildDateTime(
       validated.appointmentDate,
-      validated.appointmentTime
+      validated.appointmentTime,
+      BOOKING_TIME_ZONE
     );
     const appointmentEndTime = addMinutesToDate(
       appointmentDateTime,
       settings.defaultDuration
     );
 
-    const dayOfWeek = (appointmentDateTime.getDay() + 6) % 7;
+    const dayOfWeek = getDayOfWeekFromDateString(validated.appointmentDate);
     const availabilitySlots = await prisma.availabilitySlot.findMany({
       where: {
         userId,
@@ -447,7 +520,8 @@ router.post(
       appointmentDateTime,
       settings.defaultDuration,
       settings.bufferTimeBefore,
-      settings.bufferTimeAfter
+      settings.bufferTimeAfter,
+      validated.appointmentDate
     );
 
     if (hasConflict) {
@@ -575,6 +649,7 @@ router.post(
             year: 'numeric',
             month: 'long',
             day: 'numeric',
+            timeZone: BOOKING_TIME_ZONE,
           }),
           appointmentTime: validated.appointmentTime,
         });
@@ -681,8 +756,10 @@ router.post(
     }
 
     // Parse appointment datetime
-    const appointmentDateTime = new Date(
-      `${validated.appointmentDate}T${validated.appointmentTime}:00+10:00`
+    const appointmentDateTime = buildDateTime(
+      validated.appointmentDate,
+      validated.appointmentTime,
+      BOOKING_TIME_ZONE
     );
     const appointmentEndTime = new Date(
       appointmentDateTime.getTime() + settings.defaultDuration * 60000
@@ -773,6 +850,7 @@ router.post(
             year: 'numeric',
             month: 'long',
             day: 'numeric',
+            timeZone: BOOKING_TIME_ZONE,
           }),
           appointmentTime: validated.appointmentTime,
           rescheduleLink,
@@ -794,6 +872,7 @@ router.post(
             year: 'numeric',
             month: 'long',
             day: 'numeric',
+            timeZone: BOOKING_TIME_ZONE,
           }),
           appointmentTime: validated.appointmentTime,
         });
@@ -960,8 +1039,10 @@ router.post(
     const user = review.owner;
 
     // Parse new appointment datetime
-    const newAppointmentDateTime = new Date(
-      `${validated.appointmentDate}T${validated.appointmentTime}:00+10:00`
+    const newAppointmentDateTime = buildDateTime(
+      validated.appointmentDate,
+      validated.appointmentTime,
+      BOOKING_TIME_ZONE
     );
 
     // Update calendar event if synced
@@ -1028,6 +1109,7 @@ router.post(
               year: 'numeric',
               month: 'long',
               day: 'numeric',
+              timeZone: BOOKING_TIME_ZONE,
             })}</p>
             <p><strong>Time:</strong> ${validated.appointmentTime}</p>
             <p>If you have any questions, please contact ${user.username}.</p>
@@ -1049,6 +1131,7 @@ router.post(
             year: 'numeric',
             month: 'long',
             day: 'numeric',
+            timeZone: BOOKING_TIME_ZONE,
           }),
           appointmentTime: validated.appointmentTime,
         });

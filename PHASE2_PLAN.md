@@ -35,7 +35,7 @@ All Phase 1 backend services are complete and verified:
 #### Components to Build
 
 ##### 1.1 BookingPage Container
-**File:** `src/pages/booking/BookingPage.tsx`
+**File:** `src/pages/booking/index.tsx`
 - Fetch pharmacist availability by booking URL
 - Handle loading states
 - Display error for invalid booking URLs
@@ -72,11 +72,10 @@ All Phase 1 backend services are complete and verified:
 ##### 1.3 AvailabilityCalendar Component
 **File:** `src/components/booking/AvailabilityCalendar.tsx`
 - Display month view calendar
-- Highlight available dates (based on availability slots)
+- Highlight available dates (based on availability slots passed from BookingPage)
 - Disable past dates
 - Disable unavailable dates
 - Handle date selection
-- Show loading state while fetching availability
 
 ##### 1.4 TimeSlotPicker Component
 **File:** `src/components/booking/TimeSlotPicker.tsx`
@@ -85,10 +84,10 @@ All Phase 1 backend services are complete and verified:
   - Pharmacist availability slots (day of week + time ranges)
   - Buffer time before/after
   - Default appointment duration
-  - Existing bookings (check for conflicts)
+  - Existing bookings (check for conflicts, show as Busy)
 - Show slot as buttons/cards
 - Visual indication of selected slot
-- Handle timezone (Australia/Sydney)
+- Handle timezone (Australia/Sydney, DST-safe)
 
 ##### 1.5 BookingConfirmation Component
 **File:** `src/components/booking/BookingConfirmation.tsx`
@@ -104,7 +103,7 @@ All Phase 1 backend services are complete and verified:
 #### API Integration
 
 **Endpoints to Use:**
-- `GET /api/booking/public/:bookingUrl` - Get pharmacist info and availability
+- `GET /api/booking/public/:bookingUrl` - Get pharmacist info, booking settings, availability, and busy slots
 - `POST /api/booking/public/:bookingUrl` - Submit booking
 
 **Response Handling:**
