@@ -39,24 +39,60 @@ export function calculateDoseSchedule(medication: MedicationSchedule): DoseEntry
 
     // Apply titration change for next interval
     if (medication.titrationDirection === 'increase') {
-      currentDose += medication.changeAmount;
+      const nextDose = currentDose + medication.changeAmount;
 
-      // Check if we've reached maximum dose
-      if (medication.maximumDose !== undefined && currentDose >= medication.maximumDose) {
+      // Check if next dose would exceed maximum dose
+      if (medication.maximumDose !== undefined && nextDose >= medication.maximumDose) {
+        // Add one final interval at the maximum dose, then stop
         currentDose = medication.maximumDose;
-        // Stop after reaching max dose
-        break;
-      }
-    } else if (medication.titrationDirection === 'decrease') {
-      currentDose -= medication.changeAmount;
+        currentDate = intervalEndDate;
 
-      // Check if we've reached minimum dose (default 0)
-      const minimumDose = medication.minimumDose ?? 0;
-      if (currentDose <= minimumDose) {
-        currentDose = minimumDose;
-        // Stop after reaching min dose
+        // Add final interval at max dose
+        for (let i = 0; i < medication.intervalDays; i++) {
+          const doseDate = addDays(currentDate, i);
+          if (medication.endDate && doseDate > medication.endDate) {
+            break;
+          }
+          doseEntries.push({
+            date: doseDate,
+            dose: currentDose,
+            unit: medication.unit,
+            medicationId: medication.id,
+            medicationName: medication.medicationName,
+          });
+        }
         break;
       }
+
+      currentDose = nextDose;
+    } else if (medication.titrationDirection === 'decrease') {
+      const nextDose = currentDose - medication.changeAmount;
+      const minimumDose = medication.minimumDose ?? 0;
+
+      // Check if next dose would go below minimum dose
+      if (nextDose <= minimumDose) {
+        // Add one final interval at the minimum dose, then stop
+        currentDose = minimumDose;
+        currentDate = intervalEndDate;
+
+        // Add final interval at min dose
+        for (let i = 0; i < medication.intervalDays; i++) {
+          const doseDate = addDays(currentDate, i);
+          if (medication.endDate && doseDate > medication.endDate) {
+            break;
+          }
+          doseEntries.push({
+            date: doseDate,
+            dose: currentDose,
+            unit: medication.unit,
+            medicationId: medication.id,
+            medicationName: medication.medicationName,
+          });
+        }
+        break;
+      }
+
+      currentDose = nextDose;
     } else {
       // 'maintain' - no change in dose
       // Stop after DEFAULT_MAINTAIN_DAYS if no endDate specified

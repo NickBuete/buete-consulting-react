@@ -177,7 +177,9 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                           {...field}
                           type="number"
                           step="0.01"
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          placeholder="e.g., 50"
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -224,7 +226,9 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                         {...field}
                         type="number"
                         step="0.01"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        placeholder="e.g., 50"
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -266,7 +270,9 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                         {...field}
                         type="number"
                         step="0.01"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        placeholder="e.g., 5"
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -288,7 +294,9 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                         {...field}
                         type="number"
                         min="1"
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        placeholder="e.g., 7"
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 1)}
                       />
                     </FormControl>
                     <FormMessage />
