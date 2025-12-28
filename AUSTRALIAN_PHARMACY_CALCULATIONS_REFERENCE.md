@@ -568,27 +568,6 @@ V1 = 6.25 mL of 4% stock
 Add water to 500 mL
 ```
 
-### 3. Capsule Compounding
-
-**Example**: Make 30 capsules of Drug X 25mg each from 50mg tablets
-```
-Total drug needed = 30 × 25mg = 750mg
-Tablets needed = 750mg / 50mg = 15 tablets
-```
-
-Add inert filler to achieve desired capsule size.
-
-### 4. Ointment/Cream Bases
-
-**Common Australian bases:**
-- Cetomacrogol cream (oil-in-water)
-- Sorbolene cream
-- Wool fat
-- White soft paraffin
-- Emulsifying ointment
-
----
-
 ## TPN Calculations
 
 ### 1. Energy Requirements
@@ -655,16 +634,6 @@ Energy = 4 kcal/g (not usually counted in non-protein calories)
 
 ## Immunization Tools
 
-### 1. Vaccine Reconstitution
-
-Most vaccines require reconstitution:
-- **Volume of diluent**: Usually 0.5-1 mL (check product insert)
-- **Final dose**: Typically 0.5 mL IM
-
-**Example**: MMR
-- Add 0.7 mL diluent to lyophilized powder
-- Administer 0.5 mL IM
-
 ### 2. Catch-Up Schedules
 
 **Reference**: Australian Immunisation Handbook
@@ -698,61 +667,6 @@ Most vaccines require reconstitution:
 
 ## Australian-Specific Requirements
 
-### 1. Schedule Classifications
-
-**Schedule 2 (S2)**: Pharmacy Medicine
-- No prescription required
-- Pharmacist supervision required
-- Example: Pseudoephedrine (with restrictions)
-
-**Schedule 3 (S3)**: Pharmacist Only Medicine
-- No prescription required
-- Must be supplied by pharmacist
-- Examples: Codeine 30mg, some NSAIDs
-
-**Schedule 4 (S4)**: Prescription Only Medicine
-- Prescription required
-- Most prescribed medicines
-- Examples: Antibiotics, most blood pressure medications
-
-**Schedule 8 (S8)**: Controlled Drug
-- Strict recording requirements
-- Prescription requirements vary by state
-- Examples: Morphine, oxycodone, methylphenidate
-- Most states require SafeScript/RTPM checking
-
-**Schedule 10 (S10)**: Prohibited substances
-- Generally not available for therapeutic use
-
-### 2. PBS Requirements
-
-**Authority Required**:
-- Some medications require prior approval
-- Obtained via phone (1800 888 333) or online
-
-**Streamlined Authority**:
-- Authority code written on script
-- No phone call needed if criteria met
-
-**General Schedule**:
-- No restrictions
-
-**Safety Net**:
-- Threshold: $1,644.30 (2024 general)
-- After threshold: Reduced copayments
-
-### 3. SafeScript & Prescription Monitoring
-
-**Victoria**: SafeScript mandatory for Schedule 8 & Schedule 4 monitored medicines
-**NSW**: SafeScript NSW for monitored medicines
-**Queensland**: QScript system
-**Tasmania**: DAPIS Online Reporting
-**WA**: Real-Time Prescription Monitoring
-
-**Check before supplying:**
-- All Schedule 8 medicines
-- Monitored Schedule 4 medicines (benzodiazepines, pregabalin, gabapentin, quetiapine, tramadol)
-
 ### 4. Medication Dosing in AMH (Australian Medicines Handbook)
 
 **Standard references:**
@@ -761,40 +675,6 @@ Most vaccines require reconstitution:
 - Includes PBS restrictions
 - Adjusted for renal/hepatic impairment
 
-### 5. Vaccination Provider Requirements
-
-**To administer vaccines in Australia:**
-- Registered pharmacist
-- Completed approved immunisation training
-- Anaphylaxis training current
-- Insurance coverage
-- State-specific requirements vary
-
-**Recordable vaccines:**
-- Must report to AIR (Australian Immunisation Register)
-- Use IHI (Individual Healthcare Identifier)
-
-### 6. Compounding Standards
-
-**TGO 88** (Therapeutic Goods Order):
-- Standards for extemporaneous dispensing
-- Stability testing requirements
-- Labelling requirements
-- Beyond-use dates
-
-**PIC Guidelines**:
-- Good Compounding Practice
-- Quality assurance
-- Documentation
-
-### 7. Staged Supply (CDSA Victoria)
-
-For medications of dependence:
-- Prescriber can authorize staged supply
-- Pharmacist supplies weekly or fortnightly installments
-- Clear documentation required
-
----
 
 ## Quick Reference Resources
 
@@ -875,8 +755,6 @@ For medications of dependence:
    - Subscription-based
 
 3. **TOXBASE** (NSW only) / Poisons Information: **13 11 26**
-
----
 
 ## Implementation Notes
 
