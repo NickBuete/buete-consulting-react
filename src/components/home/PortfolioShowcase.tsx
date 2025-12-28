@@ -89,9 +89,13 @@ export const PortfolioShowcase: React.FC = () => {
                 <div className="relative bg-gradient-to-br from-blue-50 to-blue-100 p-8 lg:p-12 flex items-center justify-center">
                   <div className="relative w-full max-w-md">
                     {/* Placeholder - replace with actual screenshot */}
-                    <div className="aspect-[4/3] bg-white rounded-lg shadow-2xl border-4 border-gray-200 flex items-center justify-center overflow-hidden">
+                    <div
+                      className="aspect-[4/3] bg-white rounded-lg shadow-2xl border-4 border-gray-200 flex items-center justify-center overflow-hidden"
+                      role="img"
+                      aria-label={`${project.title} website preview placeholder`}
+                    >
                       <div className="text-center p-8">
-                        <div className="text-6xl mb-4">🏥</div>
+                        <div className="text-6xl mb-4" aria-hidden="true">🏥</div>
                         <div className="text-gray-600 font-medium">
                           {project.title}
                         </div>

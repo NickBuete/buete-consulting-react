@@ -39,8 +39,12 @@ export const ToolSuggestionForm: React.FC = () => {
 
   if (submitted) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-        <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+      <div
+        className="bg-green-50 border border-green-200 rounded-lg p-8 text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" aria-hidden="true" />
         <h3 className="text-2xl font-bold text-green-900 mb-2">
           Thank You!
         </h3>

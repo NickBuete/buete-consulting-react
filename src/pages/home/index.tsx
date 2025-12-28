@@ -47,7 +47,7 @@ const HomePage: React.FC = () => {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-brand-900 font-semibold">
+              <Button size="lg" variant="outline" className="border-2 border-white text-brand-900 hover:bg-orange-600 hover:text-white hover:border-orange-600 font-semibold">
                 <Link to="/tools">Explore Free Tools</Link>
               </Button>
             </div>
