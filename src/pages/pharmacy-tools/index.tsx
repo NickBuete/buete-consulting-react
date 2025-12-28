@@ -139,7 +139,6 @@ const PharmacyToolsPage: React.FC = () => {
             <CreatinineCalculator />
             <UnitConverter />
             <BSACalculator />
-
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle className="font-heading flex items-center gap-3">
