@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { ToolSuggestionForm } from '../../components/home/ToolSuggestionForm';
+import { PortfolioShowcase } from '../../components/home/PortfolioShowcase';
 import {
   Code2,
   Zap,
@@ -27,20 +28,20 @@ const HomePage: React.FC = () => {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 text-white overflow-hidden">
+      <section className="relative bg-gradient-to-br from-brand-900 via-brand-700 to-brand-900 text-white overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="max-w-3xl">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in">
               Custom Healthcare Websites
-              <span className="block text-blue-300 mt-2">Built from Code, Not Templates</span>
+              <span className="block text-orange-400 mt-2">Built from Code, Not Templates</span>
             </h1>
-            <p className="text-xl lg:text-2xl text-blue-100 mb-8 leading-relaxed">
+            <p className="text-xl lg:text-2xl text-neutral-100 mb-8 leading-relaxed">
               Professional websites for pharmacies, GP clinics, and allied health practices.
               No compromises, no forcing templates to fit. Just clean, custom code that works exactly how you need it.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" variant="default" className="bg-white text-blue-900 hover:bg-blue-50">
+              <Button size="lg" variant="default" className="bg-orange-500 text-white hover:bg-orange-600">
                 <Link to="/contact" className="flex items-center">
                   Get Your Custom Website
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -68,9 +69,9 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-blue-100 hover:shadow-lg transition-shadow">
+            <Card className="border-brand-200 hover:shadow-lg transition-shadow">
               <CardHeader>
-                <Code2 className="w-12 h-12 text-blue-600 mb-4" />
+                <Code2 className="w-12 h-12 text-brand-600 mb-4" />
                 <CardTitle>Perfect Fit, Every Time</CardTitle>
               </CardHeader>
               <CardContent>
@@ -149,8 +150,11 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* Portfolio Showcase */}
+      <PortfolioShowcase />
+
       {/* Services Focus Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
+      <section className="py-20 bg-gradient-to-br from-neutral-50 to-brand-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
@@ -163,7 +167,7 @@ const HomePage: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-3xl">💊</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Pharmacy Websites</h3>
@@ -188,7 +192,7 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-3xl">🩺</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">GP & Medical Clinics</h3>
@@ -213,7 +217,7 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-3xl">🏥</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Allied Health Practices</h3>
@@ -254,10 +258,10 @@ const HomePage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             <Link to="/tools/dose-calendar" className="group">
-              <Card className="h-full border-2 border-transparent hover:border-blue-300 transition-all hover:shadow-lg">
+              <Card className="h-full border-2 border-transparent hover:border-brand-300 transition-all hover:shadow-lg">
                 <CardHeader>
-                  <Calendar className="w-10 h-10 text-blue-600 mb-3 group-hover:scale-110 transition-transform" />
-                  <CardTitle className="group-hover:text-blue-600 transition-colors">
+                  <Calendar className="w-10 h-10 text-brand-600 mb-3 group-hover:scale-110 transition-transform" />
+                  <CardTitle className="group-hover:text-brand-600 transition-colors">
                     Dose Calendar
                   </CardTitle>
                 </CardHeader>
@@ -270,10 +274,10 @@ const HomePage: React.FC = () => {
             </Link>
 
             <Link to="/tools/calculators" className="group">
-              <Card className="h-full border-2 border-transparent hover:border-green-300 transition-all hover:shadow-lg">
+              <Card className="h-full border-2 border-transparent hover:border-orange-300 transition-all hover:shadow-lg">
                 <CardHeader>
-                  <Calculator className="w-10 h-10 text-green-600 mb-3 group-hover:scale-110 transition-transform" />
-                  <CardTitle className="group-hover:text-green-600 transition-colors">
+                  <Calculator className="w-10 h-10 text-orange-600 mb-3 group-hover:scale-110 transition-transform" />
+                  <CardTitle className="group-hover:text-orange-600 transition-colors">
                     Clinical Calculators
                   </CardTitle>
                 </CardHeader>
@@ -286,10 +290,10 @@ const HomePage: React.FC = () => {
             </Link>
 
             <Link to="/tools/hmr" className="group">
-              <Card className="h-full border-2 border-transparent hover:border-purple-300 transition-all hover:shadow-lg">
+              <Card className="h-full border-2 border-transparent hover:border-brand-300 transition-all hover:shadow-lg">
                 <CardHeader>
-                  <FileText className="w-10 h-10 text-purple-600 mb-3 group-hover:scale-110 transition-transform" />
-                  <CardTitle className="group-hover:text-purple-600 transition-colors">
+                  <FileText className="w-10 h-10 text-brand-600 mb-3 group-hover:scale-110 transition-transform" />
+                  <CardTitle className="group-hover:text-brand-600 transition-colors">
                     HMR Tools
                   </CardTitle>
                 </CardHeader>
@@ -314,14 +318,14 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Tool Suggestion Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-900 to-blue-800 text-white">
+      <section className="py-20 bg-gradient-to-br from-brand-900 to-brand-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <Users className="w-16 h-16 mx-auto mb-6 text-blue-300" />
+            <Users className="w-16 h-16 mx-auto mb-6 text-orange-400" />
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
               Suggest a Calculator or Tool
             </h2>
-            <p className="text-xl text-blue-100">
+            <p className="text-xl text-neutral-100">
               Have an idea for a clinical calculator or pharmacy tool that would make your practice easier?
               Let us know and we'll consider building it!
             </p>
