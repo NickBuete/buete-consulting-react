@@ -48,7 +48,7 @@ const HomePage: React.FC = () => {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="border-2 border-white text-brand-900 hover:bg-orange-600 hover:text-white hover:border-orange-600 font-semibold">
-                <Link to="/tools">Explore Free Tools</Link>
+                <Link to="/pharmacy-tools">Explore Free Tools</Link>
               </Button>
             </div>
           </div>
@@ -273,7 +273,7 @@ const HomePage: React.FC = () => {
               </Card>
             </Link>
 
-            <Link to="/tools/calculators" className="group">
+            <Link to="/pharmacy-tools" className="group">
               <Card className="h-full border-2 border-transparent hover:border-orange-300 transition-all hover:shadow-lg">
                 <CardHeader>
                   <Calculator className="w-10 h-10 text-orange-600 mb-3 group-hover:scale-110 transition-transform" />
@@ -289,7 +289,7 @@ const HomePage: React.FC = () => {
               </Card>
             </Link>
 
-            <Link to="/tools/hmr" className="group">
+            <Link to="/hmr" className="group">
               <Card className="h-full border-2 border-transparent hover:border-brand-300 transition-all hover:shadow-lg">
                 <CardHeader>
                   <FileText className="w-10 h-10 text-brand-600 mb-3 group-hover:scale-110 transition-transform" />
@@ -308,7 +308,7 @@ const HomePage: React.FC = () => {
 
           <div className="text-center">
             <Button size="lg" asChild>
-              <Link to="/tools" className="flex items-center justify-center">
+              <Link to="/pharmacy-tools" className="flex items-center justify-center">
                 View All Tools
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>

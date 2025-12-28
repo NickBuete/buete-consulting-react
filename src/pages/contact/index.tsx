@@ -248,7 +248,7 @@ const ContactPage: React.FC = () => {
         }}
         secondaryCTA={{
           text: "Explore Free Tools",
-          link: "/tools"
+          link: "/pharmacy-tools"
         }}
         variant="primary"
       />

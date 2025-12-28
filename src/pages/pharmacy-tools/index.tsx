@@ -14,7 +14,6 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  Textarea,
   Button,
 } from "../../components/ui";
 import { ROUTES } from "../../router/routes";
@@ -285,8 +284,6 @@ const OpioidCalculator: React.FC = () => {
   );
 };
 
-const weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
 const references = [
   {
     name: 'SUSMP (Poisons Standard)',
@@ -340,107 +337,6 @@ const references = [
   },
 ];
 
-const VariableDosePlanner: React.FC = () => {
-  const [cycleLength, setCycleLength] = useState("7");
-  const [notes, setNotes] = useState("");
-  const days = Number(cycleLength);
-  const [doses, setDoses] = useState<Record<number, string>>({});
-
-  const handleDoseChange = (index: number, value: string) => {
-    setDoses((prev) => ({ ...prev, [index]: value }));
-  };
-
-  const schedule = useMemo(() => {
-    return Array.from({ length: days }, (_, index) => ({
-      label: weekdayNames[index % 7] ?? `Day ${index + 1}`,
-      dose: doses[index] ?? "",
-    }));
-  }, [days, doses]);
-
-  const totalWeeklyDose = useMemo(() => {
-    return schedule.reduce((total, day) => total + (Number(day.dose) || 0), 0);
-  }, [schedule]);
-
-  return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="font-heading flex items-center gap-3">
-          <span className="text-2xl">📅</span>
-          Variable Dose Planner
-        </CardTitle>
-        <CardDescription className="font-body">
-          Plan tapering schedules, complex warfarin regimens, or chemotherapy cycles and review totals at a glance.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-          <Label htmlFor="cycle-length">Cycle length</Label>
-            <Select value={cycleLength} onValueChange={setCycleLength}>
-              <SelectTrigger id="cycle-length">
-                <SelectValue placeholder="Select cycle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">7 days</SelectItem>
-                <SelectItem value="14">14 days</SelectItem>
-                <SelectItem value="21">21 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="planner-notes">Notes</Label>
-            <Textarea
-              id="planner-notes"
-              placeholder="INR target, monitoring plan, counselling points..."
-              rows={3}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left font-heading text-gray-600">Day</th>
-                <th className="px-4 py-2 text-left font-heading text-gray-600">Dose</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {schedule.map((day, index) => (
-                <tr key={index} className="bg-white">
-                  <td className="px-4 py-2 font-body text-gray-800">{day.label}</td>
-                  <td className="px-4 py-2">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="mg"
-                      value={day.dose}
-                      onChange={(event) => handleDoseChange(index, event.target.value)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-col gap-2 rounded-md border border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm text-gray-700 font-body">
-            <span className="font-semibold">Total over {days} days:</span> {totalWeeklyDose.toFixed(2)} units
-          </p>
-          {notes ? (
-            <div className="text-xs text-gray-500 font-body">
-              <span className="font-semibold text-gray-700">Notes:</span> {notes}
-            </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 const PharmacyToolsPage: React.FC = () => {
   return (
     <>
@@ -487,7 +383,6 @@ const PharmacyToolsPage: React.FC = () => {
             <CreatinineCalculator />
             <UnitConverter />
             <OpioidCalculator />
-            <VariableDosePlanner />
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle className="font-heading flex items-center gap-3">
