@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router";
 import {
   PageHero,
   Card,
@@ -14,7 +15,9 @@ import {
   SelectItem,
   SelectValue,
   Textarea,
+  Button,
 } from "../../components/ui";
+import { ROUTES } from "../../router/routes";
 
 const CreatinineCalculator: React.FC = () => {
   const [gender, setGender] = useState("male");
@@ -459,6 +462,28 @@ const PharmacyToolsPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <Card className="md:col-span-2 bg-gradient-to-r from-brand-50 to-orange-50 border-brand-200">
+              <CardHeader>
+                <CardTitle className="font-heading flex items-center gap-3">
+                  <span className="text-2xl">🧮</span>
+                  Medication Dosing Calculator
+                </CardTitle>
+                <CardDescription className="font-body">
+                  Create detailed titration schedules with automatic dose calculations for tapering, increasing, or maintaining medication doses. Generate printable patient handouts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to={ROUTES.DOSE_CALCULATOR}>
+                  <Button size="lg" className="gap-2">
+                    Open Dose Calculator →
+                  </Button>
+                </Link>
+                <p className="mt-4 text-sm text-gray-600 font-body">
+                  <strong>Example:</strong> Automatically generate a Prednisolone taper schedule reducing by 5mg every 7 days, or plan complex warfarin dose adjustments.
+                </p>
+              </CardContent>
+            </Card>
+
             <CreatinineCalculator />
             <UnitConverter />
             <OpioidCalculator />

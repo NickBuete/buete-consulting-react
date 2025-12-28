@@ -12,6 +12,7 @@ const TemplatePreviewPage = React.lazy(
   () => import('../pages/templates/preview/TemplatePreview')
 )
 const PharmacyToolsPage = React.lazy(() => import('../pages/pharmacy-tools'))
+const DoseCalculatorPage = React.lazy(() => import('../pages/pharmacy-tools/DoseCalculatorPage'))
 const HMRTemplatesPage = React.lazy(() => import('../pages/hmr-templates'))
 const HMRDashboardPage = React.lazy(() => import('../pages/hmr'))
 const HMRReviewDetailPage = React.lazy(() => import('../pages/hmr/detail'))
@@ -32,6 +33,7 @@ export const ROUTES = {
   TEMPLATE_DETAIL: '/templates/:slug',
   TEMPLATE_PREVIEW: '/templates/preview/:slug',
   PHARMACY_TOOLS: '/pharmacy-tools',
+  DOSE_CALCULATOR: '/pharmacy-tools/dose-calculator',
   HMR_TEMPLATES: '/hmr-templates',
   HMR_DASHBOARD: '/hmr',
   HMR_REVIEW_DETAIL: '/hmr/:id',
@@ -85,6 +87,12 @@ export const routes: RouteConfig[] = [
     path: ROUTES.PHARMACY_TOOLS,
     component: PharmacyToolsPage,
     title: 'Pharmacy Tools - Buete Consulting',
+    protected: false,
+  },
+  {
+    path: ROUTES.DOSE_CALCULATOR,
+    component: DoseCalculatorPage,
+    title: 'Dose Calculator - Buete Consulting',
     protected: false,
   },
   {
