@@ -86,13 +86,13 @@ const TemplatesPage: React.FC = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="bg-brand-600 hover:bg-brand-700">
+                <Button size="lg" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-lg">
                   <Link to="/contact" className="flex items-center">
                     Get Started with Custom
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
+                <Button size="lg" variant="outline" className="border-2 border-brand-600 text-brand-600 hover:bg-brand-600 hover:text-white font-semibold" asChild>
                   <Link to="/about">Learn More About Us</Link>
                 </Button>
               </div>
@@ -107,7 +107,7 @@ const TemplatesPage: React.FC = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white bg-white/10 hover:bg-white hover:text-brand-900"
+                className="border-2 border-white text-white bg-white/10 hover:bg-white hover:text-brand-900 font-semibold"
                 asChild
               >
                 <Link to="/contact">Join the Waitlist</Link>

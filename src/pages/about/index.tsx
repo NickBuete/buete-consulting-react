@@ -27,13 +27,13 @@ const AboutPage: React.FC = () => {
               No templates, no compromises—just professional code tailored to your needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" variant="default" className="bg-orange-500 text-white hover:bg-orange-600">
+              <Button size="lg" variant="default" className="bg-orange-500 text-white hover:bg-orange-600 font-semibold shadow-lg">
                 <Link to="/contact" className="flex items-center">
                   Work With Us
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-brand-900 font-semibold">
                 <Link to="/templates">View Our Work</Link>
               </Button>
             </div>

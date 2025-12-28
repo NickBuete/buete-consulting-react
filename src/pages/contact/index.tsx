@@ -232,7 +232,7 @@ const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          <Button size="lg" variant="default" className="bg-brand-600 hover:bg-brand-700">
+          <Button size="lg" variant="default" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-lg">
             <Send className="w-5 h-5 mr-2" />
             Send Us Your Question
           </Button>

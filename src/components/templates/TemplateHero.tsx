@@ -80,28 +80,28 @@ const TemplateHero: React.FC<TemplateHeroProps> = ({
             <Button
               variant="outline"
               onClick={() => onCategoryFilter?.('all')}
-              className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-brand-900 transition-all"
+              className="bg-white/10 border-2 border-white text-white hover:bg-white hover:text-brand-900 transition-all font-semibold"
             >
               All Templates
             </Button>
             <Button
               variant="outline"
               onClick={() => onCategoryFilter?.(HealthcareCategory.PHARMACY)}
-              className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-brand-900 transition-all"
+              className="bg-white/10 border-2 border-white text-white hover:bg-white hover:text-brand-900 transition-all font-semibold"
             >
               Pharmacy
             </Button>
             <Button
               variant="outline"
               onClick={() => onCategoryFilter?.(HealthcareCategory.CLINIC)}
-              className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-brand-900 transition-all"
+              className="bg-white/10 border-2 border-white text-white hover:bg-white hover:text-brand-900 transition-all font-semibold"
             >
               Medical Clinics
             </Button>
             <Button
               variant="outline"
               onClick={() => onCategoryFilter?.(HealthcareCategory.PHYSIOTHERAPY)}
-              className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-brand-900 transition-all"
+              className="bg-white/10 border-2 border-white text-white hover:bg-white hover:text-brand-900 transition-all font-semibold"
             >
               Allied Health
             </Button>

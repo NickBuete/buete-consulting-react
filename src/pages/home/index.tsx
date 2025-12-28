@@ -41,13 +41,13 @@ const HomePage: React.FC = () => {
               No compromises, no forcing templates to fit. Just clean, custom code that works exactly how you need it.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" variant="default" className="bg-orange-500 text-white hover:bg-orange-600">
+              <Button size="lg" variant="default" className="bg-orange-500 text-white hover:bg-orange-600 font-semibold shadow-lg">
                 <Link to="/contact" className="flex items-center">
                   Get Your Custom Website
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-brand-900 font-semibold">
                 <Link to="/tools">Explore Free Tools</Link>
               </Button>
             </div>
