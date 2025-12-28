@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Printer } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
 import { PageHero, Button } from '../../components/ui';
 import {
   PatientDetailsForm,
   MedicationListManager,
   DoseCalendarView,
-  PrintableCalendar,
+  DoseCalendarPDF,
 } from '../../components/dose-calculator';
 import { calculateDoseSchedule } from '../../utils/doseCalculation';
 import type { PatientDetails, MedicationSchedule, DoseEntry } from '../../types/doseCalculator';
@@ -40,8 +41,28 @@ const DoseCalculatorPage: React.FC = () => {
     setMedications((prev) => prev.filter((med) => med.id !== medicationId));
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!patient) return;
+
+    try {
+      // Generate the PDF document
+      const doc = <DoseCalendarPDF patient={patient} medications={medications} calculatedDoses={calculatedDoses} />;
+      const asPdf = pdf(doc);
+      const blob = await asPdf.toBlob();
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${patient.name.replace(/\s+/g, '_')}_Medication_Schedule_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('There was an error generating the PDF. Please try again.');
+    }
   };
 
   const isReadyToView = patient && patient.name && medications.length > 0;
@@ -94,11 +115,11 @@ const DoseCalculatorPage: React.FC = () => {
                 calculatedDoses={calculatedDoses}
               />
 
-              {/* Print Button */}
-              <div className="flex justify-end no-print">
-                <Button onClick={handlePrint} size="lg" className="gap-2">
-                  <Printer className="h-5 w-5" />
-                  Print Schedule
+              {/* Download PDF Button */}
+              <div className="flex justify-end">
+                <Button onClick={handleDownloadPDF} size="lg" className="gap-2">
+                  <Download className="h-5 w-5" />
+                  Download PDF Schedule
                 </Button>
               </div>
             </>
@@ -120,13 +141,6 @@ const DoseCalculatorPage: React.FC = () => {
           )}
         </div>
       </section>
-
-      {/* Print-only version */}
-      <PrintableCalendar
-        patient={patient}
-        medications={medications}
-        calculatedDoses={calculatedDoses}
-      />
     </>
   );
 };

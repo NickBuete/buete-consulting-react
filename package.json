@@ -19,6 +19,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
+    "@react-pdf/renderer": "^4.3.1",
     "@tiptap/extension-color": "^3.6.2",
     "@tiptap/extension-highlight": "^3.6.2",
     "@tiptap/extension-link": "^3.6.2",
