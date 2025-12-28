@@ -20,7 +20,6 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Input,
 } from '../../ui';
 import { SymptomFieldGroup } from './SymptomFieldGroup';
 
