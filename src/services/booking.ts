@@ -82,7 +82,34 @@ export const getPublicBookingInfo = async (bookingUrl: string) => {
   return response;
 };
 
-export const createPublicBooking = async (bookingUrl: string, payload: PublicBookingPayload) => {
+export const createPublicBooking = async (
+  bookingUrl: string,
+  payload: PublicBookingPayload,
+  referralDocument?: File | null
+) => {
+  // If there's a file, use FormData
+  if (referralDocument) {
+    const formData = new FormData();
+
+    // Add all form fields
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+
+    // Add the file
+    formData.append('referralDocument', referralDocument);
+
+    // Use uploadFile method which handles FormData
+    const response = await api.uploadFile<PublicBookingResponse>(
+      `/booking/public/${bookingUrl}`,
+      formData
+    );
+    return response;
+  }
+
+  // No file, use regular JSON request
   const response = await api.post<PublicBookingResponse>(`/booking/public/${bookingUrl}`, payload);
   return response;
 };

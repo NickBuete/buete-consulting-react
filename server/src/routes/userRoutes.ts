@@ -11,6 +11,8 @@ import {
 } from '../services/userService';
 import { asyncHandler } from './utils/asyncHandler';
 import { userCreateSchema, userUpdateSchema } from '../validators/userSchemas';
+import { prisma } from '../db/prisma';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -109,6 +111,59 @@ router.delete(
     } catch (error) {
       return handlePrismaError(error, res);
     }
+  }),
+);
+
+// Profile endpoints (authenticated user only)
+const profileUpdateSchema = z.object({
+  pharmacyBusinessName: z.string().min(1).max(150).optional(),
+  pharmacyPhone: z.string().max(50).optional(),
+  pharmacyAddress: z.string().max(255).optional(),
+});
+
+router.get(
+  '/profile',
+  asyncHandler(async (req, res) => {
+    const userId = req.user!.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        username: true,
+        email: true,
+        pharmacyBusinessName: true,
+        pharmacyPhone: true,
+        pharmacyAddress: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  }),
+);
+
+router.patch(
+  '/profile',
+  asyncHandler(async (req, res) => {
+    const userId = req.user!.id;
+    const validated = profileUpdateSchema.parse(req.body);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: validated,
+      select: {
+        username: true,
+        email: true,
+        pharmacyBusinessName: true,
+        pharmacyPhone: true,
+        pharmacyAddress: true,
+      },
+    });
+
+    res.json(user);
   }),
 );
 

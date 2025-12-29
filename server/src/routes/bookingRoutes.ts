@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import multer from 'multer';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
 import { handlePrismaError } from '../middleware/prismaErrorHandler';
@@ -34,6 +35,21 @@ import {
 } from '../services/booking';
 
 const router = express.Router();
+
+// Configure multer for memory storage (file will be in req.file.buffer)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  },
+});
 
 // ========================================
 // Availability Slots Management
@@ -264,6 +280,7 @@ router.get(
  */
 router.post(
   '/public/:bookingUrl',
+  upload.single('referralDocument'), // Handle optional file upload
   asyncHandler(async (req, res) => {
     const bookingUrl = req.params.bookingUrl;
     if (!bookingUrl) {
@@ -273,10 +290,13 @@ router.post(
     const validated = publicBookingSchema.parse(req.body);
 
     try {
-      const result = await createPublicBooking({
-        ...validated,
-        bookingUrl,
-      });
+      const result = await createPublicBooking(
+        {
+          ...validated,
+          bookingUrl,
+        },
+        req.file // Pass the uploaded file to the service
+      );
       res.status(201).json(result);
     } catch (error) {
       if (error instanceof Error) {

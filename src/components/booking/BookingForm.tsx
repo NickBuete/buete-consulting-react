@@ -38,6 +38,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [referralDocument, setReferralDocument] = useState<File | null>(null);
 
   const {
     register,
@@ -65,7 +66,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     try {
       setIsSubmitting(true);
       setSubmitError(null);
-      const result = await createPublicBooking(bookingUrl, data);
+      const result = await createPublicBooking(bookingUrl, data, referralDocument);
 
       // Navigate to confirmation page with booking details
       navigate('/booking/confirmation', {
@@ -191,6 +192,50 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                   <p className="mt-1 text-sm text-red-600">{String(errors.patientEmail.message)}</p>
                 )}
               </div>
+
+              <div>
+                <Label htmlFor="patientDateOfBirth">Date of Birth (Optional)</Label>
+                <Input
+                  id="patientDateOfBirth"
+                  type="date"
+                  {...register('patientDateOfBirth')}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="patientAddressLine1">Address (Optional)</Label>
+                <Input
+                  id="patientAddressLine1"
+                  placeholder="Street address"
+                  {...register('patientAddressLine1')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="patientSuburb">Suburb (Optional)</Label>
+                <Input
+                  id="patientSuburb"
+                  {...register('patientSuburb')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="patientState">State (Optional)</Label>
+                <Input
+                  id="patientState"
+                  placeholder="e.g. NSW, VIC"
+                  {...register('patientState')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="patientPostcode">Postcode (Optional)</Label>
+                <Input
+                  id="patientPostcode"
+                  placeholder="2000"
+                  {...register('patientPostcode')}
+                />
+              </div>
             </div>
           </div>
 
@@ -267,6 +312,45 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                   placeholder="Any other information that might be helpful"
                   {...register('notes')}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="referralDocument">Referral Document (Optional)</Label>
+                <Input
+                  id="referralDocument"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Validate file size (max 5MB)
+                      if (file.size > 5 * 1024 * 1024) {
+                        setSubmitError('File size must be less than 5MB');
+                        e.target.value = '';
+                        return;
+                      }
+                      // Validate file type
+                      if (file.type !== 'application/pdf') {
+                        setSubmitError('Only PDF files are allowed');
+                        e.target.value = '';
+                        return;
+                      }
+                      setSubmitError(null);
+                      setReferralDocument(file);
+                    } else {
+                      setReferralDocument(null);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Upload referral letter or medical notes (PDF only, max 5MB)
+                </p>
+                {referralDocument && (
+                  <p className="mt-1 text-sm text-green-600">
+                    ✓ {referralDocument.name} ({(referralDocument.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
               </div>
             </div>
           </div>

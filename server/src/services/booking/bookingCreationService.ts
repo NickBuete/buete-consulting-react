@@ -17,6 +17,7 @@ import { upsertBookingPatient } from '../bookingPatients';
 import { sendBookingConfirmation } from '../notifications/bookingNotificationService';
 import { isAppointmentWithinAvailability } from './bookingValidationService';
 import { generateSecureToken, getTokenExpiry } from '../../utils/tokenGenerator';
+import { resendService } from '../email/resendService';
 
 export interface PublicBookingInput {
   bookingUrl: string;
@@ -26,7 +27,15 @@ export interface PublicBookingInput {
   patientLastName: string;
   patientPhone: string;
   patientEmail?: string;
+  patientDateOfBirth?: string;
+  patientAddressLine1?: string;
+  patientSuburb?: string;
+  patientState?: string;
+  patientPostcode?: string;
   referrerName: string;
+  referrerEmail?: string;
+  referrerPhone?: string;
+  referrerClinic?: string;
   referralReason?: string;
   notes?: string;
 }
@@ -48,9 +57,13 @@ export interface DirectBookingInput {
 /**
  * Create a public booking (no authentication required)
  * @param data - Public booking input
+ * @param file - Optional uploaded referral document
  * @returns Created booking details
  */
-export const createPublicBooking = async (data: PublicBookingInput) => {
+export const createPublicBooking = async (
+  data: PublicBookingInput,
+  file?: Express.Multer.File
+) => {
   // Get pharmacist and settings by booking URL
   const settings = await prisma.bookingSettings.findUnique({
     where: { bookingUrl: data.bookingUrl },
@@ -64,6 +77,9 @@ export const createPublicBooking = async (data: PublicBookingInput) => {
           microsoftAccessToken: true,
           microsoftRefreshToken: true,
           microsoftTokenExpiry: true,
+          pharmacyBusinessName: true,
+          pharmacyPhone: true,
+          pharmacyAddress: true,
         },
       },
     },
@@ -164,7 +180,82 @@ export const createPublicBooking = async (data: PublicBookingInput) => {
     }
   }
 
-  // Send confirmation notifications
+  // Generate reschedule token for public bookings
+  const rescheduleToken = generateSecureToken();
+  const tokenExpiry = getTokenExpiry(30); // 30 days
+
+  await prisma.rescheduleToken.create({
+    data: {
+      hmrReviewId: review.id,
+      token: rescheduleToken,
+      expiresAt: tokenExpiry,
+    },
+  });
+
+  // Format patient address for email
+  const addressParts = [
+    data.patientAddressLine1,
+    data.patientSuburb,
+    data.patientState,
+    data.patientPostcode
+  ].filter(Boolean);
+  const patientAddress = addressParts.length > 0
+    ? addressParts.join(', ')
+    : 'Address not provided';
+
+  // Format appointment time for email
+  const formattedDateTime = appointmentDateTime.toLocaleDateString('en-AU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: BOOKING_TIME_ZONE,
+  });
+  const formattedAppointmentTime = `${formattedDateTime} at ${data.appointmentTime}`;
+
+  // Send confirmation email to patient via Resend
+  if (data.patientEmail && resendService.isEnabled()) {
+    try {
+      await resendService.sendHMRConfirmation({
+        patientEmail: data.patientEmail,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        patientAddress,
+        pharmacistName: settings.user.username,
+        pharmacistEmail: settings.user.email,
+        pharmacistPhone: settings.user.pharmacyPhone || settings.user.email,
+        pharmacyBusiness: settings.user.pharmacyBusinessName || 'Pharmacy Services',
+        appointmentTime: formattedAppointmentTime,
+        rescheduleToken,
+      });
+      logger.info({ reviewId: review.id }, 'Patient confirmation email sent via Resend');
+    } catch (error) {
+      logger.error({ err: error, reviewId: review.id }, 'Failed to send patient confirmation via Resend');
+    }
+  }
+
+  // Send notification email to pharmacist
+  try {
+    await resendService.sendPharmacistNotification(
+      {
+        pharmacistEmail: settings.user.email,
+        pharmacistName: settings.user.username,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        patientPhone: formattedPhone,
+        patientEmail: data.patientEmail,
+        referrerName: data.referrerName,
+        appointmentDateTime: formattedDateTime,
+        appointmentTime: data.appointmentTime,
+        bookingId: review.id,
+      },
+      file // Pass the uploaded file for email attachment
+    );
+    logger.info({ reviewId: review.id }, 'Pharmacist notification email sent');
+  } catch (error) {
+    logger.error({ err: error, reviewId: review.id }, 'Failed to send pharmacist notification');
+    // Continue anyway - booking is still valid
+  }
+
+  // Send SMS confirmation via legacy system
   await sendBookingConfirmation({
     reviewId: review.id,
     patientEmail: data.patientEmail,
@@ -174,6 +265,7 @@ export const createPublicBooking = async (data: PublicBookingInput) => {
     appointmentDateTime,
     appointmentTime: data.appointmentTime,
     referrerName: data.referrerName,
+    rescheduleLink: `${process.env.FRONTEND_URL}/reschedule?token=${rescheduleToken}`,
   });
 
   return {
