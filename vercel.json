@@ -3,14 +3,34 @@
   "outputDirectory": "build",
   "functions": {
     "api/index.js": {
-      "maxDuration": 60,
-      "memory": 1024
+      "maxDuration": 30,
+      "memory": 512
     }
   },
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "/api/index.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/booking/public/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=300, stale-while-revalidate=600"
+        }
+      ]
+    },
+    {
+      "source": "/api/healthz",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=60"
+        }
+      ]
     }
   ]
 }

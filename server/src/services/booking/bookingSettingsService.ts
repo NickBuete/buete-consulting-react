@@ -5,6 +5,7 @@
 
 import { prisma } from '../../db/prisma';
 import { withTenantContext } from '../../db/tenant';
+import { withCache, requestCache } from '../../utils/requestCache';
 import type { BookingSettings } from '@prisma/client';
 
 export interface BookingSettingsUpdateInput {
@@ -20,39 +21,49 @@ export interface BookingSettingsUpdateInput {
 
 /**
  * Get booking settings for a user, creating defaults if they don't exist
+ * Cached for 1 minute to reduce duplicate queries
  */
 export const getOrCreateBookingSettings = async (ownerId: number): Promise<BookingSettings> => {
-  return withTenantContext(ownerId, async (tx) => {
-    let settings = await tx.bookingSettings.findUnique({
-      where: { userId: ownerId },
-    });
+  return withCache(
+    `bookingSettings:${ownerId}`,
+    () =>
+      withTenantContext(ownerId, async (tx) => {
+        let settings = await tx.bookingSettings.findUnique({
+          where: { userId: ownerId },
+        });
 
-    if (!settings) {
-      // Create default settings
-      settings = await tx.bookingSettings.create({
-        data: {
-          userId: ownerId,
-          bufferTimeBefore: 0,
-          bufferTimeAfter: 0,
-          defaultDuration: 60,
-          allowPublicBooking: false,
-          requireApproval: true,
-          bookingUrl: `pharmacist-${ownerId}`,
-        },
-      });
-    }
+        if (!settings) {
+          // Create default settings
+          settings = await tx.bookingSettings.create({
+            data: {
+              userId: ownerId,
+              bufferTimeBefore: 0,
+              bufferTimeAfter: 0,
+              defaultDuration: 60,
+              allowPublicBooking: false,
+              requireApproval: true,
+              bookingUrl: `pharmacist-${ownerId}`,
+            },
+          });
+        }
 
-    return settings;
-  });
+        return settings;
+      }),
+    60000 // 1 minute cache
+  );
 };
 
 /**
  * Update booking settings (upsert pattern)
+ * Invalidates cache after update
  */
 export const updateBookingSettings = async (
   ownerId: number,
   data: BookingSettingsUpdateInput
 ): Promise<BookingSettings> => {
+  // Invalidate cache before update
+  requestCache.invalidate(`bookingSettings:${ownerId}`);
+
   return withTenantContext(ownerId, async (tx) => {
     const userId = ownerId;
 

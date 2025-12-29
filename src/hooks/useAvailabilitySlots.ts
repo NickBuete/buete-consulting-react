@@ -1,93 +1,74 @@
 /**
- * useAvailabilitySlots Hook
- * Data fetching and management for availability slots
+ * Availability Slots Hook (Legacy API)
+ * This is a wrapper around the raw API calls for backward compatibility
+ * For new code, use useAvailabilitySlotsQuery from './useAvailabilitySlotsQuery.ts'
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { AvailabilitySlot } from '../types/booking';
 import {
-  createAvailabilitySlot,
-  deleteAvailabilitySlot,
   getAvailabilitySlots,
+  createAvailabilitySlot,
   updateAvailabilitySlot,
+  deleteAvailabilitySlot,
 } from '../services/booking';
-
-interface SlotFormData {
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isAvailable?: boolean;
-}
+import type { AvailabilitySlot } from '../types/booking';
 
 export const useAvailabilitySlots = () => {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSlots = useCallback(async () => {
+  const loadSlots = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getAvailabilitySlots();
       setSlots(data);
     } catch (err) {
-      console.error('Error fetching availability:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load availability');
+      setError(err instanceof Error ? err.message : 'Failed to load slots');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSlots();
-  }, [fetchSlots]);
+    loadSlots();
+  }, [loadSlots]);
 
   const createSlot = useCallback(
-    async (data: SlotFormData) => {
+    async (data: Omit<AvailabilitySlot, 'id' | 'isAvailable'> & { isAvailable?: boolean }) => {
       try {
-        setError(null);
         await createAvailabilitySlot(data);
-        await fetchSlots();
+        await loadSlots();
       } catch (err) {
-        console.error('Error creating slot:', err);
-        const message = err instanceof Error ? err.message : 'Failed to create slot';
-        setError(message);
         throw err;
       }
     },
-    [fetchSlots]
+    [loadSlots]
   );
 
   const updateSlot = useCallback(
-    async (slotId: number, data: Partial<SlotFormData>) => {
+    async (id: number, data: Partial<Omit<AvailabilitySlot, 'id'>>) => {
       try {
-        setError(null);
-        await updateAvailabilitySlot(slotId, data);
-        await fetchSlots();
+        await updateAvailabilitySlot(id, data);
+        await loadSlots();
       } catch (err) {
-        console.error('Error updating slot:', err);
-        const message = err instanceof Error ? err.message : 'Failed to update slot';
-        setError(message);
         throw err;
       }
     },
-    [fetchSlots]
+    [loadSlots]
   );
 
   const deleteSlot = useCallback(
-    async (slotId: number) => {
+    async (id: number) => {
       try {
-        setError(null);
-        await deleteAvailabilitySlot(slotId);
-        await fetchSlots();
+        await deleteAvailabilitySlot(id);
+        await loadSlots();
       } catch (err) {
-        console.error('Error deleting slot:', err);
-        const message = err instanceof Error ? err.message : 'Failed to delete slot';
-        setError(message);
         throw err;
       }
     },
-    [fetchSlots]
+    [loadSlots]
   );
 
   const toggleSlotAvailability = useCallback(
@@ -105,6 +86,6 @@ export const useAvailabilitySlots = () => {
     updateSlot,
     deleteSlot,
     toggleSlotAvailability,
-    refetch: fetchSlots,
+    refresh: loadSlots,
   };
 };

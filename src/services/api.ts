@@ -199,6 +199,24 @@ class ApiService {
 
     return this.request<T>(endpoint, uploadConfig);
   }
+
+  // Upload FormData (with multiple fields and files)
+  async uploadFormData<T>(endpoint: string, formData: FormData, config?: RequestConfig): Promise<ApiResponse<T>> {
+    const uploadConfig = {
+      ...config,
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Remove Content-Type to let browser set it with boundary
+        ...Object.fromEntries(
+          Object.entries(this.defaultHeaders).filter(([key]) => key !== 'Content-Type')
+        ),
+        ...config?.headers,
+      },
+    };
+
+    return this.request<T>(endpoint, uploadConfig);
+  }
 }
 
 // Create and export default API instance

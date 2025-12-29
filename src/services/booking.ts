@@ -101,8 +101,8 @@ export const createPublicBooking = async (
     // Add the file
     formData.append('referralDocument', referralDocument);
 
-    // Use uploadFile method which handles FormData
-    const response = await api.uploadFile<PublicBookingResponse>(
+    // Use uploadFormData method which handles FormData
+    const response = await api.uploadFormData<PublicBookingResponse>(
       `/booking/public/${bookingUrl}`,
       formData
     );
