@@ -261,6 +261,7 @@ model HmrReview {
   reportDraftedAt      DateTime?            @map("report_drafted_at")
   reportFinalizedAt    DateTime?            @map("report_finalized_at")
   sentToPrescriberAt   DateTime?            @map("sent_to_prescriber_at")
+  reminderSentAt       DateTime?            @map("reminder_sent_at")
   calendarEventId      String?              @map("calendar_event_id") @db.VarChar(255)
   visitLocation        String?              @map("visit_location") @db.VarChar(255)
   visitNotes           String?              @map("visit_notes")
@@ -581,15 +582,17 @@ model SmsLog {
   id          Int       @id @default(autoincrement())
   hmrReviewId Int?      @map("hmr_review_id")
   toPhone     String    @map("to_phone") @db.VarChar(20)
+  messageType String    @default("general") @map("message_type") @db.VarChar(50) // confirmation, reminder, cancellation, reply, general
   messageBody String    @map("message_body") @db.Text
   messageSid  String?   @map("message_sid") @db.VarChar(100)
-  status      String    @default("pending") @db.VarChar(50) // pending, sent, failed
+  status      String    @default("pending") @db.VarChar(50) // pending, sent, failed, received
   errorMsg    String?   @map("error_msg") @db.Text
   sentAt      DateTime? @map("sent_at") @db.Timestamp(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([hmrReviewId])
   @@index([status])
+  @@index([messageType])
   @@map("sms_logs")
 }
 

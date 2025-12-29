@@ -98,6 +98,7 @@ export const sendBookingConfirmation = async (
         data: {
           hmrReviewId: params.reviewId,
           toPhone: params.patientPhone,
+          messageType: 'confirmation',
           messageBody: 'Appointment confirmation',
           status: 'sent',
           sentAt: new Date(),
@@ -117,6 +118,7 @@ export const sendBookingConfirmation = async (
           data: {
             hmrReviewId: params.reviewId,
             toPhone: params.patientPhone,
+            messageType: 'confirmation',
             messageBody: 'Appointment confirmation',
             status: 'failed',
             errorMsg,
@@ -198,6 +200,7 @@ export const sendRescheduleNotification = async (
         data: {
           hmrReviewId: params.reviewId,
           toPhone: params.patientPhone,
+          messageType: 'confirmation',
           messageBody: 'Appointment rescheduled confirmation',
           status: 'sent',
           sentAt: new Date(),
@@ -217,6 +220,7 @@ export const sendRescheduleNotification = async (
           data: {
             hmrReviewId: params.reviewId,
             toPhone: params.patientPhone,
+            messageType: 'confirmation',
             messageBody: 'Appointment rescheduled confirmation',
             status: 'failed',
             errorMsg,

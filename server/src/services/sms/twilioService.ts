@@ -5,6 +5,7 @@ interface SMSConfig {
   accountSid: string;
   authToken: string;
   phoneNumber: string;
+  senderName: string | null;
   enabled: boolean;
 }
 
@@ -31,6 +32,7 @@ export class TwilioService {
       accountSid: process.env.TWILIO_ACCOUNT_SID || '',
       authToken: process.env.TWILIO_AUTH_TOKEN || '',
       phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
+      senderName: process.env.TWILIO_SENDER_NAME || null,
       enabled: process.env.SMS_ENABLED === 'true',
     };
 
@@ -79,9 +81,13 @@ export class TwilioService {
         };
       }
 
+      // Use sender name (Alpha ID) if configured, otherwise use phone number
+      // Note: Alpha Sender IDs work in Australia but only for one-way messaging
+      const fromValue = this.config.senderName || this.config.phoneNumber;
+
       const result = await this.client!.messages.create({
         body: message.body,
-        from: this.config.phoneNumber,
+        from: fromValue,
         to: message.to,
       });
 

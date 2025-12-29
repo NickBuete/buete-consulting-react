@@ -18,13 +18,15 @@ import aiRoutes from './aiRoutes'
 import healthRoutes from './healthRoutes'
 import microsoftAuthRoutes from './microsoftAuthRoutes'
 import { bookingRouter } from './bookingRoutes'
+import smsRoutes from './smsRoutes'
 
 export const registerRoutes = (app: Express) => {
   // Health check routes (no authentication required)
   app.use('/api', healthRoutes)
 
-  // Public booking routes (no authentication required for public booking)
+  // Public routes (no authentication required)
   app.use('/api/booking', bookingRouter)
+  app.use('/api/sms', smsRoutes) // Twilio webhooks
 
   app.use('/api/auth', authRouter)
   app.use('/api/auth/microsoft', microsoftAuthRoutes)
