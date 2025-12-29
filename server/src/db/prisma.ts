@@ -15,12 +15,24 @@ console.log('[Prisma Setup] DATABASE_URL:', {
   isString: typeof process.env.DATABASE_URL === 'string',
 });
 
-// Configure pg.Pool for PgBouncer compatibility
-// The ?pgbouncer=true parameter in DATABASE_URL disables prepared statements
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 10, // Connection pool size
+// Try Session Pooler instead of Transaction Pooler
+// Session pooler (port 5432) has better compatibility with Prisma
+const connectionString = process.env.DATABASE_URL || '';
+const useSessionPooler = connectionString.includes('pgbouncer=true');
+
+const finalConnectionString = useSessionPooler
+  ? connectionString.replace(':6543/', ':5432/').replace('?pgbouncer=true', '')
+  : connectionString;
+
+console.log('[Prisma Setup] Using connection:', {
+  port: finalConnectionString.includes(':5432') ? '5432 (Session)' : '6543 (Transaction)',
 });
+
+const pool = new pg.Pool({
+  connectionString: finalConnectionString,
+  max: 1, // Vercel serverless needs minimal connections
+});
+
 const adapter = new PrismaPg(pool);
 
 const prismaClient = globalThis.prisma ??
