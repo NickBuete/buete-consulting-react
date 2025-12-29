@@ -60,8 +60,8 @@ pool.on('error', (err) => {
   console.error('[Prisma Setup] Pool error:', err);
 });
 
-pool.on('connect', (client) => {
-  console.log('[Prisma Setup] Pool connected successfully to:', client.host, client.port);
+pool.on('connect', () => {
+  console.log('[Prisma Setup] Pool connected successfully');
 });
 
 // Test the pool connection immediately
