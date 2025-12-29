@@ -71,16 +71,27 @@ pool.query('SELECT 1').then(() => {
   console.error('[Prisma Setup] Pool test query failed:', err);
 });
 
-const adapter = new PrismaPg(pool);
+let adapter;
+let prismaClient;
 
-const prismaClient = globalThis.prisma ??
-  new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  });
+try {
+  adapter = new PrismaPg(pool);
+  console.log('[Prisma Setup] PrismaPg adapter created successfully');
 
-if (process.env.NODE_ENV !== 'production') {
+  prismaClient = globalThis.prisma ??
+    new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
+
+  console.log('[Prisma Setup] PrismaClient created successfully with adapter');
+} catch (error) {
+  console.error('[Prisma Setup] Error creating Prisma client with adapter:', error);
+  throw error;
+}
+
+if (process.env.NODE_ENV !== 'production' && prismaClient) {
   globalThis.prisma = prismaClient;
 }
 
-export const prisma = prismaClient;
+export const prisma = prismaClient!;
