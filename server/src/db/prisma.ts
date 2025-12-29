@@ -15,22 +15,37 @@ console.log('[Prisma Setup] DATABASE_URL:', {
   isString: typeof process.env.DATABASE_URL === 'string',
 });
 
-// Try Session Pooler instead of Transaction Pooler
-// Session pooler (port 5432) has better compatibility with Prisma
+// Use Session Pooler (port 5432) for Supabase with Vercel
+// Remove pgbouncer parameter and ensure we're using session pooler
 const connectionString = process.env.DATABASE_URL || '';
-const useSessionPooler = connectionString.includes('pgbouncer=true');
 
-const finalConnectionString = useSessionPooler
-  ? connectionString.replace(':6543/', ':5432/').replace('?pgbouncer=true', '')
-  : connectionString;
+// Force Session Pooler by replacing port 6543 with 5432 and removing pgbouncer param
+const finalConnectionString = connectionString
+  .replace(':6543/', ':5432/')
+  .replace('?pgbouncer=true', '')
+  .replace('&pgbouncer=true', '');
 
-console.log('[Prisma Setup] Using connection:', {
-  port: finalConnectionString.includes(':5432') ? '5432 (Session)' : '6543 (Transaction)',
+console.log('[Prisma Setup] Connection config:', {
+  hasConnectionString: !!connectionString,
+  originalPort: connectionString.match(/:(\d+)\//)?.[1] || 'unknown',
+  finalPort: finalConnectionString.match(/:(\d+)\//)?.[1] || 'unknown',
+  length: finalConnectionString.length,
 });
 
 const pool = new pg.Pool({
   connectionString: finalConnectionString,
   max: 1, // Vercel serverless needs minimal connections
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+// Add error logging for pool
+pool.on('error', (err) => {
+  console.error('[Prisma Setup] Pool error:', err);
+});
+
+pool.on('connect', () => {
+  console.log('[Prisma Setup] Pool connected successfully');
 });
 
 const adapter = new PrismaPg(pool);
