@@ -41,11 +41,12 @@ console.log('[Prisma Setup] Connection config:', {
   hasPassword: !!password,
 });
 
-// Rebuild connection string with explicit SSL
-const poolConnectionString = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=require`;
+// Rebuild connection string with explicit SSL and connection timeouts
+// Add timeouts to handle Supabase pooler cold starts
+const poolConnectionString = `postgresql://${user}:${password}@${host}:${port}/${database}?connect_timeout=20&pool_timeout=20&sslmode=require`;
 
 console.log('[Prisma Setup] Reconstructed connection string:', {
-  format: `postgresql://${user}:***@${host}:${port}/${database}?sslmode=require`,
+  format: `postgresql://${user}:***@${host}:${port}/${database}?connect_timeout=20&pool_timeout=20&sslmode=require`,
 });
 
 const pool = new pg.Pool({
