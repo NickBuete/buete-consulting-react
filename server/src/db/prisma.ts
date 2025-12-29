@@ -65,12 +65,15 @@ pool.on('connect', () => {
   console.log('[Prisma Setup] Pool connected successfully');
 });
 
-// Test the pool connection immediately
-pool.query('SELECT 1').then(() => {
-  console.log('[Prisma Setup] Pool test query successful');
-}).catch((err) => {
-  console.error('[Prisma Setup] Pool test query failed:', err);
-});
+// Test the pool connection immediately to verify it works
+(async () => {
+  try {
+    await pool.query('SELECT 1');
+    console.log('[Prisma Setup] Pool test query successful - pool is working');
+  } catch (err) {
+    console.error('[Prisma Setup] Pool test query failed - pool cannot connect:', err);
+  }
+})();
 
 let adapter;
 let prismaClient;
@@ -82,7 +85,7 @@ try {
   prismaClient = globalThis.prisma ??
     new PrismaClient({
       adapter,
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      log: ['query', 'error', 'warn'], // Enable query logging to see what Prisma is doing
     });
 
   console.log('[Prisma Setup] PrismaClient created successfully with adapter');
