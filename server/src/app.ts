@@ -45,7 +45,11 @@ export const createApp = () => {
   )
 
   // CORS configuration
-  const allowedOrigins = ['http://localhost:3000', env.allowedOrigins].filter(
+  // Split comma-separated ALLOWED_ORIGINS into array
+  const envOrigins = env.allowedOrigins
+    ? env.allowedOrigins.split(',').map(o => o.trim())
+    : []
+  const allowedOrigins = ['http://localhost:3000', ...envOrigins].filter(
     Boolean
   )
 
