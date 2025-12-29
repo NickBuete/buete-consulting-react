@@ -16,7 +16,7 @@ console.log('[Prisma Setup] DATABASE_URL:', {
 });
 
 // Use Session Pooler (port 5432) for Supabase with Vercel
-// Remove pgbouncer parameter and ensure we're using session pooler
+// Parse connection string explicitly to avoid pg.Pool parsing issues
 const connectionString = process.env.DATABASE_URL || '';
 
 // Force Session Pooler by replacing port 6543 with 5432 and removing pgbouncer param
@@ -25,18 +25,32 @@ const finalConnectionString = connectionString
   .replace('?pgbouncer=true', '')
   .replace('&pgbouncer=true', '');
 
+// Parse the connection string to extract components
+const urlMatch = finalConnectionString.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+if (!urlMatch) {
+  throw new Error('Invalid DATABASE_URL format');
+}
+
+const [, user, password, host, port, database] = urlMatch;
+
 console.log('[Prisma Setup] Connection config:', {
-  hasConnectionString: !!connectionString,
-  originalPort: connectionString.match(/:(\d+)\//)?.[1] || 'unknown',
-  finalPort: finalConnectionString.match(/:(\d+)\//)?.[1] || 'unknown',
-  length: finalConnectionString.length,
+  host,
+  port,
+  database,
+  user,
+  hasPassword: !!password,
 });
 
 const pool = new pg.Pool({
-  connectionString: finalConnectionString,
+  host,
+  port: parseInt(port, 10),
+  database,
+  user,
+  password,
   max: 1, // Vercel serverless needs minimal connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
+  ssl: { rejectUnauthorized: false }, // Required for Supabase
 });
 
 // Add error logging for pool
