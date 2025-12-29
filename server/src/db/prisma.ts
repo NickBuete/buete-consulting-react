@@ -43,7 +43,7 @@ console.log('[Prisma Setup] Connection config:', {
 
 const pool = new pg.Pool({
   host,
-  port: parseInt(port, 10),
+  port: parseInt(port || '5432', 10),
   database,
   user,
   password,
