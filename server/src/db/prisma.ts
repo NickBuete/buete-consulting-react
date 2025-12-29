@@ -15,14 +15,13 @@ console.log('[Prisma Setup] DATABASE_URL:', {
   isString: typeof process.env.DATABASE_URL === 'string',
 });
 
-// Configure pg.Pool with prepared statements disabled for PgBouncer compatibility
+// Configure pg.Pool for PgBouncer compatibility
+// The ?pgbouncer=true parameter in DATABASE_URL disables prepared statements
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  // Disable prepared statements for Transaction Pooler mode
-  // @ts-ignore - This option exists in pg but types may not reflect it
-  statement_timeout: 0,
+  max: 10, // Connection pool size
 });
-const adapter = new PrismaPg(pool, { prepareStatements: false });
+const adapter = new PrismaPg(pool);
 
 const prismaClient = globalThis.prisma ??
   new PrismaClient({
