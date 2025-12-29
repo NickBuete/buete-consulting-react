@@ -1,6 +1,6 @@
 # Buete Consulting - Project Enhancement Roadmap
 
-**Last Updated:** 2025-12-27
+**Last Updated:** 2025-12-29
 **Project Goal:** Transform into a best-in-class pharmacy consulting platform
 
 ---
@@ -58,8 +58,13 @@ A comprehensive platform for pharmacy consultants that:
 
 #### Pharmacy Tools
 - [x] Creatinine Clearance Calculator (Cockcroft-Gault)
+- [x] BSA Calculator (DuBois & Mosteller formulas)
 - [x] Unit & Concentration Converter
-- [x] Opioid MME Calculator
+- [x] Opioid MME Calculator (12 formulations)
+- [x] Breakthrough Pain Dose Calculator
+- [x] Morphine to Fentanyl Patch Converter
+- [x] Oral to Subcutaneous Opioid Converter
+- [x] Methadone Route Converter
 - [x] Variable Dose Planner (warfarin, tapering)
 - [x] Quick Reference Library (10+ Australian resources)
   - [x] SUSMP (Poisons Standard)
@@ -96,10 +101,11 @@ A comprehensive platform for pharmacy consultants that:
 ### ❌ **Missing Critical Features**
 
 #### HMR Workflow Gaps
-- [ ] Calendar integration (Microsoft/Office 365)
-- [ ] External booking page for referrers
-- [ ] SMS reminder system (24hr before appointment)
-- [ ] Patient pre-appointment checklist webpage
+- [x] Calendar integration (Microsoft/Office 365)
+- [x] External booking page for referrers (backend complete)
+- [x] SMS reminder system (24hr before appointment)
+- [x] SMS reply notifications via email
+- [ ] Patient pre-appointment checklist webpage (backend ready)
 - [ ] Email notifications (confirmations, reminders)
 - [ ] E-signature capture for consent
 - [ ] Voice recording during interviews
@@ -171,13 +177,18 @@ A comprehensive platform for pharmacy consultants that:
 - ✅ Booking settings management
 - ✅ Custom booking URL slugs
 
-##### 1.3 SMS Reminder System ✅
+##### 1.3 SMS Reminder & Reply System ✅
 - ✅ Twilio account setup & configuration
 - ✅ SMS service abstraction layer implemented
-- ✅ SMS delivery status tracking (sms_logs table)
+- ✅ SMS delivery status tracking (sms_logs table with message types)
 - ✅ Phone number validation (Australian format)
 - ✅ SMS templates (reminder, confirmation, cancellation)
-- ⏳ Scheduled job for 24hr reminders (Phase 2 - frontend trigger needed)
+- ✅ Automated 24hr reminder scheduler (node-cron, runs daily 9 AM AEST)
+- ✅ Duplicate reminder prevention (reminderSentAt tracking)
+- ✅ SMS reply webhook endpoint (/api/sms/webhook)
+- ✅ Email notifications when patients reply
+- ✅ Reply logging and patient association
+- ✅ Alpha Sender ID support (configurable)
 
 ##### 1.4 Patient Pre-Appointment Checklist Backend ✅
 - ✅ Secure token storage (checklist_tokens table)
@@ -265,7 +276,6 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Token validation and expiry check
 - [ ] Checklist content display
   - [ ] What to prepare section
-  - [ ] What to bring section
   - [ ] What to expect section
   - [ ] Appointment details display
 - [ ] Confirmation button
@@ -301,14 +311,15 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Error handling for expired tokens
 - [ ] Auto-refresh token UI feedback
 
-##### 2.6 Automated Reminder Scheduling
-- [ ] Create cron job / scheduled task
-  - [ ] Check appointments 24hrs ahead
-  - [ ] Generate checklist token
-  - [ ] Send SMS with checklist link
-  - [ ] Log SMS delivery
-- [ ] Manual reminder trigger UI (optional)
-- [ ] Reminder settings configuration
+##### 2.6 Automated Reminder Scheduling ✅
+- [x] Create cron job / scheduled task
+  - [x] Check appointments 24hrs ahead
+  - [x] Generate checklist token
+  - [x] Send SMS with checklist link
+  - [x] Log SMS delivery
+- [x] Manual reminder trigger (via test script)
+- [ ] Admin UI for reminder logs/history
+- [ ] Reminder settings configuration (timing, templates)
 
 **Success Criteria:**
 - [ ] Referrers can book appointments via public link
@@ -316,7 +327,8 @@ A comprehensive platform for pharmacy consultants that:
 - [ ] Patients can access checklist via SMS link
 - [ ] HMR reports can be generated with AI from UI
 - [ ] Users can connect/disconnect Microsoft calendar
-- [ ] Automated SMS reminders sent 24hrs before appointments
+- [x] Automated SMS reminders sent 24hrs before appointments
+- [x] Patient SMS replies trigger email notifications
 
 ---
 
@@ -590,11 +602,12 @@ A comprehensive platform for pharmacy consultants that:
 7. Scalable for multi-pharmacist teams
 
 ### Open Questions
-- [ ] Which SMS provider? (Twilio vs AWS SNS vs local AU provider)
+- [x] Which SMS provider? **RESOLVED:** Twilio (configured and working)
 - [ ] Which storage provider? (S3 vs Cloudflare R2 vs Supabase)
 - [ ] OCR for medication photos worth it?
 - [ ] Drug interaction API - which provider?
 - [ ] Payment gateway for invoicing? (Stripe, PayPal)
+- [ ] Alpha Sender ID registration for "HMR Service" branding?
 
 ---
 
@@ -604,4 +617,5 @@ A comprehensive platform for pharmacy consultants that:
 |------------|---------|--------------------------------------------------|
 | 2025-12-27 | 1.0     | Initial roadmap created                          |
 | 2025-12-27 | 2.0     | Phase 1 backend complete, phases reorganized     |
+| 2025-12-29 | 2.1     | SMS reminder & reply system complete, pain mgmt calculators added |
 
