@@ -41,16 +41,18 @@ console.log('[Prisma Setup] Connection config:', {
   hasPassword: !!password,
 });
 
+// Rebuild connection string with explicit SSL
+const poolConnectionString = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=require`;
+
+console.log('[Prisma Setup] Reconstructed connection string:', {
+  format: `postgresql://${user}:***@${host}:${port}/${database}?sslmode=require`,
+});
+
 const pool = new pg.Pool({
-  host,
-  port: parseInt(port || '5432', 10),
-  database,
-  user,
-  password,
-  max: 1, // Vercel serverless needs minimal connections
+  connectionString: poolConnectionString,
+  max: 1,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  ssl: { rejectUnauthorized: false }, // Required for Supabase
 });
 
 // Add error logging for pool
@@ -58,8 +60,15 @@ pool.on('error', (err) => {
   console.error('[Prisma Setup] Pool error:', err);
 });
 
-pool.on('connect', () => {
-  console.log('[Prisma Setup] Pool connected successfully');
+pool.on('connect', (client) => {
+  console.log('[Prisma Setup] Pool connected successfully to:', client.host, client.port);
+});
+
+// Test the pool connection immediately
+pool.query('SELECT 1').then(() => {
+  console.log('[Prisma Setup] Pool test query successful');
+}).catch((err) => {
+  console.error('[Prisma Setup] Pool test query failed:', err);
 });
 
 const adapter = new PrismaPg(pool);
