@@ -1,4 +1,4 @@
-import { api, SERVER_BASE_URL } from './api';
+import { api } from './api';
 
 export interface CalendarStatus {
   connected: boolean;
@@ -7,7 +7,15 @@ export interface CalendarStatus {
   autoSync?: boolean;
 }
 
-export const getMicrosoftLoginUrl = () => `${SERVER_BASE_URL}/api/auth/microsoft/login`;
+export interface MicrosoftLoginResponse {
+  authUrl: string;
+  message: string;
+}
+
+export const getMicrosoftLoginUrl = async () => {
+  const response = await api.get<MicrosoftLoginResponse>('/auth/microsoft/login');
+  return response.authUrl;
+};
 
 export const getMicrosoftCalendarStatus = async () => {
   const response = await api.get<CalendarStatus>('/auth/microsoft/status');

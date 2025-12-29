@@ -50,18 +50,8 @@ export const CalendarConnectionCard: React.FC = () => {
   const handleConnect = async () => {
     try {
       setError(null);
-      const response = await fetch(getMicrosoftLoginUrl(), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get Microsoft login URL');
-      }
-
-      const data = await response.json();
-      window.location.href = data.authUrl;
+      const authUrl = await getMicrosoftLoginUrl();
+      window.location.href = authUrl;
     } catch (err) {
       console.error('Microsoft connection error:', err);
       setError(err instanceof Error ? err.message : 'Failed to initiate Microsoft connection');
