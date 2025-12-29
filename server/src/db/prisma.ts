@@ -53,7 +53,7 @@ const pool = new pg.Pool({
   connectionString: poolConnectionString,
   max: 1,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 0, // No timeout - let the connection string timeout params handle it
 });
 
 // Add error logging for pool
