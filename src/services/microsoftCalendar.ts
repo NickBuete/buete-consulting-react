@@ -25,11 +25,3 @@ export const getMicrosoftCalendarStatus = async () => {
 export const disconnectMicrosoftCalendar = async () => {
   await api.post<void>('/auth/microsoft/disconnect');
 };
-
-export const syncMicrosoftCalendar = async () => {
-  await api.post<void>('/auth/microsoft/sync');
-};
-
-export const updateMicrosoftAutoSync = async (autoSync: boolean) => {
-  await api.patch<void>('/auth/microsoft/auto-sync', { autoSync });
-};

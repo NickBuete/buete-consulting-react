@@ -61,6 +61,7 @@ export class GraphService {
       `&redirect_uri=${encodeURIComponent(this.config.redirectUri)}` +
       `&scope=${encodeURIComponent(scopes.join(' '))}` +
       `&response_mode=query` +
+      `&prompt=select_account` +
       (state ? `&state=${encodeURIComponent(state)}` : '');
   }
 

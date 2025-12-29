@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
-import { CheckCircle, XCircle, Loader2, Calendar, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, Calendar } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +16,6 @@ import {
   disconnectMicrosoftCalendar,
   getMicrosoftCalendarStatus,
   getMicrosoftLoginUrl,
-  syncMicrosoftCalendar,
-  updateMicrosoftAutoSync,
 } from '../../services/microsoftCalendar';
 
 export const CalendarConnectionCard: React.FC = () => {
@@ -26,7 +24,6 @@ export const CalendarConnectionCard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchCalendarStatus();
@@ -71,47 +68,6 @@ export const CalendarConnectionCard: React.FC = () => {
     } finally {
       setDisconnecting(false);
     }
-  };
-
-  const handleSyncNow = async () => {
-    try {
-      setSyncing(true);
-      setError(null);
-      await syncMicrosoftCalendar();
-      await fetchCalendarStatus();
-    } catch (err) {
-      console.error('Error syncing calendar:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sync calendar');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const toggleAutoSync = async () => {
-    if (!status) return;
-
-    try {
-      await updateMicrosoftAutoSync(!status.autoSync);
-      await fetchCalendarStatus();
-    } catch (err) {
-      console.error('Error toggling auto-sync:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update auto-sync setting');
-    }
-  };
-
-  const formatLastSync = (lastSync?: string) => {
-    if (!lastSync) return 'Never';
-    const date = new Date(lastSync);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
   if (loading) {
@@ -186,73 +142,19 @@ export const CalendarConnectionCard: React.FC = () => {
             )}
           </div>
 
-          {/* Calendar Settings (only show when connected) */}
+          {/* Calendar Info (only show when connected) */}
           {status?.connected && (
-            <>
-              <div className="space-y-3 p-4 border rounded-lg">
-                <h4 className="font-medium text-gray-900">Sync Settings</h4>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium">Last Synced</div>
-                    <div className="text-xs text-gray-600">
-                      {formatLastSync(status.lastSync)}
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSyncNow}
-                    disabled={syncing}
-                  >
-                    {syncing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Syncing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Sync Now
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t">
-                  <div>
-                    <div className="text-sm font-medium">Automatic Sync</div>
-                    <div className="text-xs text-gray-600">
-                      Sync appointments automatically when created
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleAutoSync}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      status.autoSync ? 'bg-blue-600' : 'bg-gray-200'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        status.autoSync ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">
-                  How Calendar Sync Works
-                </h4>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• New bookings are automatically added to your calendar</li>
-                  <li>• Appointments appear in your default Outlook calendar</li>
-                  <li>• Cancellations will remove events from your calendar</li>
-                  <li>• Updates sync changes to existing calendar events</li>
-                </ul>
-              </div>
-            </>
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">
+                How Calendar Sync Works
+              </h4>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>• New bookings are automatically added to your calendar</li>
+                <li>• Appointments appear in your default Outlook calendar</li>
+                <li>• Cancellations will remove events from your calendar</li>
+                <li>• Updates sync changes to existing calendar events</li>
+              </ul>
+            </div>
           )}
         </CardContent>
       </Card>
