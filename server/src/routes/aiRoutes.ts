@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth'
 import { aiLimiter } from '../middleware/rateLimiter'
 import { aiLogger } from '../utils/logger'
 import { prisma } from '../db/prisma'
+import { withCache } from '../utils/requestCache'
 
 const router = Router()
 
@@ -64,21 +65,29 @@ router.post(
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
-      const recommendations = await openaiService.generateHmrRecommendations({
-        medications: (review as any).medications.map((med: any) => ({
-          name: med.name,
-          ...(med.dose && { dose: med.dose }),
-          ...(med.frequency && { frequency: med.frequency }),
-          ...(med.indication && { indication: med.indication }),
-        })),
-        symptoms: allSymptoms,
-        ...(review.pastMedicalHistory && {
-          medicalHistory: review.pastMedicalHistory,
+      // Cache AI recommendations for 24 hours to avoid duplicate OpenAI calls
+      // Cache key includes review ID and updated_at timestamp to invalidate on changes
+      const cacheKey = `ai:recommendations:${reviewId}:${review.updatedAt.getTime()}`
+
+      const recommendations = await withCache(
+        cacheKey,
+        () => openaiService.generateHmrRecommendations({
+          medications: (review as any).medications.map((med: any) => ({
+            name: med.name,
+            ...(med.dose && { dose: med.dose }),
+            ...(med.frequency && { frequency: med.frequency }),
+            ...(med.indication && { indication: med.indication }),
+          })),
+          symptoms: allSymptoms,
+          ...(review.pastMedicalHistory && {
+            medicalHistory: review.pastMedicalHistory,
+          }),
+          ...(review.allergies && { allergies: review.allergies }),
+          ...(patientAge && { age: patientAge }),
+          ...(review.medicalGoals && { goals: review.medicalGoals }),
         }),
-        ...(review.allergies && { allergies: review.allergies }),
-        ...(patientAge && { age: patientAge }),
-        ...(review.medicalGoals && { goals: review.medicalGoals }),
-      })
+        24 * 60 * 60 * 1000 // 24 hours cache
+      )
 
       res.json({ recommendations })
     } catch (error) {
@@ -143,20 +152,27 @@ router.post(
 
       const allSymptoms = [...symptoms, ...textSymptoms]
 
-      const summary = await openaiService.generateAssessmentSummary({
-        name: patientName,
-        medications: (review as any).medications.map((med: any) => ({
-          name: med.name,
-          ...(med.dose && { dose: med.dose }),
-          ...(med.frequency && { frequency: med.frequency }),
-        })),
-        symptoms: allSymptoms,
-        ...(review.medicalGoals && { goals: review.medicalGoals }),
-        ...(review.goalBarriers && { barriers: review.goalBarriers }),
-        ...(review.livingArrangement && {
-          livingArrangement: review.livingArrangement,
+      // Cache AI summary for 24 hours
+      const cacheKey = `ai:summary:${reviewId}:${review.updatedAt.getTime()}`
+
+      const summary = await withCache(
+        cacheKey,
+        () => openaiService.generateAssessmentSummary({
+          name: patientName,
+          medications: (review as any).medications.map((med: any) => ({
+            name: med.name,
+            ...(med.dose && { dose: med.dose }),
+            ...(med.frequency && { frequency: med.frequency }),
+          })),
+          symptoms: allSymptoms,
+          ...(review.medicalGoals && { goals: review.medicalGoals }),
+          ...(review.goalBarriers && { barriers: review.goalBarriers }),
+          ...(review.livingArrangement && {
+            livingArrangement: review.livingArrangement,
+          }),
         }),
-      })
+        24 * 60 * 60 * 1000 // 24 hours cache
+      )
 
       res.json({ summary })
     } catch (error) {
@@ -207,10 +223,19 @@ Medical History: ${review.pastMedicalHistory || 'Not provided'}`
         }
       }
 
-      const enhanced = await openaiService.enhanceReportSection(
-        sectionTitle,
-        content,
-        context
+      // Cache enhancements for 7 days based on content hash
+      // Simple hash: combine section + content for cache key
+      const contentHash = Buffer.from(`${sectionTitle}:${content}:${context}`).toString('base64').slice(0, 32)
+      const cacheKey = `ai:enhance:${contentHash}`
+
+      const enhanced = await withCache(
+        cacheKey,
+        () => openaiService.enhanceReportSection(
+          sectionTitle,
+          content,
+          context
+        ),
+        7 * 24 * 60 * 60 * 1000 // 7 days cache
       )
 
       res.json({ enhanced })
