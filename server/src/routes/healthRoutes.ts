@@ -9,6 +9,11 @@ const router = Router()
  * Returns 200 if service is healthy, 503 if unhealthy
  */
 router.get('/health', async (req: Request, res: Response) => {
+  // Debug: Parse DATABASE_URL to see what host is being used
+  const url = process.env.DATABASE_URL || ''
+  const host = url.split('@')[1]?.split(':')[0] ?? 'missing'
+  const hasDbUrl = Boolean(process.env.DATABASE_URL)
+
   try {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`
@@ -20,6 +25,10 @@ router.get('/health', async (req: Request, res: Response) => {
       environment: process.env.NODE_ENV || 'development',
       version: process.env.npm_package_version || 'unknown',
       database: 'connected',
+      debug: {
+        hasDbUrl,
+        host,
+      },
     }
 
     res.status(200).json(healthCheck)
@@ -30,6 +39,10 @@ router.get('/health', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       error: 'Database connection failed',
       database: 'disconnected',
+      debug: {
+        hasDbUrl,
+        host,
+      },
     })
   }
 })
