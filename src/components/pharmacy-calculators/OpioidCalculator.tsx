@@ -26,7 +26,7 @@ const opioidFactors: Record<string, { label: string; factor: number }> = {
   tramadol: { label: "Tramadol (oral)", factor: 0.1 },
   codeine: { label: "Codeine (oral)", factor: 0.15 },
   tapentadol: { label: "Tapentadol (oral)", factor: 0.35 },
-  buprenorphine_patch: { label: "Buprenorphine patch (mcg/hr)", factor: 12.6 },
+  buprenorphine_patch: { label: "Buprenorphine patch (mcg/hr)", factor: 2.4 },
 };
 
 export const OpioidCalculator: React.FC = () => {

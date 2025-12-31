@@ -244,7 +244,7 @@ Loading = 25-30 mg/kg (actual body weight)
 | Tramadol | Oral | 0.1 |
 | Codeine | Oral | 0.15 |
 | Tapentadol | Oral | 0.3-0.4 |
-| Buprenorphine | Patch (microgram/hr) | 12.6 (per microgram/hr) |
+| Buprenorphine | Patch (microgram/hr) | 2.4 (per microgram/hr) |
 | Methadone | Oral | Variable (1-20)* |
 
 *Methadone conversion is complex and dose-dependent. Specialist consultation recommended.
