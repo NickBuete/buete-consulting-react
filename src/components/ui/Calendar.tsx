@@ -23,8 +23,8 @@ export const Calendar: React.FC<CalendarProps> = ({
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart);
-  const endDate = endOfWeek(monthEnd);
+  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // 1 = Monday
+  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
   const dateFormat = 'MMMM yyyy';
   const days = [];
