@@ -37,6 +37,7 @@ import {
 const router = express.Router();
 
 // Configure multer for memory storage (file will be in req.file.buffer)
+// Make it optional - only process if Content-Type is multipart/form-data
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -50,6 +51,16 @@ const upload = multer({
     }
   },
 });
+
+// Optional upload middleware - only applies if multipart/form-data
+const optionalUpload = (req: any, res: any, next: any) => {
+  const contentType = req.get('Content-Type') || '';
+  if (contentType.includes('multipart/form-data')) {
+    upload.single('referralDocument')(req, res, next);
+  } else {
+    next();
+  }
+};
 
 // ========================================
 // Availability Slots Management
@@ -280,13 +291,15 @@ router.get(
  */
 router.post(
   '/public/:bookingUrl',
-  upload.single('referralDocument'), // Handle optional file upload
+  optionalUpload, // Handle optional file upload only if multipart/form-data
   asyncHandler(async (req, res) => {
     const bookingUrl = req.params.bookingUrl;
     if (!bookingUrl) {
       return res.status(400).json({ message: 'Booking URL is required' });
     }
 
+    // When using FormData (file upload), multer doesn't parse JSON body
+    // Use regular body-parser which was already parsed
     const validated = publicBookingSchema.parse(req.body);
 
     try {
