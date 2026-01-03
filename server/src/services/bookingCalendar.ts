@@ -74,6 +74,7 @@ export const createBookingCalendarEvent = async (params: {
 }) => {
   const accessToken = await ensureMicrosoftAccessToken(params.user);
   if (!accessToken) {
+    console.error('[Calendar] No access token available for user', params.user.id);
     return null;
   }
 
@@ -110,7 +111,16 @@ export const createBookingCalendarEvent = async (params: {
     eventParams.location = params.location;
   }
 
+  console.log('[Calendar] Creating calendar event:', {
+    subject: eventParams.subject,
+    start: eventParams.startDateTime,
+    end: eventParams.endDateTime,
+    hasAttendees: !!eventParams.attendees,
+  });
+
   const eventId = await graphService.createCalendarEvent(accessToken, eventParams);
+
+  console.log('[Calendar] Event created with ID:', eventId);
 
   return eventId;
 };

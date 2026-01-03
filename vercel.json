@@ -15,11 +15,11 @@
   ],
   "headers": [
     {
-      "source": "/api/booking/public/(.*)",
+      "source": "/api/booking/public/:bookingUrl",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "s-maxage=300, stale-while-revalidate=600"
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     },

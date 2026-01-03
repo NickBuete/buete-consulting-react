@@ -156,6 +156,12 @@ export const createPublicBooking = async (
   let calendarEventId: string | null = null;
   if (settings.user.calendarSyncEnabled && settings.user.microsoftAccessToken) {
     try {
+      logger.info({
+        reviewId: review.id,
+        userId: settings.user.id,
+        hasToken: !!settings.user.microsoftAccessToken
+      }, 'Attempting to create calendar event');
+
       calendarEventId = await createBookingCalendarEvent({
         user: settings.user,
         patientName: `${patient.firstName} ${patient.lastName}`,
@@ -172,12 +178,25 @@ export const createPublicBooking = async (
           where: { id: review.id },
           data: { calendarEventId },
         });
-        logger.info(`Calendar event created: ${calendarEventId}`);
+        logger.info({ reviewId: review.id, calendarEventId }, 'Calendar event created successfully');
+      } else {
+        logger.warn({ reviewId: review.id }, 'Calendar event creation returned null');
       }
     } catch (error) {
-      logger.error({ err: error }, 'Failed to create calendar event');
+      logger.error({
+        err: error,
+        reviewId: review.id,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined
+      }, 'Failed to create calendar event');
       // Continue anyway - booking is still valid
     }
+  } else {
+    logger.info({
+      reviewId: review.id,
+      calendarSyncEnabled: settings.user.calendarSyncEnabled,
+      hasAccessToken: !!settings.user.microsoftAccessToken
+    }, 'Calendar sync not attempted - disabled or no token');
   }
 
   // Generate reschedule token for public bookings
