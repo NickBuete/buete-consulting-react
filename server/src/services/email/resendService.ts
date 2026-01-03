@@ -61,7 +61,7 @@ class ResendService {
       const rescheduleUrl = `${this.baseUrl}/reschedule?token=${params.rescheduleToken}`;
 
       await this.resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@bueteconsulting.au',
+        from: process.env.RESEND_FROM_EMAIL || 'noreply@send.bueteconsulting.au',
         to: params.patientEmail,
         subject: 'Your HMR Appointment Confirmation',
         react: null as any, // We're using a template
@@ -176,7 +176,7 @@ class ResendService {
       `;
 
       const emailData: any = {
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@bueteconsulting.au',
+        from: process.env.RESEND_FROM_EMAIL || 'noreply@send.bueteconsulting.au',
         to: params.pharmacistEmail,
         subject: `New Booking: ${params.patientName} - ${params.appointmentTime}`,
         html,
