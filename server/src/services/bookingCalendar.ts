@@ -34,29 +34,55 @@ const buildBookingEventBody = (params: {
 };
 
 export const ensureMicrosoftAccessToken = async (user: CalendarUser) => {
-  if (!user.calendarSyncEnabled || !user.microsoftAccessToken) {
+  if (!user.calendarSyncEnabled) {
+    console.log('[Calendar] Calendar sync disabled for user', user.id);
     return null;
   }
 
+  if (!user.microsoftAccessToken) {
+    console.log('[Calendar] No access token found for user', user.id);
+    return null;
+  }
+
+  // Check if token is expired
   if (user.microsoftTokenExpiry && new Date() >= user.microsoftTokenExpiry) {
+    console.log('[Calendar] Access token expired for user', user.id, {
+      expiry: user.microsoftTokenExpiry,
+      now: new Date(),
+    });
+
     if (!user.microsoftRefreshToken) {
+      console.error('[Calendar] No refresh token available for user', user.id);
       return null;
     }
 
-    const refreshed = await graphService.refreshAccessToken(user.microsoftRefreshToken);
+    try {
+      console.log('[Calendar] Attempting to refresh access token for user', user.id);
+      const refreshed = await graphService.refreshAccessToken(user.microsoftRefreshToken);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        microsoftAccessToken: refreshed.accessToken,
-        microsoftRefreshToken: refreshed.refreshToken,
-        microsoftTokenExpiry: new Date(Date.now() + refreshed.expiresIn * 1000),
-      },
-    });
+      const newExpiry = new Date(Date.now() + refreshed.expiresIn * 1000);
 
-    return refreshed.accessToken;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          microsoftAccessToken: refreshed.accessToken,
+          microsoftRefreshToken: refreshed.refreshToken,
+          microsoftTokenExpiry: newExpiry,
+        },
+      });
+
+      console.log('[Calendar] Token refreshed successfully for user', user.id, {
+        newExpiry,
+      });
+
+      return refreshed.accessToken;
+    } catch (error) {
+      console.error('[Calendar] Failed to refresh token for user', user.id, error);
+      return null;
+    }
   }
 
+  console.log('[Calendar] Using existing valid access token for user', user.id);
   return user.microsoftAccessToken;
 };
 
