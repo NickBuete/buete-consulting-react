@@ -9,3 +9,8 @@ export { MethadoneConverter } from './MethadoneConverter';
 export { CreatinineCalculator } from './CreatinineCalculator';
 export { UnitConverter } from './UnitConverter';
 export { BSACalculator } from './BSACalculator';
+
+// Pediatric Calculators
+export { PediatricBSACalculator } from './PediatricBSACalculator';
+export { PediatricDoseCalculator } from './PediatricDoseCalculator';
+export { DoseScheduler } from './DoseScheduler';

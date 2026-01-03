@@ -136,6 +136,29 @@ const PharmacyToolsPage: React.FC = () => {
                 </p>
               </CardContent>
             </Card>
+            <Card className="md:col-span-2 bg-gradient-to-r from-green-50 to-teal-50 border-green-200">
+              <CardHeader>
+                <CardTitle className="font-heading flex items-center gap-3">
+                  <span className="text-2xl">👶</span>
+                  Pediatric Dosing Tools
+                </CardTitle>
+                <CardDescription className="font-body">
+                  Weight-based dose calculators and schedulers for paediatric patients. Includes BSA calculations,
+                  paracetamol and ibuprofen dose calculators, and printable daily dose timetables for parents.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to={ROUTES.PEDIATRIC_TOOLS}>
+                  <Button size="lg" className="gap-2">
+                    Open Pediatric Tools →
+                  </Button>
+                </Link>
+                <p className="mt-4 text-sm text-gray-600 font-body">
+                  <strong>Includes:</strong> Body surface area calculator, paracetamol/ibuprofen dose calculator,
+                  and daily dose scheduler with 4-hour (paracetamol) and 6-hour (ibuprofen) intervals.
+                </p>
+              </CardContent>
+            </Card>
             <CreatinineCalculator />
             <UnitConverter />
             <BSACalculator />
