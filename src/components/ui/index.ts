@@ -56,3 +56,4 @@ export {
   FormMessage,
   FormDescription,
 } from './Form'
+export { Checkbox } from './Checkbox'

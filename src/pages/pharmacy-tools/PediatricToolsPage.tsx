@@ -4,6 +4,7 @@ import {
   PediatricBSACalculator,
   PediatricDoseCalculator,
   DoseScheduler,
+  PillSwallowingTrainer,
 } from "../../components/pharmacy-calculators";
 
 const PediatricToolsPage: React.FC = () => {
@@ -31,6 +32,9 @@ const PediatricToolsPage: React.FC = () => {
             <PediatricBSACalculator />
             <PediatricDoseCalculator />
             <DoseScheduler />
+            <div className="md:col-span-2">
+              <PillSwallowingTrainer />
+            </div>
 
             <Card className="md:col-span-2 bg-amber-50 border-amber-200">
               <CardHeader>

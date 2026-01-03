@@ -14,3 +14,4 @@ export { BSACalculator } from './BSACalculator';
 export { PediatricBSACalculator } from './PediatricBSACalculator';
 export { PediatricDoseCalculator } from './PediatricDoseCalculator';
 export { DoseScheduler } from './DoseScheduler';
+export { PillSwallowingTrainer } from './PillSwallowingTrainer';
