@@ -6,6 +6,7 @@
 
 import express from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 import { prisma } from '../db/prisma';
 import { asyncHandler } from './utils/asyncHandler';
 import { handlePrismaError } from '../middleware/prismaErrorHandler';
@@ -298,9 +299,20 @@ router.post(
       return res.status(400).json({ message: 'Booking URL is required' });
     }
 
-    // When using FormData (file upload), multer doesn't parse JSON body
-    // Use regular body-parser which was already parsed
-    const validated = publicBookingSchema.parse(req.body);
+    // Validate request body
+    let validated;
+    try {
+      validated = publicBookingSchema.parse(req.body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        logger.error({ validation: error.format(), body: req.body }, 'Validation failed');
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: error.format()
+        });
+      }
+      throw error;
+    }
 
     try {
       const result = await createPublicBooking(
