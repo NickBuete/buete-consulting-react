@@ -159,6 +159,29 @@ const PharmacyToolsPage: React.FC = () => {
                 </p>
               </CardContent>
             </Card>
+            <Card className="md:col-span-2 bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+              <CardHeader>
+                <CardTitle className="font-heading flex items-center gap-3">
+                  <span className="text-2xl">🎯</span>
+                  Learn to Swallow Tablets
+                </CardTitle>
+                <CardDescription className="font-body">
+                  Interactive, gamified training program for children learning to swallow tablets.
+                  Based on Royal Children's Hospital Melbourne evidence-based guidelines with 5 progressive levels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to={ROUTES.PILL_SWALLOWING}>
+                  <Button size="lg" className="gap-2">
+                    Open Tablet Swallowing Trainer →
+                  </Button>
+                </Link>
+                <p className="mt-4 text-sm text-gray-600 font-body">
+                  <strong>Features:</strong> Step-by-step progression from tiny lolly pieces to full capsules,
+                  visual size guides, personalized certificates, and fun encouragement messages. Perfect for kids aged 4+.
+                </p>
+              </CardContent>
+            </Card>
             <CreatinineCalculator />
             <UnitConverter />
             <BSACalculator />

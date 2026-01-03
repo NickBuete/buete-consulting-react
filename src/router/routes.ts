@@ -15,6 +15,7 @@ const PharmacyToolsPage = React.lazy(() => import('../pages/pharmacy-tools'))
 const DoseCalculatorPage = React.lazy(() => import('../pages/pharmacy-tools/DoseCalculatorPage'))
 const PainManagementPage = React.lazy(() => import('../pages/pharmacy-tools/PainManagementPage'))
 const PediatricToolsPage = React.lazy(() => import('../pages/pharmacy-tools/PediatricToolsPage'))
+const PillSwallowingPage = React.lazy(() => import('../pages/pharmacy-tools/PillSwallowingPage'))
 const HMRTemplatesPage = React.lazy(() => import('../pages/hmr-templates'))
 const HMRDashboardPage = React.lazy(() => import('../pages/hmr'))
 const HMRReviewDetailPage = React.lazy(() => import('../pages/hmr/detail'))
@@ -38,6 +39,7 @@ export const ROUTES = {
   DOSE_CALCULATOR: '/pharmacy-tools/dose-calculator',
   PAIN_MANAGEMENT: '/pharmacy-tools/pain-management',
   PEDIATRIC_TOOLS: '/pharmacy-tools/pediatric',
+  PILL_SWALLOWING: '/pharmacy-tools/pill-swallowing',
   HMR_TEMPLATES: '/hmr-templates',
   HMR_DASHBOARD: '/hmr',
   HMR_REVIEW_DETAIL: '/hmr/:id',
@@ -109,6 +111,12 @@ export const routes: RouteConfig[] = [
     path: ROUTES.PEDIATRIC_TOOLS,
     component: PediatricToolsPage,
     title: 'Pediatric Tools - Buete Consulting',
+    protected: false,
+  },
+  {
+    path: ROUTES.PILL_SWALLOWING,
+    component: PillSwallowingPage,
+    title: 'Tablet Swallowing Trainer - Buete Consulting',
     protected: false,
   },
   {

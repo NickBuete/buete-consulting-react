@@ -9,6 +9,7 @@ import {
   Label,
   Button,
 } from "../ui";
+import { PrintableDoseSchedule } from "./PrintableDoseSchedule";
 
 interface ScheduleEntry {
   time: string;
@@ -18,12 +19,15 @@ interface ScheduleEntry {
 
 export const DoseScheduler: React.FC = () => {
   const [weight, setWeight] = useState("");
-  const [firstDoseTime, setFirstDoseTime] = useState("08:00");
+  const [childName, setChildName] = useState("");
+  const [childAge, setChildAge] = useState("");
+  const [paracetamolFirstDose, setParacetamolFirstDose] = useState("08:00");
+  const [ibuprofenFirstDose, setIbuprofenFirstDose] = useState("08:00");
 
   const schedule = useMemo((): ScheduleEntry[] => {
     const weightValue = Number(weight);
 
-    if (!weightValue || weightValue <= 0 || !firstDoseTime) {
+    if (!weightValue || weightValue <= 0) {
       return [];
     }
 
@@ -31,38 +35,40 @@ export const DoseScheduler: React.FC = () => {
     const paracetamolDose = Math.min(weightValue * 15, 1000);
     const ibuprofenDose = Math.min(weightValue * 10, 400);
 
-    // Parse first dose time
-    const [hours, minutes] = firstDoseTime.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) {
-      return [];
-    }
-
     const entries: ScheduleEntry[] = [];
 
     // Helper function to add hours to time
-    const addHours = (hour: number, minute: number, hoursToAdd: number): string => {
-      let newHour = (hour + hoursToAdd) % 24;
-      return `${String(newHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    const addHours = (timeStr: string, hoursToAdd: number): string => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) {
+        return timeStr;
+      }
+      let newHour = (hours + hoursToAdd) % 24;
+      return `${String(newHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     };
 
     // Paracetamol: 4 doses at 4-hour intervals
-    for (let i = 0; i < 4; i++) {
-      const time = addHours(hours, minutes, i * 4);
-      entries.push({
-        time,
-        medication: 'Paracetamol',
-        dose: `${Math.round(paracetamolDose)} mg`,
-      });
+    if (paracetamolFirstDose) {
+      for (let i = 0; i < 4; i++) {
+        const time = addHours(paracetamolFirstDose, i * 4);
+        entries.push({
+          time,
+          medication: 'Paracetamol',
+          dose: `${Math.round(paracetamolDose)} mg`,
+        });
+      }
     }
 
     // Ibuprofen: 3 doses at 6-hour intervals
-    for (let i = 0; i < 3; i++) {
-      const time = addHours(hours, minutes, i * 6);
-      entries.push({
-        time,
-        medication: 'Ibuprofen',
-        dose: `${Math.round(ibuprofenDose)} mg`,
-      });
+    if (ibuprofenFirstDose) {
+      for (let i = 0; i < 3; i++) {
+        const time = addHours(ibuprofenFirstDose, i * 6);
+        entries.push({
+          time,
+          medication: 'Ibuprofen',
+          dose: `${Math.round(ibuprofenDose)} mg`,
+        });
+      }
     }
 
     // Sort by time
@@ -74,13 +80,72 @@ export const DoseScheduler: React.FC = () => {
       }
       return timeA[1] - timeB[1];
     });
-  }, [weight, firstDoseTime]);
+  }, [weight, paracetamolFirstDose, ibuprofenFirstDose]);
 
   const handlePrint = () => {
-    window.print();
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Get the printable schedule HTML
+    const printContent = document.getElementById('printable-dose-schedule');
+    if (!printContent) return;
+
+    // Write the HTML with styles
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Medication Schedule - ${childName || 'Patient'}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              margin: 0;
+            }
+            .print-only {
+              display: block;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 2px solid #000;
+              padding: 12px;
+              text-align: left;
+            }
+            th {
+              background-color: #f3f4f6;
+              font-weight: bold;
+            }
+            .text-center {
+              text-align: center;
+            }
+            @media print {
+              body {
+                padding: 10px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   return (
+    <>
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="font-heading flex items-center gap-3">
@@ -92,6 +157,30 @@ export const DoseScheduler: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="scheduler-child-name">Child's Name</Label>
+          <Input
+            id="scheduler-child-name"
+            type="text"
+            placeholder="e.g., Sarah"
+            value={childName}
+            onChange={(event) => setChildName(event.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="scheduler-child-age">Age (years)</Label>
+          <Input
+            id="scheduler-child-age"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="e.g., 5"
+            value={childAge}
+            onChange={(event) => setChildAge(event.target.value)}
+          />
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="scheduler-weight">Weight (kg)</Label>
           <Input
@@ -105,20 +194,32 @@ export const DoseScheduler: React.FC = () => {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="first-dose-time">First Dose Time</Label>
-          <Input
-            id="first-dose-time"
-            type="time"
-            value={firstDoseTime}
-            onChange={(event) => setFirstDoseTime(event.target.value)}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="paracetamol-first-dose">Paracetamol First Dose Time</Label>
+            <Input
+              id="paracetamol-first-dose"
+              type="time"
+              value={paracetamolFirstDose}
+              onChange={(event) => setParacetamolFirstDose(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ibuprofen-first-dose">Ibuprofen First Dose Time</Label>
+            <Input
+              id="ibuprofen-first-dose"
+              type="time"
+              value={ibuprofenFirstDose}
+              onChange={(event) => setIbuprofenFirstDose(event.target.value)}
+            />
+          </div>
         </div>
 
         {schedule.length === 0 ? (
           <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
             <p className="text-sm text-gray-500 font-body">
-              Enter weight and first dose time to generate schedule.
+              Enter weight and first dose times to generate schedule.
             </p>
           </div>
         ) : (
@@ -128,7 +229,12 @@ export const DoseScheduler: React.FC = () => {
                 <h3 className="font-heading text-lg font-bold text-gray-900">
                   Medication Schedule
                 </h3>
-                <p className="text-sm text-gray-600">Weight: {weight} kg</p>
+                {childName && (
+                  <p className="text-sm text-gray-600 font-semibold">{childName}</p>
+                )}
+                <p className="text-sm text-gray-600">
+                  {childAge && `Age: ${childAge} years | `}Weight: {weight} kg
+                </p>
                 <p className="text-xs text-gray-500">
                   Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
                 </p>
@@ -186,13 +292,13 @@ export const DoseScheduler: React.FC = () => {
 
             <Button
               onClick={handlePrint}
-              className="w-full print:hidden"
+              className="w-full"
             >
-              🖨️ Print Schedule
+              Print Schedule
             </Button>
 
-            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 print:hidden">
-              <p className="font-semibold mb-1">⚠️ Safety Notes:</p>
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+              <p className="font-semibold mb-1">Safety Notes:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Paracetamol: Maximum 4 doses per day (max 1g per dose, 4g per day)</li>
                 <li>Ibuprofen: Maximum 3 doses per day (max 400mg per dose)</li>
@@ -202,36 +308,18 @@ export const DoseScheduler: React.FC = () => {
             </div>
           </div>
         )}
-
-        <style>
-          {`
-            @media print {
-              body * {
-                visibility: hidden;
-              }
-              #dose-schedule, #dose-schedule * {
-                visibility: visible;
-              }
-              #dose-schedule {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 2rem;
-              }
-              .print\\:hidden {
-                display: none !important;
-              }
-              .print\\:block {
-                display: block !important;
-              }
-              .print\\:table-cell {
-                display: table-cell !important;
-              }
-            }
-          `}
-        </style>
       </CardContent>
     </Card>
+
+    {/* Hidden printable version */}
+    <div id="printable-dose-schedule" style={{ display: 'none' }}>
+      <PrintableDoseSchedule
+        childName={childName}
+        childAge={childAge}
+        weight={weight}
+        schedule={schedule}
+      />
+    </div>
+    </>
   );
 };

@@ -1,11 +1,11 @@
 import React from "react";
 import { PageHero, Card, CardContent, CardHeader, CardTitle } from "../../components/ui";
 import {
-  PediatricBSACalculator,
-  PediatricDoseCalculator,
+  ParacetamolCalculator,
+  IbuprofenCalculator,
   DoseScheduler,
-  PillSwallowingTrainer,
 } from "../../components/pharmacy-calculators";
+import { BSACalculator } from "../../components/pharmacy-calculators/BSACalculator";
 
 const PediatricToolsPage: React.FC = () => {
   return (
@@ -29,11 +29,11 @@ const PediatricToolsPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <PediatricBSACalculator />
-            <PediatricDoseCalculator />
-            <DoseScheduler />
+            <BSACalculator />
+            <ParacetamolCalculator />
+            <IbuprofenCalculator />
             <div className="md:col-span-2">
-              <PillSwallowingTrainer />
+              <DoseScheduler />
             </div>
 
             <Card className="md:col-span-2 bg-amber-50 border-amber-200">

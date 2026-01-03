@@ -12,6 +12,8 @@ export { BSACalculator } from './BSACalculator';
 
 // Pediatric Calculators
 export { PediatricBSACalculator } from './PediatricBSACalculator';
-export { PediatricDoseCalculator } from './PediatricDoseCalculator';
+export { ParacetamolCalculator } from './ParacetamolCalculator';
+export { IbuprofenCalculator } from './IbuprofenCalculator';
 export { DoseScheduler } from './DoseScheduler';
+export { PrintableDoseSchedule } from './PrintableDoseSchedule';
 export { PillSwallowingTrainer } from './PillSwallowingTrainer';
