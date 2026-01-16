@@ -6,6 +6,8 @@ import {
   generateCalendarDays,
   formatDose,
   formatDate,
+  getScheduleTypeLabel,
+  getScheduleDescription,
 } from '../../utils/doseCalculation';
 import type { PatientDetails, MedicationSchedule, DoseEntry } from '../../types/doseCalculator';
 
@@ -27,8 +29,6 @@ export const PrintableCalendar: React.FC<PrintableCalendarProps> = ({
     return getMonthsInRange(dateRange.start, dateRange.end);
   }, [calculatedDoses]);
 
-  // Removed unused medicationIndexMap - colors are shown via legend instead
-
   if (!patient || medications.length === 0) {
     return null;
   }
@@ -43,7 +43,7 @@ export const PrintableCalendar: React.FC<PrintableCalendarProps> = ({
       {/* Patient Header */}
       <div className="patient-header-print">
         <h1 className="text-2xl font-bold text-center mb-4 font-heading">
-          MEDICATION DOSING SCHEDULE
+          VARIABLE DOSE SCHEDULE
         </h1>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -68,14 +68,10 @@ export const PrintableCalendar: React.FC<PrintableCalendarProps> = ({
         {/* Medication Legend */}
         <div className="mt-4">
           <p className="font-semibold text-sm mb-2">Medications:</p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 gap-2 text-xs">
             {medications.map((med, index) => (
               <div key={med.id} className="font-body">
-                {index + 1}. {med.medicationName} {med.strength}{med.unit} -{' '}
-                {med.titrationDirection === 'decrease' && `Reduce by ${med.changeAmount}${med.unit}`}
-                {med.titrationDirection === 'increase' && `Increase by ${med.changeAmount}${med.unit}`}
-                {med.titrationDirection === 'maintain' && 'Maintain dose'}{' '}
-                every {med.intervalDays} day{med.intervalDays > 1 ? 's' : ''}
+                {index + 1}. {med.medicationName} ({getScheduleTypeLabel(med.scheduleType)}) - {getScheduleDescription(med)}
               </div>
             ))}
           </div>
@@ -130,12 +126,16 @@ export const PrintableCalendar: React.FC<PrintableCalendarProps> = ({
                             {calDay.doses.map((dose) => (
                               <div
                                 key={dose.medicationId}
-                                className="medication-dose-print"
+                                className={`medication-dose-print ${dose.isOffDay ? 'opacity-60' : ''}`}
                               >
                                 <div className="font-semibold">
                                   {dose.medicationName}:
                                 </div>
-                                <div>{formatDose(dose.dose, dose.unit)}</div>
+                                {dose.isOffDay ? (
+                                  <div className="italic text-gray-500">OFF</div>
+                                ) : (
+                                  <div>{formatDose(dose.dose, dose.unit)}</div>
+                                )}
                               </div>
                             ))}
                           </div>

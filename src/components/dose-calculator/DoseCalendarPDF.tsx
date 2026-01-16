@@ -7,8 +7,11 @@ import {
   generateCalendarDays,
   formatDose,
   formatDate,
+  getScheduleTypeLabel,
+  getScheduleDescription,
+  calculatePreparationSummary,
 } from '../../utils/doseCalculation';
-import type { PatientDetails, MedicationSchedule, DoseEntry, CalendarDay } from '../../types/doseCalculator';
+import type { PatientDetails, MedicationSchedule, DoseEntry, CalendarDay, TabletBreakdown } from '../../types/doseCalculator';
 
 // PDF Color mapping from Tailwind colors
 const PDF_COLORS = {
@@ -78,7 +81,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   legendItem: {
-    width: '50%',
+    width: '100%',
     fontSize: 8,
     marginBottom: 2,
   },
@@ -131,6 +134,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     borderWidth: 1,
   },
+  doseEntryOff: {
+    opacity: 0.6,
+  },
   doseName: {
     fontSize: 7,
     fontFamily: 'Helvetica-Bold',
@@ -138,6 +144,16 @@ const styles = StyleSheet.create({
   },
   doseAmount: {
     fontSize: 7,
+  },
+  doseOff: {
+    fontSize: 7,
+    fontStyle: 'italic',
+    color: '#6B7280',
+  },
+  tabletBreakdown: {
+    fontSize: 6,
+    color: '#6B7280',
+    marginTop: 1,
   },
   footer: {
     marginTop: 15,
@@ -147,7 +163,36 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: '#6B7280',
   },
+  preparationSummary: {
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 4,
+  },
+  preparationTitle: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 4,
+    color: '#0369A1',
+  },
+  preparationItem: {
+    fontSize: 8,
+    marginBottom: 2,
+    color: '#0C4A6E',
+  },
 });
+
+// Format tablet breakdown for PDF
+function formatTabletBreakdownPDF(breakdown: TabletBreakdown[]): string {
+  return breakdown
+    .map(b => {
+      const qty = b.quantity === 0.5 ? '½' : b.quantity.toString();
+      return `${qty}× ${b.preparation.strength}${b.preparation.unit}`;
+    })
+    .join(' + ');
+}
 
 interface DoseCalendarPDFProps {
   patient: PatientDetails;
@@ -181,10 +226,28 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
     (new Date().getTime() - patient.dateOfBirth.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
   );
 
+  // Check if any medication has preparations
+  const hasPreparations = medications.some(
+    med => med.preparationMode !== 'none' &&
+      ((med.preparations && med.preparations.length > 0) ||
+        (med.optimisedPreparations && med.optimisedPreparations.length > 0))
+  );
+
+  // Calculate preparation summaries
+  const preparationSummaries = React.useMemo(() => {
+    return medications
+      .filter(med => med.preparationMode !== 'none')
+      .map(med => {
+        const doses = calculatedDoses.get(med.id) || [];
+        return calculatePreparationSummary(med, doses);
+      })
+      .filter(summary => summary.requiredPreparations.length > 0);
+  }, [medications, calculatedDoses]);
+
   // Patient header component (appears on every page)
   const PatientHeader = () => (
     <View style={styles.header} fixed>
-      <Text style={styles.headerTitle}>MEDICATION DOSING SCHEDULE</Text>
+      <Text style={styles.headerTitle}>VARIABLE DOSE SCHEDULE</Text>
       <View style={styles.patientInfo}>
         <View style={styles.patientColumn}>
           <View style={styles.infoRow}>
@@ -221,19 +284,41 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
         <View style={styles.legendGrid}>
           {medications.map((med, index) => (
             <Text key={med.id} style={styles.legendItem}>
-              {index + 1}. {med.medicationName} {med.strength}
-              {med.unit} -{' '}
-              {med.titrationDirection === 'decrease' && `Reduce by ${med.changeAmount}${med.unit}`}
-              {med.titrationDirection === 'increase' && `Increase by ${med.changeAmount}${med.unit}`}
-              {med.titrationDirection === 'maintain' && 'Maintain dose'} every {med.intervalDays}{' '}
-              day
-              {med.intervalDays > 1 ? 's' : ''}
+              {index + 1}. {med.medicationName} ({getScheduleTypeLabel(med.scheduleType)}) - {getScheduleDescription(med)}
             </Text>
           ))}
         </View>
       </View>
     </View>
   );
+
+  // Preparation summary component
+  const PreparationSummarySection = () => {
+    if (!hasPreparations || preparationSummaries.length === 0) return null;
+
+    return (
+      <View style={styles.preparationSummary}>
+        <Text style={styles.preparationTitle}>Preparation Requirements (Total for entire course)</Text>
+        {preparationSummaries.map((summary, index) => (
+          <View key={index}>
+            <Text style={[styles.preparationItem, { fontFamily: 'Helvetica-Bold' }]}>
+              {summary.medicationName}:
+            </Text>
+            {summary.requiredPreparations.map((req, i) => (
+              <Text key={i} style={styles.preparationItem}>
+                • {req.preparation.strength}{req.preparation.unit}: {req.totalQuantity} {req.totalQuantity === 1 ? 'tablet' : 'tablets'}
+              </Text>
+            ))}
+            {summary.warnings.length > 0 && (
+              <Text style={[styles.preparationItem, { color: '#DC2626' }]}>
+                Warning: {summary.warnings.join(', ')}
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   // Render a calendar month
   const renderMonth = (month: Date) => {
@@ -279,6 +364,28 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
                       const medIndex = medicationIndexMap.get(dose.medicationId) ?? 0;
                       const colors = getMedicationPDFColor(medIndex);
 
+                      // Handle OFF days
+                      if (dose.isOffDay) {
+                        return (
+                          <View
+                            key={dose.medicationId}
+                            style={[
+                              styles.doseEntry,
+                              styles.doseEntryOff,
+                              {
+                                backgroundColor: colors.bg,
+                                borderColor: colors.border,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.doseName, { color: colors.text }]}>
+                              {dose.medicationName}:
+                            </Text>
+                            <Text style={styles.doseOff}>OFF</Text>
+                          </View>
+                        );
+                      }
+
                       return (
                         <View
                           key={dose.medicationId}
@@ -296,6 +403,11 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
                           <Text style={[styles.doseAmount, { color: colors.text }]}>
                             {formatDose(dose.dose, dose.unit)}
                           </Text>
+                          {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
+                            <Text style={styles.tabletBreakdown}>
+                              ({formatTabletBreakdownPDF(dose.tabletBreakdown)})
+                            </Text>
+                          )}
                         </View>
                       );
                     })}
@@ -315,6 +427,8 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
         <Page key={monthIndex} size="A4" orientation="landscape" style={styles.page}>
           <PatientHeader />
           {renderMonth(month)}
+          {/* Show preparation summary on first page */}
+          {monthIndex === 0 && <PreparationSummarySection />}
           <View style={styles.footer} fixed>
             <Text>
               This medication schedule was generated on {formatDate(new Date())} and should be

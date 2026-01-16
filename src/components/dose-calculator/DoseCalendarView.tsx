@@ -12,6 +12,7 @@ import {
   generateCalendarDays,
   getDateRangeForAllMedications,
   formatDose,
+  formatTabletBreakdown,
   getMedicationColor,
 } from '../../utils/doseCalculation';
 import type { MedicationSchedule, DoseEntry } from '../../types/doseCalculator';
@@ -53,6 +54,15 @@ export const DoseCalendarView: React.FC<DoseCalendarViewProps> = ({
       map.set(med.id, index);
     });
     return map;
+  }, [medications]);
+
+  // Check if any medication has preparation tracking
+  const hasPreparations = useMemo(() => {
+    return medications.some(
+      med => med.preparationMode !== 'none' &&
+        ((med.preparations && med.preparations.length > 0) ||
+          (med.optimisedPreparations && med.optimisedPreparations.length > 0))
+    );
   }, [medications]);
 
   return (
@@ -138,6 +148,24 @@ export const DoseCalendarView: React.FC<DoseCalendarViewProps> = ({
                 <div className="space-y-1">
                   {calDay.doses.map((dose) => {
                     const medIndex = medicationIndexMap.get(dose.medicationId) ?? 0;
+
+                    // Handle OFF days
+                    if (dose.isOffDay) {
+                      return (
+                        <div
+                          key={dose.medicationId}
+                          className={`text-xs p-1 rounded border ${getMedicationColor(medIndex)} opacity-60`}
+                        >
+                          <div className="font-semibold truncate" title={dose.medicationName}>
+                            {dose.medicationName}
+                          </div>
+                          <div className="font-body text-gray-500 italic">
+                            OFF
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={dose.medicationId}
@@ -149,6 +177,12 @@ export const DoseCalendarView: React.FC<DoseCalendarViewProps> = ({
                         <div className="font-body">
                           {formatDose(dose.dose, dose.unit)}
                         </div>
+                        {/* Show tablet breakdown if available */}
+                        {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
+                          <div className="font-body text-[10px] text-gray-600 mt-0.5">
+                            ({formatTabletBreakdown(dose.tabletBreakdown)})
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -10,7 +10,7 @@ import {
   Badge,
 } from '../ui';
 import { MedicationFormDialog } from './MedicationFormDialog';
-import { formatDate, getMedicationColor } from '../../utils/doseCalculation';
+import { formatDate, getMedicationColor, getScheduleTypeLabel, getScheduleDescription } from '../../utils/doseCalculation';
 import type { MedicationSchedule } from '../../types/doseCalculator';
 
 interface MedicationListManagerProps {
@@ -47,12 +47,56 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
     }
   };
 
-  const getTitrationLabel = (med: MedicationSchedule): string => {
-    if (med.titrationDirection === 'maintain') {
-      return 'Maintain dose';
+  const getPreparationLabel = (med: MedicationSchedule): string | null => {
+    if (med.preparationMode === 'none') return null;
+
+    if (med.preparationMode === 'specify' && med.preparations && med.preparations.length > 0) {
+      return `Using: ${med.preparations.map(p => `${p.strength}${p.unit}`).join(', ')}`;
     }
-    const direction = med.titrationDirection === 'increase' ? '↑' : '↓';
-    return `${direction} ${med.changeAmount}${med.unit} every ${med.intervalDays} day${med.intervalDays > 1 ? 's' : ''}`;
+
+    if (med.preparationMode === 'optimise' && med.optimisedPreparations && med.optimisedPreparations.length > 0) {
+      return `Optimised: ${med.optimisedPreparations.map(p => `${p.strength}${p.unit}`).join(', ')}`;
+    }
+
+    return null;
+  };
+
+  const getStartingDoseLabel = (med: MedicationSchedule): string | null => {
+    switch (med.scheduleType) {
+      case 'linear':
+        if (med.linearConfig) {
+          return `${med.linearConfig.startingDose}${med.unit}`;
+        }
+        break;
+      case 'cyclic':
+        if (med.cyclicConfig) {
+          return `${med.cyclicConfig.dose}${med.unit}`;
+        }
+        break;
+      case 'dayOfWeek':
+        if (med.dayOfWeekConfig) {
+          const doses = [
+            med.dayOfWeekConfig.monday,
+            med.dayOfWeekConfig.tuesday,
+            med.dayOfWeekConfig.wednesday,
+            med.dayOfWeekConfig.thursday,
+            med.dayOfWeekConfig.friday,
+            med.dayOfWeekConfig.saturday,
+            med.dayOfWeekConfig.sunday,
+          ].filter((d): d is number => d !== undefined && d > 0);
+          if (doses.length > 0) {
+            const unique = Array.from(new Set(doses));
+            return unique.length === 1 ? `${unique[0]}${med.unit}` : `${Math.min(...unique)}-${Math.max(...unique)}${med.unit}`;
+          }
+        }
+        break;
+      case 'multiPhase':
+        if (med.multiPhaseConfig && med.multiPhaseConfig.phases.length > 0) {
+          return `${med.multiPhaseConfig.phases[0].dose}${med.unit}`;
+        }
+        break;
+    }
+    return null;
   };
 
   return (
@@ -66,7 +110,7 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
                 Medications
               </CardTitle>
               <CardDescription className="font-body">
-                Add and manage medication titration schedules
+                Add and manage medication dosing schedules
               </CardDescription>
             </div>
             <Button onClick={handleAddClick} className="gap-2">
@@ -96,23 +140,27 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="font-heading text-lg font-semibold">
                           {med.medicationName}
                         </h3>
                         <Badge variant="outline" className="font-body">
-                          {med.strength}{med.unit}
+                          {getScheduleTypeLabel(med.scheduleType)}
                         </Badge>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-sm font-body">
+                        {getStartingDoseLabel(med) && (
+                          <div>
+                            <span className="text-gray-600">
+                              {med.scheduleType === 'multiPhase' ? 'Starting dose:' : 'Dose:'}
+                            </span>{' '}
+                            <span className="font-semibold">{getStartingDoseLabel(med)}</span>
+                          </div>
+                        )}
                         <div>
-                          <span className="text-gray-600">Starting dose:</span>{' '}
-                          <span className="font-semibold">{med.startingDose}{med.unit}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Titration:</span>{' '}
-                          <span className="font-semibold">{getTitrationLabel(med)}</span>
+                          <span className="text-gray-600">Schedule:</span>{' '}
+                          <span className="font-semibold">{getScheduleDescription(med)}</span>
                         </div>
                         <div>
                           <span className="text-gray-600">Start date:</span>{' '}
@@ -124,19 +172,32 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
                             <span className="font-semibold">{formatDate(med.endDate)}</span>
                           </div>
                         )}
-                        {med.minimumDose !== undefined && (
+                        {med.scheduleType === 'linear' && med.linearConfig?.minimumDose !== undefined && (
                           <div>
                             <span className="text-gray-600">Min dose:</span>{' '}
-                            <span className="font-semibold">{med.minimumDose}{med.unit}</span>
+                            <span className="font-semibold">{med.linearConfig.minimumDose}{med.unit}</span>
                           </div>
                         )}
-                        {med.maximumDose !== undefined && (
+                        {med.scheduleType === 'linear' && med.linearConfig?.maximumDose !== undefined && (
                           <div>
                             <span className="text-gray-600">Max dose:</span>{' '}
-                            <span className="font-semibold">{med.maximumDose}{med.unit}</span>
+                            <span className="font-semibold">{med.linearConfig.maximumDose}{med.unit}</span>
+                          </div>
+                        )}
+                        {med.scheduleType === 'multiPhase' && med.multiPhaseConfig && (
+                          <div>
+                            <span className="text-gray-600">Phases:</span>{' '}
+                            <span className="font-semibold">{med.multiPhaseConfig.phases.length}</span>
                           </div>
                         )}
                       </div>
+
+                      {getPreparationLabel(med) && (
+                        <div className="text-sm font-body mt-2 text-gray-700">
+                          <span className="text-gray-600">Preparations:</span>{' '}
+                          <span className="font-semibold">{getPreparationLabel(med)}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-2 ml-4">
