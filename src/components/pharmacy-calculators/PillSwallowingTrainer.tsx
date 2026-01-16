@@ -992,7 +992,7 @@ export const PillSwallowingTrainer: React.FC = () => {
                 </li>
                 <li>Take a BIG drink of water, not a tiny sip</li>
                 <li>Swallow confidently in one smooth motion</li>
-                <li>Provide a straw or cup to allow for continual swallowing</li>
+                <li>Provide a straw or cup to allow for continual swallowing  </li>
                 <li>It's okay to take your time - no rushing!</li>
               </ul>
             </div>
