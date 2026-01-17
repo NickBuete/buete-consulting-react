@@ -95,16 +95,16 @@ const PharmacyToolsPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="font-heading flex items-center gap-3">
                   <span className="text-2xl">🧮</span>
-                  Medication Dosing Calculator
+                  Variable Dose Planner
                 </CardTitle>
                 <CardDescription className="font-body">
-                  Create detailed titration schedules with automatic dose calculations for tapering, increasing, or maintaining medication doses. Generate printable patient handouts.
+                  Create complex dosing schedules for tapering, increasing, or maintaining medications. Supports linear titration, cyclic dosing, day-of-week dosing, and multi-phase tapers. Generate printable patient handouts.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to={ROUTES.DOSE_CALCULATOR}>
+                <Link to={ROUTES.VARIABLE_DOSE_PLANNER}>
                   <Button size="lg" className="gap-2">
-                    Open Dose Calculator →
+                    Open Variable Dose Planner →
                   </Button>
                 </Link>
                 <p className="mt-4 text-sm text-gray-600 font-body">

@@ -174,7 +174,23 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          // Prevent closing when clicking on Select dropdown portal
+          const target = e.target as HTMLElement;
+          if (target.closest('[data-radix-select-content]')) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          // Prevent closing when interacting with Select dropdown portal
+          const target = e.target as HTMLElement;
+          if (target.closest('[data-radix-select-content]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-heading">
             {medication ? 'Edit Medication' : 'Add Medication'}
@@ -214,7 +230,7 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent position="popper" className="pointer-events-auto">
                         <SelectItem value="mg">mg</SelectItem>
                         <SelectItem value="mcg">mcg</SelectItem>
                         <SelectItem value="mL">mL</SelectItem>
@@ -241,7 +257,7 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent position="popper" className="pointer-events-auto">
                         <SelectItem value="linear">Linear Titration (increase/decrease/maintain)</SelectItem>
                         <SelectItem value="cyclic">Cyclic Dosing (X days on, Y days off)</SelectItem>
                         <SelectItem value="dayOfWeek">Day-of-Week (different doses per day)</SelectItem>
@@ -323,7 +339,7 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent position="popper" className="pointer-events-auto">
                         <SelectItem value="none">None - just show doses</SelectItem>
                         <SelectItem value="specify">Specify Available Preparations</SelectItem>
                         <SelectItem value="optimise">Optimise For Me (compounding)</SelectItem>
@@ -480,7 +496,7 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
                     <SelectValue />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent position="popper" className="pointer-events-auto">
                   <SelectItem value="decrease">Decrease</SelectItem>
                   <SelectItem value="increase">Increase</SelectItem>
                   <SelectItem value="maintain">Maintain</SelectItem>

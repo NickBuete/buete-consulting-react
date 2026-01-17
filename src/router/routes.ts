@@ -36,7 +36,7 @@ export const ROUTES = {
   TEMPLATE_DETAIL: '/templates/:slug',
   TEMPLATE_PREVIEW: '/templates/preview/:slug',
   PHARMACY_TOOLS: '/pharmacy-tools',
-  DOSE_CALCULATOR: '/pharmacy-tools/dose-calculator',
+  VARIABLE_DOSE_PLANNER: '/pharmacy-tools/variable-dose-planner',
   PAIN_MANAGEMENT: '/pharmacy-tools/pain-management',
   PEDIATRIC_TOOLS: '/pharmacy-tools/pediatric',
   PILL_SWALLOWING: '/pharmacy-tools/pill-swallowing',
@@ -96,9 +96,9 @@ export const routes: RouteConfig[] = [
     protected: false,
   },
   {
-    path: ROUTES.DOSE_CALCULATOR,
+    path: ROUTES.VARIABLE_DOSE_PLANNER,
     component: DoseCalculatorPage,
-    title: 'Dose Calculator - Buete Consulting',
+    title: 'Variable Dose Planner - Buete Consulting',
     protected: false,
   },
   {

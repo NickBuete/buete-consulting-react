@@ -257,17 +257,17 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            <Link to="/pharmacy-tools/dose-calculator" className="group">
+            <Link to="/pharmacy-tools/variable-dose-planner" className="group">
               <Card className="h-full border-2 border-transparent hover:border-brand-300 transition-all hover:shadow-lg">
                 <CardHeader>
                   <Calendar className="w-10 h-10 text-brand-600 mb-3 group-hover:scale-110 transition-transform" />
                   <CardTitle className="group-hover:text-brand-600 transition-colors">
-                    Dose Calculator
+                    Variable Dose Planner
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600">
-                    Create detailed medication titration schedules with automatic dose calculations. Generate printable patient handouts.
+                    Create complex dosing schedules with support for titration, cyclic dosing, and multi-phase tapers. Generate printable patient handouts.
                   </p>
                 </CardContent>
               </Card>
