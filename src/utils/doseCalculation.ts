@@ -575,27 +575,39 @@ export function getUniqueDoses(medication: MedicationSchedule): number[] {
       if (medication.linearConfig) {
         const config = medication.linearConfig;
         let dose = config.startingDose;
-        doses.push(dose);
 
-        if (config.titrationDirection === 'increase') {
-          while (dose < (config.maximumDose ?? Infinity)) {
-            dose += config.changeAmount;
-            if (config.maximumDose !== undefined && dose > config.maximumDose) {
-              dose = config.maximumDose;
+        // Only proceed if we have a valid starting dose
+        if (dose > 0) {
+          doses.push(dose);
+        }
+
+        // Guard against infinite loops: changeAmount must be > 0 for titration
+        if (config.changeAmount > 0) {
+          if (config.titrationDirection === 'increase') {
+            // Need a maximum dose to prevent infinite loop when increasing
+            if (config.maximumDose !== undefined) {
+              while (dose < config.maximumDose) {
+                dose += config.changeAmount;
+                if (dose > config.maximumDose) {
+                  dose = config.maximumDose;
+                }
+                doses.push(dose);
+                if (dose >= config.maximumDose) break;
+              }
             }
-            doses.push(dose);
-            if (dose >= (config.maximumDose ?? Infinity)) break;
-          }
-        } else if (config.titrationDirection === 'decrease') {
-          while (dose > (config.minimumDose ?? 0)) {
-            dose -= config.changeAmount;
-            if (dose < (config.minimumDose ?? 0)) {
-              dose = config.minimumDose ?? 0;
+          } else if (config.titrationDirection === 'decrease') {
+            const minDose = config.minimumDose ?? 0;
+            while (dose > minDose) {
+              dose -= config.changeAmount;
+              if (dose < minDose) {
+                dose = minDose;
+              }
+              doses.push(dose);
+              if (dose <= minDose) break;
             }
-            doses.push(dose);
-            if (dose <= (config.minimumDose ?? 0)) break;
           }
         }
+        // For 'maintain' direction, we just have the starting dose (already added above)
       }
       break;
 
