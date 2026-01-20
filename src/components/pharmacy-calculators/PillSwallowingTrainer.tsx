@@ -516,9 +516,13 @@ export const PillSwallowingTrainer: React.FC = () => {
     doc.setLineWidth(1);
     doc.rect(15, 15, 267, 180);
 
-    // Trophy emoji at top (using text)
+    // Decorative trophy icon (using symbols that render in standard fonts)
     doc.setFontSize(48);
-    doc.text("🏆", 148.5, 40, { align: "center" });
+    doc.setTextColor(255, 193, 7); // Gold color
+    doc.text("*", 148.5, 32, { align: "center" });
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246); // Blue
+    doc.text("CHAMPION", 148.5, 38, { align: "center" });
 
     // Title
     doc.setFontSize(32);
@@ -573,9 +577,10 @@ export const PillSwallowingTrainer: React.FC = () => {
     doc.setTextColor(139, 92, 246); // Purple
     doc.text("TABLET SWALLOWING CHAMPION!", 148.5, yPosition + 30, { align: "center" });
 
-    // Stars
+    // Stars (using asterisks as stars don't render in standard PDF fonts)
     doc.setFontSize(24);
-    doc.text("⭐ ⭐ ⭐ ⭐ ⭐", 148.5, yPosition + 42, { align: "center" });
+    doc.setTextColor(255, 193, 7); // Gold color for stars
+    doc.text("* * * * *", 148.5, yPosition + 42, { align: "center" });
 
     // Date
     doc.setFontSize(12);
