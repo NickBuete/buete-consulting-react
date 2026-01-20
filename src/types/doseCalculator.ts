@@ -10,6 +10,8 @@ export type MedicationUnit = 'mg' | 'mcg' | 'mL' | 'units';
 
 export type TitrationDirection = 'increase' | 'decrease' | 'maintain';
 
+export type TitrationMode = 'together' | 'sequential';
+
 // Dose time types for multiple daily doses
 export type DoseTimeName = 'mane' | 'lunch' | 'dinner' | 'nocte';
 
@@ -73,6 +75,12 @@ export interface LinearConfig {
   doseTimesMode?: DoseTimesMode; // 'single' (default) or 'multiple'
   enabledDoseTimes?: DoseTimeName[]; // Which times are enabled
   startingDoseTimes?: DoseTimeValue[]; // Starting dose for each enabled time
+  maximumDoseTimes?: DoseTimeValue[]; // Maximum dose for each enabled time (optional, overrides maximumDose)
+
+  // Enhanced titration configuration for multiple dose times
+  titrationMode?: TitrationMode; // 'together' (default) or 'sequential'
+  titrationSequence?: DoseTimeName[]; // Order for sequential titration (e.g., ['nocte', 'mane'])
+  incrementsPerDoseTime?: number; // How many increments before moving to next (default: 1)
 }
 
 // Cyclic dosing config (e.g., 21 days on, 7 days off)

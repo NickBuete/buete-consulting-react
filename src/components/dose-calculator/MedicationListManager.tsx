@@ -96,10 +96,14 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
 
     // Return frequency based on number of times
     const count = enabledTimes.length;
-    if (count === 2) return 'BD';
-    if (count === 3) return 'TDS';
-    if (count === 4) return 'QID';
-    return `${count}x daily`;
+    let label = count === 2 ? 'BD' : count === 3 ? 'TDS' : count === 4 ? 'QID' : `${count}x daily`;
+
+    // Add titration mode indicator for linear schedules with sequential mode
+    if (med.scheduleType === 'linear' && med.linearConfig?.titrationMode === 'sequential') {
+      label += ' (seq)';
+    }
+
+    return label;
   };
 
   const getStartingDoseLabel = (med: MedicationSchedule): string | null => {

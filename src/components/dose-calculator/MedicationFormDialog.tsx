@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -33,6 +33,7 @@ import type {
   Preparation,
   DoseTimeName,
   DoseTimesMode,
+  TitrationMode,
 } from '../../types/doseCalculator';
 import { ALL_DOSE_TIMES, DOSE_TIME_LABELS } from '../../types/doseCalculator';
 import { optimizePreparations, getUniqueDoses } from '../../utils/doseCalculation';
@@ -81,6 +82,7 @@ const medicationSchema = z.object({
   linearMaximumDose: z.number().positive().optional(),
   // Linear config dose times
   linearStartingDoseTimes: z.array(doseTimeValueSchema).optional(),
+  linearMaximumDoseTimes: z.array(doseTimeValueSchema).optional(),
 
   // Cyclic config
   cyclicDose: z.number().nonnegative().optional(),
@@ -112,6 +114,11 @@ const medicationSchema = z.object({
   // Preparation config
   preparationMode: z.string(),
   preparations: z.array(preparationSchema).optional(),
+
+  // Titration mode fields for multiple dose times
+  linearTitrationMode: z.string().optional(),
+  linearTitrationSequence: z.array(z.string()).optional(),
+  linearIncrementsPerDoseTime: z.number().int().min(1).optional(),
 }).refine(
   (data) => {
     if (data.endDate && data.startDate) {
@@ -276,89 +283,7 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
               />
             </div>
 
-            {/* Schedule Type Selector */}
-            <div className="border-t pt-4">
-              <FormField
-                control={form.control}
-                name="scheduleType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold">Schedule Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent position="popper" className="pointer-events-auto">
-                        <SelectItem value="linear">Linear Titration (increase/decrease/maintain)</SelectItem>
-                        <SelectItem value="cyclic">Cyclic Dosing (X days on, Y days off)</SelectItem>
-                        <SelectItem value="dayOfWeek">Day-of-Week (different doses per day)</SelectItem>
-                        <SelectItem value="multiPhase">Multi-Phase Taper (custom phases)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Schedule Type Specific Fields */}
-            <div className="border rounded-lg p-4 bg-gray-50">
-              {scheduleType === 'linear' && (
-                <LinearConfigFields form={form} />
-              )}
-
-              {scheduleType === 'cyclic' && (
-                <CyclicConfigFields form={form} />
-              )}
-
-              {scheduleType === 'dayOfWeek' && (
-                <DayOfWeekConfigFields form={form} />
-              )}
-
-              {scheduleType === 'multiPhase' && (
-                <MultiPhaseConfigFields
-                  form={form}
-                  phases={phaseFields}
-                  onAddPhase={handleAddPhase}
-                  onRemovePhase={removePhase}
-                />
-              )}
-            </div>
-
-            {/* Start/End Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date (optional)</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Preparation Configuration */}
+            {/* Preparation Configuration - moved here to be after medication name/unit */}
             <div className="border-t pt-4">
               <FormField
                 control={form.control}
@@ -475,6 +400,88 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
               )}
             </div>
 
+            {/* Schedule Type Selector */}
+            <div className="border-t pt-4">
+              <FormField
+                control={form.control}
+                name="scheduleType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold">Schedule Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" className="pointer-events-auto">
+                        <SelectItem value="linear">Linear Titration (increase/decrease/maintain)</SelectItem>
+                        <SelectItem value="cyclic">Cyclic Dosing (X days on, Y days off)</SelectItem>
+                        <SelectItem value="dayOfWeek">Day-of-Week (different doses per day)</SelectItem>
+                        <SelectItem value="multiPhase">Multi-Phase Taper (custom phases)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Schedule Type Specific Fields */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              {scheduleType === 'linear' && (
+                <LinearConfigFields form={form} />
+              )}
+
+              {scheduleType === 'cyclic' && (
+                <CyclicConfigFields form={form} />
+              )}
+
+              {scheduleType === 'dayOfWeek' && (
+                <DayOfWeekConfigFields form={form} />
+              )}
+
+              {scheduleType === 'multiPhase' && (
+                <MultiPhaseConfigFields
+                  form={form}
+                  phases={phaseFields}
+                  onAddPhase={handleAddPhase}
+                  onRemovePhase={removePhase}
+                />
+              )}
+            </div>
+
+            {/* Start/End Dates */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date (optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
@@ -563,8 +570,29 @@ function LinearStartingDoseTimesInput({
 }: {
   form: ReturnType<typeof useForm<MedicationFormValues>>;
 }) {
-  const enabledDoseTimes = form.watch('enabledDoseTimes') ?? ['mane'];
-  const startingDoseTimes = form.watch('linearStartingDoseTimes') ?? [];
+  const watchedEnabledDoseTimes = form.watch('enabledDoseTimes');
+  const watchedStartingDoseTimes = form.watch('linearStartingDoseTimes');
+
+  const enabledDoseTimes = useMemo(() => watchedEnabledDoseTimes ?? ['mane'], [watchedEnabledDoseTimes]);
+  const startingDoseTimes = useMemo(() => watchedStartingDoseTimes ?? [], [watchedStartingDoseTimes]);
+
+  // Ensure all enabled dose times have an entry (even with dose 0)
+  useEffect(() => {
+    const current = [...startingDoseTimes];
+    let updated = false;
+
+    enabledDoseTimes.forEach(time => {
+      if (!current.some(dt => dt.time === time)) {
+        current.push({ time: time as DoseTimeName, dose: 0 });
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      current.sort((a, b) => ALL_DOSE_TIMES.indexOf(a.time as DoseTimeName) - ALL_DOSE_TIMES.indexOf(b.time as DoseTimeName));
+      form.setValue('linearStartingDoseTimes', current);
+    }
+  }, [enabledDoseTimes, startingDoseTimes, form]);
 
   const handleDoseChange = (time: DoseTimeName, dose: number) => {
     const current = [...startingDoseTimes];
@@ -603,6 +631,61 @@ function LinearStartingDoseTimesInput({
         ))}
       </div>
       <p className="text-xs text-gray-500">Each dose time will titrate by the same change amount</p>
+    </div>
+  );
+}
+
+// Linear Maximum Dose Times Input (per dose time maximum)
+function LinearMaximumDoseTimesInput({
+  form,
+}: {
+  form: ReturnType<typeof useForm<MedicationFormValues>>;
+}) {
+  const enabledDoseTimes = form.watch('enabledDoseTimes') ?? ['mane'];
+  const maximumDoseTimes = form.watch('linearMaximumDoseTimes') ?? [];
+
+  const handleDoseChange = (time: DoseTimeName, dose: number) => {
+    const current = [...maximumDoseTimes];
+    const existingIndex = current.findIndex(dt => dt.time === time);
+    if (existingIndex >= 0) {
+      if (dose > 0) {
+        current[existingIndex] = { time, dose };
+      } else {
+        // Remove if set to 0 (no limit)
+        current.splice(existingIndex, 1);
+      }
+    } else if (dose > 0) {
+      current.push({ time, dose });
+    }
+    // Sort by dose time order
+    current.sort((a, b) => ALL_DOSE_TIMES.indexOf(a.time as DoseTimeName) - ALL_DOSE_TIMES.indexOf(b.time as DoseTimeName));
+    form.setValue('linearMaximumDoseTimes', current);
+  };
+
+  const getDoseForTime = (time: string): number | undefined => {
+    return maximumDoseTimes.find(dt => dt.time === time)?.dose;
+  };
+
+  return (
+    <div className="space-y-2">
+      <FormLabel className="text-sm">Maximum Dose per Time (optional)</FormLabel>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {enabledDoseTimes.map((time) => (
+          <FormItem key={time}>
+            <FormLabel className="text-xs text-gray-500">{DOSE_TIME_LABELS[time as DoseTimeName]}</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="No limit"
+                value={getDoseForTime(time) ?? ''}
+                onChange={(e) => handleDoseChange(time as DoseTimeName, e.target.value ? Number(e.target.value) : 0)}
+              />
+            </FormControl>
+          </FormItem>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">Leave blank for no limit. Schedule stops when all dose times reach their max.</p>
     </div>
   );
 }
@@ -762,48 +845,191 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField
-          control={form.control}
-          name="linearMinimumDose"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Minimum Dose (optional)</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  value={field.value ?? ''}
-                  onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      {/* Min/Max Dose - single mode */}
+      {doseTimesMode !== 'multiple' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="linearMinimumDose"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Minimum Dose (optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="linearMaximumDose"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Maximum Dose (optional)</FormLabel>
+          <FormField
+            control={form.control}
+            name="linearMaximumDose"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Maximum Dose (optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="number"
+                    step="0.01"
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+
+      {/* Maximum Dose per Time - multiple mode */}
+      {doseTimesMode === 'multiple' && (
+        <LinearMaximumDoseTimesInput form={form} />
+      )}
+
+      {/* Titration Mode Settings - only shown for multiple dose times */}
+      {doseTimesMode === 'multiple' && (
+        <TitrationModeSettings form={form} />
+      )}
+    </div>
+  );
+}
+
+// Titration Mode Settings Component for multiple dose times
+function TitrationModeSettings({
+  form,
+}: {
+  form: ReturnType<typeof useForm<MedicationFormValues>>;
+}) {
+  const titrationMode = form.watch('linearTitrationMode');
+  const watchedEnabledDoseTimes = form.watch('enabledDoseTimes');
+  const watchedTitrationSequence = form.watch('linearTitrationSequence');
+  const titrationDirection = form.watch('linearTitrationDirection');
+
+  const enabledDoseTimes = useMemo(() => watchedEnabledDoseTimes ?? [], [watchedEnabledDoseTimes]);
+  const titrationSequence = useMemo(() => watchedTitrationSequence ?? [], [watchedTitrationSequence]);
+
+  // Initialize sequence with enabled dose times if empty
+  useEffect(() => {
+    if (titrationMode === 'sequential' && titrationSequence.length === 0 && enabledDoseTimes.length > 0) {
+      // Default sequence: nocte first, then others in order
+      const defaultSequence = [...enabledDoseTimes].sort((a, b) => {
+        // nocte first, then mane, then others
+        const order: Record<string, number> = { nocte: 0, mane: 1, lunch: 2, dinner: 3 };
+        return (order[a] ?? 99) - (order[b] ?? 99);
+      });
+      form.setValue('linearTitrationSequence', defaultSequence);
+    }
+  }, [titrationMode, titrationSequence.length, enabledDoseTimes, form]);
+
+  const handleSequenceChange = (time: string, newPosition: number) => {
+    const currentSequence = [...(titrationSequence.length > 0 ? titrationSequence : enabledDoseTimes)];
+    const currentPosition = currentSequence.indexOf(time);
+
+    if (currentPosition === -1) return;
+
+    // Remove from current position
+    currentSequence.splice(currentPosition, 1);
+    // Insert at new position (newPosition is 1-indexed)
+    currentSequence.splice(newPosition - 1, 0, time);
+
+    form.setValue('linearTitrationSequence', currentSequence);
+  };
+
+  const getPositionForTime = (time: string): number => {
+    const seq = titrationSequence.length > 0 ? titrationSequence : enabledDoseTimes;
+    const idx = seq.indexOf(time);
+    return idx >= 0 ? idx + 1 : 1;
+  };
+
+  // Only show if direction is increase or decrease (not maintain)
+  if (titrationDirection === 'maintain') {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4 border-t pt-4 mt-4">
+      <h5 className="font-medium text-gray-600 text-sm">How should doses change?</h5>
+
+      {/* Titration Mode Select */}
+      <FormField
+        control={form.control}
+        name="linearTitrationMode"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Titration Mode</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value || 'together'}>
               <FormControl>
-                <Input
-                  {...field}
-                  type="number"
-                  step="0.01"
-                  value={field.value ?? ''}
-                  onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                />
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+              <SelectContent position="popper" className="pointer-events-auto">
+                <SelectItem value="together">All doses together (e.g., 1 BD → 2 BD → 3 BD)</SelectItem>
+                <SelectItem value="sequential">One at a time (e.g., 1 N → 2 N → 2 N + 1 M)</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormItem>
+        )}
+      />
+
+      {/* Sequential Settings - only shown if mode is 'sequential' */}
+      {titrationMode === 'sequential' && (
+        <>
+          {/* Titration Sequence */}
+          <div className="space-y-2">
+            <FormLabel>Titration Sequence (which dose time changes first)</FormLabel>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {enabledDoseTimes.map((time) => (
+                <div key={time} className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={enabledDoseTimes.length}
+                    className="w-16"
+                    value={getPositionForTime(time)}
+                    onChange={(e) => handleSequenceChange(time, Number(e.target.value) || 1)}
+                  />
+                  <span className="text-sm">{DOSE_TIME_LABELS[time as DoseTimeName]}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500">Enter 1 for first to change, 2 for second, etc.</p>
+          </div>
+
+          {/* Increments Per Dose Time */}
+          <FormField
+            control={form.control}
+            name="linearIncrementsPerDoseTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Increments before moving to next dose time</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-24"
+                    value={field.value || 1}
+                    onChange={(e) => field.onChange(Number(e.target.value) || 1)}
+                  />
+                </FormControl>
+                <p className="text-xs text-gray-500">
+                  e.g., "2" means: 1N → 2N → 3N → 1M+3N → 2M+3N → ...
+                </p>
+              </FormItem>
+            )}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -1052,6 +1278,10 @@ function getDefaultValues(): MedicationFormValues {
     linearMinimumDose: undefined,
     linearMaximumDose: undefined,
     linearStartingDoseTimes: [],
+    linearMaximumDoseTimes: [],
+    linearTitrationMode: 'together',
+    linearTitrationSequence: [],
+    linearIncrementsPerDoseTime: 1,
 
     cyclicDose: 0,
     cyclicDaysOn: 21,
@@ -1120,6 +1350,13 @@ function medicationToFormValues(medication: MedicationSchedule): MedicationFormV
       time: dt.time,
       dose: dt.dose,
     })) ?? [],
+    linearMaximumDoseTimes: medication.linearConfig?.maximumDoseTimes?.map(dt => ({
+      time: dt.time,
+      dose: dt.dose,
+    })) ?? [],
+    linearTitrationMode: medication.linearConfig?.titrationMode ?? 'together',
+    linearTitrationSequence: medication.linearConfig?.titrationSequence ?? [],
+    linearIncrementsPerDoseTime: medication.linearConfig?.incrementsPerDoseTime ?? 1,
 
     cyclicDose: medication.cyclicConfig?.dose ?? 0,
     cyclicDaysOn: medication.cyclicConfig?.daysOn ?? 21,
@@ -1193,10 +1430,30 @@ function formValuesToMedication(
         doseTimesMode: doseTimesMode,
         enabledDoseTimes: enabledDoseTimes,
         startingDoseTimes: doseTimesMode === 'multiple'
-          ? (data.linearStartingDoseTimes ?? []).map(dt => ({
-              time: dt.time as DoseTimeName,
-              dose: dt.dose,
-            }))
+          ? (data.linearStartingDoseTimes ?? [])
+              .filter(dt => enabledDoseTimes.includes(dt.time as DoseTimeName))
+              .map(dt => ({
+                time: dt.time as DoseTimeName,
+                dose: dt.dose,
+              }))
+          : undefined,
+        maximumDoseTimes: doseTimesMode === 'multiple'
+          ? (data.linearMaximumDoseTimes ?? [])
+              .filter(dt => enabledDoseTimes.includes(dt.time as DoseTimeName) && dt.dose > 0)
+              .map(dt => ({
+                time: dt.time as DoseTimeName,
+                dose: dt.dose,
+              }))
+          : undefined,
+        // Enhanced titration settings for multiple dose times
+        titrationMode: doseTimesMode === 'multiple'
+          ? (data.linearTitrationMode as TitrationMode) ?? 'together'
+          : undefined,
+        titrationSequence: doseTimesMode === 'multiple' && data.linearTitrationMode === 'sequential'
+          ? (data.linearTitrationSequence as DoseTimeName[])
+          : undefined,
+        incrementsPerDoseTime: doseTimesMode === 'multiple' && data.linearTitrationMode === 'sequential'
+          ? data.linearIncrementsPerDoseTime ?? 1
           : undefined,
       };
       break;
@@ -1208,15 +1465,21 @@ function formValuesToMedication(
         daysOff: data.cyclicDaysOff ?? 7,
         doseTimesMode: doseTimesMode,
         doseTimes: doseTimesMode === 'multiple'
-          ? (data.cyclicDoseTimes ?? []).map(dt => ({
-              time: dt.time as DoseTimeName,
-              dose: dt.dose,
-            }))
+          ? (data.cyclicDoseTimes ?? [])
+              .filter(dt => enabledDoseTimes.includes(dt.time as DoseTimeName))
+              .map(dt => ({
+                time: dt.time as DoseTimeName,
+                dose: dt.dose,
+              }))
           : undefined,
       };
       break;
 
     case 'dayOfWeek':
+      const filterDayTimes = (times?: { time: string; dose: number }[]) =>
+        doseTimesMode === 'multiple' && times
+          ? times.filter(dt => enabledDoseTimes.includes(dt.time as DoseTimeName)).map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose }))
+          : undefined;
       medication.dayOfWeekConfig = {
         monday: data.dowMonday,
         tuesday: data.dowTuesday,
@@ -1227,13 +1490,13 @@ function formValuesToMedication(
         sunday: data.dowSunday,
         doseTimesMode: doseTimesMode,
         enabledDoseTimes: enabledDoseTimes,
-        mondayTimes: doseTimesMode === 'multiple' ? data.dowMondayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        tuesdayTimes: doseTimesMode === 'multiple' ? data.dowTuesdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        wednesdayTimes: doseTimesMode === 'multiple' ? data.dowWednesdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        thursdayTimes: doseTimesMode === 'multiple' ? data.dowThursdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        fridayTimes: doseTimesMode === 'multiple' ? data.dowFridayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        saturdayTimes: doseTimesMode === 'multiple' ? data.dowSaturdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
-        sundayTimes: doseTimesMode === 'multiple' ? data.dowSundayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        mondayTimes: filterDayTimes(data.dowMondayTimes),
+        tuesdayTimes: filterDayTimes(data.dowTuesdayTimes),
+        wednesdayTimes: filterDayTimes(data.dowWednesdayTimes),
+        thursdayTimes: filterDayTimes(data.dowThursdayTimes),
+        fridayTimes: filterDayTimes(data.dowFridayTimes),
+        saturdayTimes: filterDayTimes(data.dowSaturdayTimes),
+        sundayTimes: filterDayTimes(data.dowSundayTimes),
       };
       break;
 
@@ -1244,7 +1507,9 @@ function formValuesToMedication(
           dose: p.dose,
           durationDays: p.durationDays,
           doseTimes: doseTimesMode === 'multiple' && p.doseTimes
-            ? p.doseTimes.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose }))
+            ? p.doseTimes
+                .filter(dt => enabledDoseTimes.includes(dt.time as DoseTimeName))
+                .map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose }))
             : undefined,
         })),
         doseTimesMode: doseTimesMode,

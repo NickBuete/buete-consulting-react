@@ -10,8 +10,9 @@ import type {
   PreparationRequirement,
   DoseTimeEntry,
   DoseTimeValue,
+  DoseTimeName,
 } from '../types/doseCalculator';
-import { DOSE_TIME_SHORT_LABELS } from '../types/doseCalculator';
+import { DOSE_TIME_SHORT_LABELS, ALL_DOSE_TIMES } from '../types/doseCalculator';
 
 const MAX_ITERATIONS = 1000; // Safety limit to prevent infinite loops
 const DEFAULT_MAINTAIN_DAYS = 90; // Default duration for 'maintain' titration
@@ -171,16 +172,40 @@ function calculateLinearDoses(medication: MedicationSchedule): DoseEntry[] {
 
 /**
  * Calculate doses for linear titration with multiple dose times
- * All dose times titrate together (synchronized) by the same change amount
+ * Supports both 'together' (synchronized) and 'sequential' modes
  */
 function calculateLinearDosesMultipleTimes(medication: MedicationSchedule): DoseEntry[] {
   const config = medication.linearConfig!;
-  const startingDoseTimes = config.startingDoseTimes!;
+  const enabledDoseTimes = config.enabledDoseTimes ?? [];
+
+  // Filter startingDoseTimes to only include enabled dose times
+  const filteredStartingDoseTimes = (config.startingDoseTimes ?? [])
+    .filter(dt => enabledDoseTimes.includes(dt.time));
+
+  if (filteredStartingDoseTimes.length === 0) {
+    return [];
+  }
+
+  const titrationMode = config.titrationMode ?? 'together';
+
+  if (titrationMode === 'sequential') {
+    return calculateLinearDosesSequential(medication, filteredStartingDoseTimes);
+  }
+
+  return calculateLinearDosesTogether(medication, filteredStartingDoseTimes);
+}
+
+/**
+ * Calculate doses for linear titration with multiple dose times - together mode
+ * All dose times titrate together (synchronized) by the same change amount
+ */
+function calculateLinearDosesTogether(medication: MedicationSchedule, filteredStartingDoseTimes: DoseTimeValue[]): DoseEntry[] {
+  const config = medication.linearConfig!;
 
   const doseEntries: DoseEntry[] = [];
 
   // Track current dose for each dose time
-  let currentDoseTimes: DoseTimeEntry[] = startingDoseTimes.map(dt => ({
+  let currentDoseTimes: DoseTimeEntry[] = filteredStartingDoseTimes.map(dt => ({
     time: dt.time,
     dose: dt.dose,
   }));
@@ -215,21 +240,32 @@ function calculateLinearDosesMultipleTimes(medication: MedicationSchedule): Dose
 
     // Apply titration to all dose times
     if (config.titrationDirection === 'increase') {
-      const nextDoseTimes = currentDoseTimes.map(dt => ({
-        ...dt,
-        dose: dt.dose + config.changeAmount,
-      }));
+      // Helper to get max dose for a specific time
+      const getMaxForTime = (time: DoseTimeName): number | undefined => {
+        const perTimeMax = config.maximumDoseTimes?.find(mt => mt.time === time)?.dose;
+        return perTimeMax ?? config.maximumDose;
+      };
 
-      // Check if any dose time has reached maximum
-      const anyAtMax = config.maximumDose !== undefined &&
-        nextDoseTimes.some(dt => dt.dose >= config.maximumDose!);
-
-      if (anyAtMax) {
-        // Cap all doses at maximum and add final interval
-        currentDoseTimes = currentDoseTimes.map(dt => ({
+      const nextDoseTimes = currentDoseTimes.map(dt => {
+        const maxDose = getMaxForTime(dt.time);
+        const newDose = dt.dose + config.changeAmount;
+        return {
           ...dt,
-          dose: Math.min(dt.dose + config.changeAmount, config.maximumDose!),
-        }));
+          dose: maxDose !== undefined ? Math.min(newDose, maxDose) : newDose,
+        };
+      });
+
+      // Check if all dose times that have a max limit have reached it
+      // If no dose times have max limits, continue (MAX_ITERATIONS will prevent infinite loop)
+      const doseTimesWithMax = nextDoseTimes.filter(dt => getMaxForTime(dt.time) !== undefined);
+      const allAtMax = doseTimesWithMax.length > 0 && doseTimesWithMax.every(dt => {
+        const maxDose = getMaxForTime(dt.time)!;
+        return dt.dose >= maxDose;
+      });
+
+      if (allAtMax) {
+        // All doses at maximum - add final interval and stop
+        currentDoseTimes = nextDoseTimes;
         currentDate = intervalEndDate;
 
         for (let i = 0; i < config.intervalDays; i++) {
@@ -299,6 +335,172 @@ function calculateLinearDosesMultipleTimes(medication: MedicationSchedule): Dose
     if (medication.endDate && currentDate > medication.endDate) {
       break;
     }
+  }
+
+  return addTabletBreakdowns(doseEntries, medication);
+}
+
+/**
+ * Calculate doses for linear titration with multiple dose times - sequential mode
+ * Each dose time titrates one at a time in a specified order, cycling through until all reach their limits
+ */
+function calculateLinearDosesSequential(
+  medication: MedicationSchedule,
+  filteredStartingDoseTimes: DoseTimeValue[]
+): DoseEntry[] {
+  const config = medication.linearConfig!;
+  const doseEntries: DoseEntry[] = [];
+
+  // Get sequence (default to enabled dose times order if not specified)
+  const sequence = config.titrationSequence?.filter(t =>
+    filteredStartingDoseTimes.some(dt => dt.time === t)
+  ) ?? filteredStartingDoseTimes.map(dt => dt.time);
+
+  const incrementsPerTime = config.incrementsPerDoseTime ?? 1;
+  const isIncrease = config.titrationDirection === 'increase';
+  const isDecrease = config.titrationDirection === 'decrease';
+
+  // Initialize current doses for all dose times (all start at configured values)
+  const currentDoseTimes = new Map<DoseTimeName, number>(
+    filteredStartingDoseTimes.map(dt => [dt.time, dt.dose])
+  );
+
+  // Track which dose times have reached their limit
+  const atLimitTimes = new Set<DoseTimeName>();
+
+  // Get max dose for this specific time (per-time max takes precedence over global max)
+  const getMaxForTime = (time: DoseTimeName): number | undefined => {
+    const perTimeMax = config.maximumDoseTimes?.find(mt => mt.time === time)?.dose;
+    return perTimeMax ?? config.maximumDose;
+  };
+
+  // Track which dose time we're currently titrating (cycles through sequence)
+  let currentSequenceIndex = 0;
+
+  // For the first dose time, if it has a non-zero starting dose, that counts as the first "increment"
+  // (i.e., if starting at 25mg with 3 increments per time, we want: 25 → 50 → 75, not 25 → 50 → 75 → 100)
+  const firstTime = sequence[0];
+  const firstStartingDose = currentDoseTimes.get(firstTime) ?? 0;
+  let incrementsOnCurrentTime = firstStartingDose > 0 ? 1 : 0;
+
+  // Check if ALL starting doses are 0 - if so, we should immediately apply the first titration
+  // rather than outputting a bunch of 0mg days first
+  const allStartingDosesZero = filteredStartingDoseTimes.every(dt => dt.dose === 0);
+  if (allStartingDosesZero && isIncrease) {
+    // Apply the first increment immediately to the first dose time in sequence
+    const firstTimeInSequence = sequence[0];
+    const maxDose = getMaxForTime(firstTimeInSequence);
+    let newDose = config.changeAmount;
+    if (maxDose !== undefined && newDose >= maxDose) {
+      newDose = maxDose;
+      atLimitTimes.add(firstTimeInSequence);
+    }
+    currentDoseTimes.set(firstTimeInSequence, newDose);
+    incrementsOnCurrentTime = 1; // This first dose counts as increment 1
+  }
+
+  let currentDate = new Date(medication.startDate);
+  let iterations = 0;
+
+  while (iterations < MAX_ITERATIONS) {
+    iterations++;
+
+    // Add entries for current interval
+    for (let i = 0; i < config.intervalDays; i++) {
+      const doseDate = addDays(currentDate, i);
+      if (medication.endDate && doseDate > medication.endDate) {
+        return addTabletBreakdowns(doseEntries, medication);
+      }
+
+      const doseTimes: DoseTimeEntry[] = Array.from(currentDoseTimes.entries())
+        .map(([time, dose]) => ({ time, dose }))
+        .sort((a, b) => ALL_DOSE_TIMES.indexOf(a.time) - ALL_DOSE_TIMES.indexOf(b.time));
+
+      doseEntries.push({
+        date: doseDate,
+        dose: getTotalDailyDose(doseTimes),
+        unit: medication.unit,
+        medicationId: medication.id,
+        medicationName: medication.medicationName,
+        doseTimes,
+      });
+    }
+
+    // Check if we're maintaining (no titration)
+    if (config.titrationDirection === 'maintain') {
+      if (!medication.endDate) {
+        const maintainEndDate = addDays(medication.startDate, DEFAULT_MAINTAIN_DAYS);
+        if (addDays(currentDate, config.intervalDays) >= maintainEndDate) break;
+      }
+      currentDate = addDays(currentDate, config.intervalDays);
+      continue;
+    }
+
+    // Check if all dose times have reached their limit
+    if (atLimitTimes.size >= sequence.length) {
+      break;
+    }
+
+    // Find next dose time that hasn't reached its limit
+    let foundActiveTime = false;
+    for (let attempts = 0; attempts < sequence.length; attempts++) {
+      const candidateTime = sequence[currentSequenceIndex % sequence.length];
+      if (!atLimitTimes.has(candidateTime)) {
+        foundActiveTime = true;
+        break;
+      }
+      // This time is at limit, move to next in sequence
+      currentSequenceIndex++;
+      // When moving to a new dose time, check if it has a non-zero current dose (after titration)
+      const newTime = sequence[currentSequenceIndex % sequence.length];
+      const newCurrentDose = currentDoseTimes.get(newTime) ?? 0;
+      incrementsOnCurrentTime = newCurrentDose > 0 ? 1 : 0;
+    }
+
+    if (!foundActiveTime) {
+      // All dose times at limit
+      break;
+    }
+
+    const currentTime = sequence[currentSequenceIndex % sequence.length];
+    const currentDose = currentDoseTimes.get(currentTime) ?? 0;
+
+    // Apply titration to current dose time
+    let newDose = currentDose;
+    let reachedLimit = false;
+
+    if (isIncrease) {
+      newDose = currentDose + config.changeAmount;
+      const maxDose = getMaxForTime(currentTime);
+      if (maxDose !== undefined && newDose >= maxDose) {
+        newDose = maxDose;
+        reachedLimit = true;
+        atLimitTimes.add(currentTime);
+      }
+    } else if (isDecrease) {
+      const minDose = config.minimumDose ?? 0;
+      newDose = currentDose - config.changeAmount;
+      if (newDose <= minDose) {
+        newDose = minDose;
+        reachedLimit = true;
+        atLimitTimes.add(currentTime);
+      }
+    }
+
+    currentDoseTimes.set(currentTime, newDose);
+    incrementsOnCurrentTime++;
+
+    // Check if we should move to next dose time (either reached limit or done increments)
+    if (reachedLimit || incrementsOnCurrentTime >= incrementsPerTime) {
+      currentSequenceIndex++;
+      // When moving to a new dose time, check if it has a non-zero current dose
+      const newTime = sequence[currentSequenceIndex % sequence.length];
+      const newCurrentDose = currentDoseTimes.get(newTime) ?? 0;
+      incrementsOnCurrentTime = newCurrentDose > 0 ? 1 : 0;
+    }
+
+    currentDate = addDays(currentDate, config.intervalDays);
+    if (medication.endDate && currentDate > medication.endDate) break;
   }
 
   return addTabletBreakdowns(doseEntries, medication);
