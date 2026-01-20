@@ -11,7 +11,8 @@ import {
 } from '../ui';
 import { MedicationFormDialog } from './MedicationFormDialog';
 import { formatDate, getMedicationColor, getScheduleTypeLabel, getScheduleDescription } from '../../utils/doseCalculation';
-import type { MedicationSchedule } from '../../types/doseCalculator';
+import type { MedicationSchedule, DoseTimeValue } from '../../types/doseCalculator';
+import { DOSE_TIME_SHORT_LABELS } from '../../types/doseCalculator';
 
 interface MedicationListManagerProps {
   medications: MedicationSchedule[];
@@ -61,15 +62,63 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
     return null;
   };
 
+  // Format dose times values for display
+  const formatDoseTimesDisplay = (doseTimes: DoseTimeValue[], unit: string): string => {
+    return doseTimes
+      .map(dt => `${DOSE_TIME_SHORT_LABELS[dt.time]}:${dt.dose}${unit}`)
+      .join(' ');
+  };
+
+  // Get dosing frequency label
+  const getDosingFrequencyLabel = (med: MedicationSchedule): string | null => {
+    // Check for dose times mode in the relevant config
+    let doseTimesMode: string | undefined;
+    let enabledTimes: string[] | undefined;
+
+    switch (med.scheduleType) {
+      case 'linear':
+        doseTimesMode = med.linearConfig?.doseTimesMode;
+        enabledTimes = med.linearConfig?.enabledDoseTimes;
+        break;
+      case 'cyclic':
+        doseTimesMode = med.cyclicConfig?.doseTimesMode;
+        enabledTimes = med.cyclicConfig?.doseTimes?.map(dt => dt.time);
+        break;
+      case 'multiPhase':
+        doseTimesMode = med.multiPhaseConfig?.doseTimesMode;
+        enabledTimes = med.multiPhaseConfig?.enabledDoseTimes;
+        break;
+    }
+
+    if (doseTimesMode !== 'multiple' || !enabledTimes || enabledTimes.length <= 1) {
+      return null;
+    }
+
+    // Return frequency based on number of times
+    const count = enabledTimes.length;
+    if (count === 2) return 'BD';
+    if (count === 3) return 'TDS';
+    if (count === 4) return 'QID';
+    return `${count}x daily`;
+  };
+
   const getStartingDoseLabel = (med: MedicationSchedule): string | null => {
     switch (med.scheduleType) {
       case 'linear':
         if (med.linearConfig) {
+          // Check if multiple dose times mode
+          if (med.linearConfig.doseTimesMode === 'multiple' && med.linearConfig.startingDoseTimes && med.linearConfig.startingDoseTimes.length > 0) {
+            return formatDoseTimesDisplay(med.linearConfig.startingDoseTimes, med.unit);
+          }
           return `${med.linearConfig.startingDose}${med.unit}`;
         }
         break;
       case 'cyclic':
         if (med.cyclicConfig) {
+          // Check if multiple dose times mode
+          if (med.cyclicConfig.doseTimesMode === 'multiple' && med.cyclicConfig.doseTimes && med.cyclicConfig.doseTimes.length > 0) {
+            return formatDoseTimesDisplay(med.cyclicConfig.doseTimes, med.unit);
+          }
           return `${med.cyclicConfig.dose}${med.unit}`;
         }
         break;
@@ -92,7 +141,12 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
         break;
       case 'multiPhase':
         if (med.multiPhaseConfig && med.multiPhaseConfig.phases.length > 0) {
-          return `${med.multiPhaseConfig.phases[0].dose}${med.unit}`;
+          const firstPhase = med.multiPhaseConfig.phases[0];
+          // Check if phase has multiple dose times
+          if (firstPhase.doseTimes && firstPhase.doseTimes.length > 0) {
+            return formatDoseTimesDisplay(firstPhase.doseTimes, med.unit);
+          }
+          return `${firstPhase.dose}${med.unit}`;
         }
         break;
     }
@@ -147,6 +201,11 @@ export const MedicationListManager: React.FC<MedicationListManagerProps> = ({
                         <Badge variant="outline" className="font-body">
                           {getScheduleTypeLabel(med.scheduleType)}
                         </Badge>
+                        {getDosingFrequencyLabel(med) && (
+                          <Badge variant="secondary" className="font-body">
+                            {getDosingFrequencyLabel(med)}
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-sm font-body">

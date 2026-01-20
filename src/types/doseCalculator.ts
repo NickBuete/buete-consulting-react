@@ -10,6 +10,41 @@ export type MedicationUnit = 'mg' | 'mcg' | 'mL' | 'units';
 
 export type TitrationDirection = 'increase' | 'decrease' | 'maintain';
 
+// Dose time types for multiple daily doses
+export type DoseTimeName = 'mane' | 'lunch' | 'dinner' | 'nocte';
+
+export type DoseTimesMode = 'single' | 'multiple';
+
+export interface DoseTimeValue {
+  time: DoseTimeName;
+  dose: number;
+}
+
+export interface DoseTimeEntry {
+  time: DoseTimeName;
+  dose: number;
+  tabletBreakdown?: TabletBreakdown[];
+}
+
+// Labels for display
+export const DOSE_TIME_LABELS: Record<DoseTimeName, string> = {
+  mane: 'Mane (Morning)',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  nocte: 'Nocte (Bedtime)',
+};
+
+// Short labels for compact calendar display
+export const DOSE_TIME_SHORT_LABELS: Record<DoseTimeName, string> = {
+  mane: 'M',
+  lunch: 'L',
+  dinner: 'D',
+  nocte: 'N',
+};
+
+// All dose time names in order
+export const ALL_DOSE_TIMES: DoseTimeName[] = ['mane', 'lunch', 'dinner', 'nocte'];
+
 // Schedule type discriminator
 export type ScheduleType = 'linear' | 'cyclic' | 'dayOfWeek' | 'multiPhase';
 
@@ -33,6 +68,11 @@ export interface LinearConfig {
   intervalDays: number;
   minimumDose?: number;
   maximumDose?: number;
+
+  // Multiple dose times support
+  doseTimesMode?: DoseTimesMode; // 'single' (default) or 'multiple'
+  enabledDoseTimes?: DoseTimeName[]; // Which times are enabled
+  startingDoseTimes?: DoseTimeValue[]; // Starting dose for each enabled time
 }
 
 // Cyclic dosing config (e.g., 21 days on, 7 days off)
@@ -40,6 +80,10 @@ export interface CyclicConfig {
   dose: number;
   daysOn: number;
   daysOff: number;
+
+  // Multiple dose times support
+  doseTimesMode?: DoseTimesMode;
+  doseTimes?: DoseTimeValue[]; // Dose for each enabled time
 }
 
 // Day-of-week dosing config (e.g., warfarin)
@@ -51,6 +95,18 @@ export interface DayOfWeekConfig {
   friday?: number;
   saturday?: number;
   sunday?: number;
+
+  // Multiple dose times support
+  doseTimesMode?: DoseTimesMode;
+  enabledDoseTimes?: DoseTimeName[];
+  // Per-day dose times (when mode is 'multiple')
+  mondayTimes?: DoseTimeValue[];
+  tuesdayTimes?: DoseTimeValue[];
+  wednesdayTimes?: DoseTimeValue[];
+  thursdayTimes?: DoseTimeValue[];
+  fridayTimes?: DoseTimeValue[];
+  saturdayTimes?: DoseTimeValue[];
+  sundayTimes?: DoseTimeValue[];
 }
 
 // Multi-phase taper config (e.g., SNRI detox)
@@ -58,10 +114,17 @@ export interface TaperPhase {
   id: string;
   dose: number;
   durationDays: number;
+
+  // Multiple dose times support (doses for each time within this phase)
+  doseTimes?: DoseTimeValue[];
 }
 
 export interface MultiPhaseConfig {
   phases: TaperPhase[];
+
+  // Multiple dose times support
+  doseTimesMode?: DoseTimesMode;
+  enabledDoseTimes?: DoseTimeName[];
 }
 
 // Enhanced medication schedule with all modes
@@ -85,6 +148,10 @@ export interface MedicationSchedule {
   preparationMode: PreparationMode;
   preparations?: Preparation[];
   optimisedPreparations?: Preparation[];
+
+  // Medication-level dose times settings (convenience for all schedule types)
+  doseTimesMode?: DoseTimesMode;
+  enabledDoseTimes?: DoseTimeName[];
 }
 
 // Tablet breakdown for a single dose
@@ -96,12 +163,15 @@ export interface TabletBreakdown {
 // Enhanced dose entry with tablet breakdown
 export interface DoseEntry {
   date: Date;
-  dose: number;
+  dose: number; // Total daily dose (sum of all dose times for backwards compatibility)
   unit: MedicationUnit;
   medicationId: string;
   medicationName: string;
   isOffDay?: boolean;
   tabletBreakdown?: TabletBreakdown[];
+
+  // Multiple dose times (when mode is 'multiple')
+  doseTimes?: DoseTimeEntry[];
 }
 
 export interface CalendarDay {

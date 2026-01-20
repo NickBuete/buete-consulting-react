@@ -16,6 +16,7 @@ import {
   getMedicationColor,
 } from '../../utils/doseCalculation';
 import type { MedicationSchedule, DoseEntry } from '../../types/doseCalculator';
+import { DOSE_TIME_SHORT_LABELS } from '../../types/doseCalculator';
 
 interface DoseCalendarViewProps {
   medications: MedicationSchedule[];
@@ -166,6 +167,9 @@ export const DoseCalendarView: React.FC<DoseCalendarViewProps> = ({
                       );
                     }
 
+                    // Check if this dose has multiple dose times
+                    const hasDoseTimes = dose.doseTimes && dose.doseTimes.length > 0;
+
                     return (
                       <div
                         key={dose.medicationId}
@@ -174,14 +178,48 @@ export const DoseCalendarView: React.FC<DoseCalendarViewProps> = ({
                         <div className="font-semibold truncate" title={dose.medicationName}>
                           {dose.medicationName}
                         </div>
-                        <div className="font-body">
-                          {formatDose(dose.dose, dose.unit)}
-                        </div>
-                        {/* Show tablet breakdown if available */}
-                        {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
-                          <div className="font-body text-[10px] text-gray-600 mt-0.5">
-                            ({formatTabletBreakdown(dose.tabletBreakdown)})
+
+                        {hasDoseTimes ? (
+                          // Multiple dose times display
+                          <div className="font-body">
+                            {dose.doseTimes!.map((dt) => (
+                              <div key={dt.time} className="flex justify-between">
+                                <span className="text-gray-600">{DOSE_TIME_SHORT_LABELS[dt.time]}:</span>
+                                <span>{formatDose(dt.dose, dose.unit)}</span>
+                              </div>
+                            ))}
+                            {dose.doseTimes!.length > 1 && (
+                              <div className="flex justify-between border-t border-gray-200 mt-0.5 pt-0.5">
+                                <span className="text-gray-500 text-[10px]">Total:</span>
+                                <span className="text-[10px]">{formatDose(dose.dose, dose.unit)}</span>
+                              </div>
+                            )}
+                            {/* Show tablet breakdown for each dose time if available */}
+                            {hasPreparations && dose.doseTimes!.some(dt => dt.tabletBreakdown && dt.tabletBreakdown.length > 0) && (
+                              <div className="font-body text-[10px] text-gray-600 mt-0.5 border-t border-gray-200 pt-0.5">
+                                {dose.doseTimes!.map((dt) => (
+                                  dt.tabletBreakdown && dt.tabletBreakdown.length > 0 && (
+                                    <div key={`${dt.time}-breakdown`}>
+                                      {DOSE_TIME_SHORT_LABELS[dt.time]}: {formatTabletBreakdown(dt.tabletBreakdown)}
+                                    </div>
+                                  )
+                                ))}
+                              </div>
+                            )}
                           </div>
+                        ) : (
+                          // Single dose display (original behavior)
+                          <>
+                            <div className="font-body">
+                              {formatDose(dose.dose, dose.unit)}
+                            </div>
+                            {/* Show tablet breakdown if available */}
+                            {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
+                              <div className="font-body text-[10px] text-gray-600 mt-0.5">
+                                ({formatTabletBreakdown(dose.tabletBreakdown)})
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );

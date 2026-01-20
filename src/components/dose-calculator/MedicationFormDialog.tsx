@@ -26,7 +26,15 @@ import {
   Checkbox,
   Label,
 } from '../ui';
-import type { MedicationSchedule, ScheduleType, PreparationMode, Preparation } from '../../types/doseCalculator';
+import type {
+  MedicationSchedule,
+  ScheduleType,
+  PreparationMode,
+  Preparation,
+  DoseTimeName,
+  DoseTimesMode,
+} from '../../types/doseCalculator';
+import { ALL_DOSE_TIMES, DOSE_TIME_LABELS } from '../../types/doseCalculator';
 import { optimizePreparations, getUniqueDoses } from '../../utils/doseCalculation';
 
 // Zod schema for preparation
@@ -36,11 +44,19 @@ const preparationSchema = z.object({
   canBeHalved: z.boolean(),
 });
 
-// Zod schema for taper phase
+// Zod schema for dose time value
+// Using z.string() due to Zod v4/TypeScript 4.9 compatibility - type is validated at runtime
+const doseTimeValueSchema = z.object({
+  time: z.string(),
+  dose: z.number().nonnegative(),
+});
+
+// Zod schema for taper phase (with optional dose times)
 const taperPhaseSchema = z.object({
   id: z.string(),
   dose: z.number().nonnegative('Dose must be 0 or greater'),
   durationDays: z.number().int().positive('Duration must be at least 1 day'),
+  doseTimes: z.array(doseTimeValueSchema).optional(),
 });
 
 // Main medication schema
@@ -51,6 +67,11 @@ const medicationSchema = z.object({
   endDate: z.string().optional(),
   scheduleType: z.string(),
 
+  // Dose times mode (applies to schedule type configs)
+  // Using z.string() due to Zod v4/TypeScript 4.9 compatibility
+  doseTimesMode: z.string(),
+  enabledDoseTimes: z.array(z.string()).optional(),
+
   // Linear config
   linearStartingDose: z.number().nonnegative().optional(),
   linearTitrationDirection: z.string().optional(),
@@ -58,11 +79,15 @@ const medicationSchema = z.object({
   linearIntervalDays: z.number().int().min(1).optional(),
   linearMinimumDose: z.number().nonnegative().optional(),
   linearMaximumDose: z.number().positive().optional(),
+  // Linear config dose times
+  linearStartingDoseTimes: z.array(doseTimeValueSchema).optional(),
 
   // Cyclic config
   cyclicDose: z.number().nonnegative().optional(),
   cyclicDaysOn: z.number().int().min(1).optional(),
   cyclicDaysOff: z.number().int().min(0).optional(),
+  // Cyclic config dose times
+  cyclicDoseTimes: z.array(doseTimeValueSchema).optional(),
 
   // Day of week config
   dowMonday: z.number().nonnegative().optional(),
@@ -72,6 +97,14 @@ const medicationSchema = z.object({
   dowFriday: z.number().nonnegative().optional(),
   dowSaturday: z.number().nonnegative().optional(),
   dowSunday: z.number().nonnegative().optional(),
+  // Day of week dose times (each day has its own dose times array)
+  dowMondayTimes: z.array(doseTimeValueSchema).optional(),
+  dowTuesdayTimes: z.array(doseTimeValueSchema).optional(),
+  dowWednesdayTimes: z.array(doseTimeValueSchema).optional(),
+  dowThursdayTimes: z.array(doseTimeValueSchema).optional(),
+  dowFridayTimes: z.array(doseTimeValueSchema).optional(),
+  dowSaturdayTimes: z.array(doseTimeValueSchema).optional(),
+  dowSundayTimes: z.array(doseTimeValueSchema).optional(),
 
   // Multi-phase config
   phases: z.array(taperPhaseSchema).optional(),
@@ -457,12 +490,184 @@ export const MedicationFormDialog: React.FC<MedicationFormDialogProps> = ({
   );
 };
 
+// Dose Times Selector Component
+function DoseTimesSelector({
+  form,
+}: {
+  form: ReturnType<typeof useForm<MedicationFormValues>>;
+  scheduleType: ScheduleType;
+}) {
+  const doseTimesMode = form.watch('doseTimesMode');
+  const enabledDoseTimes = form.watch('enabledDoseTimes') ?? ['mane'];
+
+  const handleModeChange = (mode: string) => {
+    form.setValue('doseTimesMode', mode as 'single' | 'multiple');
+    // Initialize enabled dose times if switching to multiple
+    if (mode === 'multiple' && (!enabledDoseTimes || enabledDoseTimes.length === 0)) {
+      form.setValue('enabledDoseTimes', ['mane']);
+    }
+  };
+
+  const handleDoseTimeToggle = (time: DoseTimeName, checked: boolean) => {
+    const current = enabledDoseTimes ?? [];
+    if (checked) {
+      form.setValue('enabledDoseTimes', [...current, time].sort((a, b) =>
+        ALL_DOSE_TIMES.indexOf(a as DoseTimeName) - ALL_DOSE_TIMES.indexOf(b as DoseTimeName)
+      ));
+    } else {
+      // Don't allow removing the last dose time
+      if (current.length > 1) {
+        form.setValue('enabledDoseTimes', current.filter(t => t !== time));
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-3 mb-4 pb-4 border-b">
+      <div className="flex items-center justify-between">
+        <FormLabel className="text-sm font-medium">Dosing Frequency</FormLabel>
+        <Select onValueChange={handleModeChange} value={doseTimesMode || 'single'}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" className="pointer-events-auto">
+            <SelectItem value="single">Once daily</SelectItem>
+            <SelectItem value="multiple">Multiple times per day</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {doseTimesMode === 'multiple' && (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">Select which times of day:</p>
+          <div className="flex flex-wrap gap-4">
+            {ALL_DOSE_TIMES.map((time) => (
+              <label key={time} className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={enabledDoseTimes?.includes(time) ?? false}
+                  onCheckedChange={(checked) => handleDoseTimeToggle(time, !!checked)}
+                />
+                <span className="text-sm">{DOSE_TIME_LABELS[time]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Starting Dose Times Input for Linear Titration
+function LinearStartingDoseTimesInput({
+  form,
+}: {
+  form: ReturnType<typeof useForm<MedicationFormValues>>;
+}) {
+  const enabledDoseTimes = form.watch('enabledDoseTimes') ?? ['mane'];
+  const startingDoseTimes = form.watch('linearStartingDoseTimes') ?? [];
+
+  const handleDoseChange = (time: DoseTimeName, dose: number) => {
+    const current = [...startingDoseTimes];
+    const existingIndex = current.findIndex(dt => dt.time === time);
+    if (existingIndex >= 0) {
+      current[existingIndex] = { time, dose };
+    } else {
+      current.push({ time, dose });
+    }
+    // Sort by dose time order
+    current.sort((a, b) => ALL_DOSE_TIMES.indexOf(a.time as DoseTimeName) - ALL_DOSE_TIMES.indexOf(b.time as DoseTimeName));
+    form.setValue('linearStartingDoseTimes', current);
+  };
+
+  const getDoseForTime = (time: string): number => {
+    return startingDoseTimes.find(dt => dt.time === time)?.dose ?? 0;
+  };
+
+  return (
+    <div className="space-y-2">
+      <FormLabel className="text-sm">Starting Dose per Time</FormLabel>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {enabledDoseTimes.map((time) => (
+          <FormItem key={time}>
+            <FormLabel className="text-xs text-gray-500">{DOSE_TIME_LABELS[time as DoseTimeName]}</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0"
+                value={getDoseForTime(time) || ''}
+                onChange={(e) => handleDoseChange(time as DoseTimeName, e.target.value ? Number(e.target.value) : 0)}
+              />
+            </FormControl>
+          </FormItem>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">Each dose time will titrate by the same change amount</p>
+    </div>
+  );
+}
+
+// Cyclic Dose Times Input
+function CyclicDoseTimesInput({
+  form,
+}: {
+  form: ReturnType<typeof useForm<MedicationFormValues>>;
+}) {
+  const enabledDoseTimes = form.watch('enabledDoseTimes') ?? ['mane'];
+  const cyclicDoseTimes = form.watch('cyclicDoseTimes') ?? [];
+
+  const handleDoseChange = (time: DoseTimeName, dose: number) => {
+    const current = [...cyclicDoseTimes];
+    const existingIndex = current.findIndex(dt => dt.time === time);
+    if (existingIndex >= 0) {
+      current[existingIndex] = { time, dose };
+    } else {
+      current.push({ time, dose });
+    }
+    current.sort((a, b) => ALL_DOSE_TIMES.indexOf(a.time as DoseTimeName) - ALL_DOSE_TIMES.indexOf(b.time as DoseTimeName));
+    form.setValue('cyclicDoseTimes', current);
+  };
+
+  const getDoseForTime = (time: string): number => {
+    return cyclicDoseTimes.find(dt => dt.time === time)?.dose ?? 0;
+  };
+
+  return (
+    <div className="space-y-2">
+      <FormLabel className="text-sm">Dose per Time</FormLabel>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {enabledDoseTimes.map((time) => (
+          <FormItem key={time}>
+            <FormLabel className="text-xs text-gray-500">{DOSE_TIME_LABELS[time as DoseTimeName]}</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0"
+                value={getDoseForTime(time) || ''}
+                onChange={(e) => handleDoseChange(time as DoseTimeName, e.target.value ? Number(e.target.value) : 0)}
+              />
+            </FormControl>
+          </FormItem>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Linear Titration Config Fields
 function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<MedicationFormValues>> }) {
+  const doseTimesMode = form.watch('doseTimesMode');
+
   return (
     <div className="space-y-4">
       <h4 className="font-semibold text-gray-700">Linear Titration Settings</h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      {/* Dose Times Selector */}
+      <DoseTimesSelector form={form} scheduleType="linear" />
+
+      {/* Starting Dose - single mode */}
+      {doseTimesMode !== 'multiple' && (
         <FormField
           control={form.control}
           name="linearStartingDose"
@@ -483,7 +688,14 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
             </FormItem>
           )}
         />
+      )}
 
+      {/* Starting Dose Times - multiple mode */}
+      {doseTimesMode === 'multiple' && (
+        <LinearStartingDoseTimesInput form={form} />
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField
           control={form.control}
           name="linearTitrationDirection"
@@ -527,9 +739,7 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
             </FormItem>
           )}
         />
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField
           control={form.control}
           name="linearIntervalDays"
@@ -550,7 +760,9 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
             </FormItem>
           )}
         />
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="linearMinimumDose"
@@ -598,13 +810,20 @@ function LinearConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
 
 // Cyclic Dosing Config Fields
 function CyclicConfigFields({ form }: { form: ReturnType<typeof useForm<MedicationFormValues>> }) {
+  const doseTimesMode = form.watch('doseTimesMode');
+
   return (
     <div className="space-y-4">
       <h4 className="font-semibold text-gray-700">Cyclic Dosing Settings</h4>
       <p className="text-sm text-gray-600">
         e.g., OCP: 21 days taking medication, 7 days off
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      {/* Dose Times Selector */}
+      <DoseTimesSelector form={form} scheduleType="cyclic" />
+
+      {/* Dose - single mode */}
+      {doseTimesMode !== 'multiple' && (
         <FormField
           control={form.control}
           name="cyclicDose"
@@ -625,7 +844,14 @@ function CyclicConfigFields({ form }: { form: ReturnType<typeof useForm<Medicati
             </FormItem>
           )}
         />
+      )}
 
+      {/* Dose Times - multiple mode */}
+      {doseTimesMode === 'multiple' && (
+        <CyclicDoseTimesInput form={form} />
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="cyclicDaysOn"
@@ -815,16 +1041,22 @@ function getDefaultValues(): MedicationFormValues {
     endDate: '',
     scheduleType: 'linear',
 
+    // Dose times mode
+    doseTimesMode: 'single',
+    enabledDoseTimes: ['mane'],
+
     linearStartingDose: 0,
     linearTitrationDirection: 'decrease',
     linearChangeAmount: 0,
     linearIntervalDays: 7,
     linearMinimumDose: undefined,
     linearMaximumDose: undefined,
+    linearStartingDoseTimes: [],
 
     cyclicDose: 0,
     cyclicDaysOn: 21,
     cyclicDaysOff: 7,
+    cyclicDoseTimes: [],
 
     dowMonday: undefined,
     dowTuesday: undefined,
@@ -833,6 +1065,13 @@ function getDefaultValues(): MedicationFormValues {
     dowFriday: undefined,
     dowSaturday: undefined,
     dowSunday: undefined,
+    dowMondayTimes: [],
+    dowTuesdayTimes: [],
+    dowWednesdayTimes: [],
+    dowThursdayTimes: [],
+    dowFridayTimes: [],
+    dowSaturdayTimes: [],
+    dowSundayTimes: [],
 
     phases: [],
 
@@ -842,6 +1081,24 @@ function getDefaultValues(): MedicationFormValues {
 }
 
 function medicationToFormValues(medication: MedicationSchedule): MedicationFormValues {
+  // Determine dose times mode from the schedule type config
+  let doseTimesMode: DoseTimesMode = 'single';
+  let enabledDoseTimes: DoseTimeName[] = ['mane'];
+
+  if (medication.linearConfig?.doseTimesMode === 'multiple') {
+    doseTimesMode = 'multiple';
+    enabledDoseTimes = medication.linearConfig.enabledDoseTimes ?? ['mane'];
+  } else if (medication.cyclicConfig?.doseTimesMode === 'multiple') {
+    doseTimesMode = 'multiple';
+    enabledDoseTimes = medication.cyclicConfig.doseTimes?.map(dt => dt.time) ?? ['mane'];
+  } else if (medication.dayOfWeekConfig?.doseTimesMode === 'multiple') {
+    doseTimesMode = 'multiple';
+    enabledDoseTimes = medication.dayOfWeekConfig.enabledDoseTimes ?? ['mane'];
+  } else if (medication.multiPhaseConfig?.doseTimesMode === 'multiple') {
+    doseTimesMode = 'multiple';
+    enabledDoseTimes = medication.multiPhaseConfig.enabledDoseTimes ?? ['mane'];
+  }
+
   return {
     medicationName: medication.medicationName,
     unit: medication.unit,
@@ -849,16 +1106,28 @@ function medicationToFormValues(medication: MedicationSchedule): MedicationFormV
     endDate: medication.endDate ? medication.endDate.toISOString().split('T')[0] : '',
     scheduleType: medication.scheduleType,
 
+    // Dose times mode
+    doseTimesMode,
+    enabledDoseTimes,
+
     linearStartingDose: medication.linearConfig?.startingDose ?? 0,
     linearTitrationDirection: medication.linearConfig?.titrationDirection ?? 'decrease',
     linearChangeAmount: medication.linearConfig?.changeAmount ?? 0,
     linearIntervalDays: medication.linearConfig?.intervalDays ?? 7,
     linearMinimumDose: medication.linearConfig?.minimumDose,
     linearMaximumDose: medication.linearConfig?.maximumDose,
+    linearStartingDoseTimes: medication.linearConfig?.startingDoseTimes?.map(dt => ({
+      time: dt.time,
+      dose: dt.dose,
+    })) ?? [],
 
     cyclicDose: medication.cyclicConfig?.dose ?? 0,
     cyclicDaysOn: medication.cyclicConfig?.daysOn ?? 21,
     cyclicDaysOff: medication.cyclicConfig?.daysOff ?? 7,
+    cyclicDoseTimes: medication.cyclicConfig?.doseTimes?.map(dt => ({
+      time: dt.time,
+      dose: dt.dose,
+    })) ?? [],
 
     dowMonday: medication.dayOfWeekConfig?.monday,
     dowTuesday: medication.dayOfWeekConfig?.tuesday,
@@ -867,11 +1136,19 @@ function medicationToFormValues(medication: MedicationSchedule): MedicationFormV
     dowFriday: medication.dayOfWeekConfig?.friday,
     dowSaturday: medication.dayOfWeekConfig?.saturday,
     dowSunday: medication.dayOfWeekConfig?.sunday,
+    dowMondayTimes: medication.dayOfWeekConfig?.mondayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowTuesdayTimes: medication.dayOfWeekConfig?.tuesdayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowWednesdayTimes: medication.dayOfWeekConfig?.wednesdayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowThursdayTimes: medication.dayOfWeekConfig?.thursdayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowFridayTimes: medication.dayOfWeekConfig?.fridayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowSaturdayTimes: medication.dayOfWeekConfig?.saturdayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
+    dowSundayTimes: medication.dayOfWeekConfig?.sundayTimes?.map(dt => ({ time: dt.time, dose: dt.dose })) ?? [],
 
     phases: medication.multiPhaseConfig?.phases.map(p => ({
       id: p.id,
       dose: p.dose,
       durationDays: p.durationDays,
+      doseTimes: p.doseTimes?.map(dt => ({ time: dt.time, dose: dt.dose })),
     })) ?? [],
 
     preparationMode: medication.preparationMode,
@@ -896,7 +1173,12 @@ function formValuesToMedication(
     endDate: data.endDate ? new Date(data.endDate) : undefined,
     scheduleType: data.scheduleType as ScheduleType,
     preparationMode: data.preparationMode as PreparationMode,
+    doseTimesMode: data.doseTimesMode as DoseTimesMode,
+    enabledDoseTimes: data.enabledDoseTimes as DoseTimeName[],
   };
+
+  const doseTimesMode = data.doseTimesMode as DoseTimesMode;
+  const enabledDoseTimes = data.enabledDoseTimes as DoseTimeName[];
 
   // Add config based on schedule type
   switch (data.scheduleType) {
@@ -908,6 +1190,14 @@ function formValuesToMedication(
         intervalDays: data.linearIntervalDays ?? 7,
         minimumDose: data.linearMinimumDose,
         maximumDose: data.linearMaximumDose,
+        doseTimesMode: doseTimesMode,
+        enabledDoseTimes: enabledDoseTimes,
+        startingDoseTimes: doseTimesMode === 'multiple'
+          ? (data.linearStartingDoseTimes ?? []).map(dt => ({
+              time: dt.time as DoseTimeName,
+              dose: dt.dose,
+            }))
+          : undefined,
       };
       break;
 
@@ -916,6 +1206,13 @@ function formValuesToMedication(
         dose: data.cyclicDose ?? 0,
         daysOn: data.cyclicDaysOn ?? 21,
         daysOff: data.cyclicDaysOff ?? 7,
+        doseTimesMode: doseTimesMode,
+        doseTimes: doseTimesMode === 'multiple'
+          ? (data.cyclicDoseTimes ?? []).map(dt => ({
+              time: dt.time as DoseTimeName,
+              dose: dt.dose,
+            }))
+          : undefined,
       };
       break;
 
@@ -928,16 +1225,30 @@ function formValuesToMedication(
         friday: data.dowFriday,
         saturday: data.dowSaturday,
         sunday: data.dowSunday,
+        doseTimesMode: doseTimesMode,
+        enabledDoseTimes: enabledDoseTimes,
+        mondayTimes: doseTimesMode === 'multiple' ? data.dowMondayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        tuesdayTimes: doseTimesMode === 'multiple' ? data.dowTuesdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        wednesdayTimes: doseTimesMode === 'multiple' ? data.dowWednesdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        thursdayTimes: doseTimesMode === 'multiple' ? data.dowThursdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        fridayTimes: doseTimesMode === 'multiple' ? data.dowFridayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        saturdayTimes: doseTimesMode === 'multiple' ? data.dowSaturdayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
+        sundayTimes: doseTimesMode === 'multiple' ? data.dowSundayTimes?.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose })) : undefined,
       };
       break;
 
     case 'multiPhase':
       medication.multiPhaseConfig = {
-        phases: (data.phases ?? []).map((p: { id: string; dose: number; durationDays: number }) => ({
+        phases: (data.phases ?? []).map((p) => ({
           id: p.id,
           dose: p.dose,
           durationDays: p.durationDays,
+          doseTimes: doseTimesMode === 'multiple' && p.doseTimes
+            ? p.doseTimes.map(dt => ({ time: dt.time as DoseTimeName, dose: dt.dose }))
+            : undefined,
         })),
+        doseTimesMode: doseTimesMode,
+        enabledDoseTimes: enabledDoseTimes,
       };
       break;
   }

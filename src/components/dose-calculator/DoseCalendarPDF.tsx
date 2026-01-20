@@ -12,6 +12,7 @@ import {
   calculatePreparationSummary,
 } from '../../utils/doseCalculation';
 import type { PatientDetails, MedicationSchedule, DoseEntry, CalendarDay, TabletBreakdown } from '../../types/doseCalculator';
+import { DOSE_TIME_SHORT_LABELS } from '../../types/doseCalculator';
 
 // PDF Color mapping from Tailwind colors
 const PDF_COLORS = {
@@ -154,6 +155,33 @@ const styles = StyleSheet.create({
     fontSize: 6,
     color: '#6B7280',
     marginTop: 1,
+  },
+  doseTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 1,
+  },
+  doseTimeLabel: {
+    fontSize: 6,
+    color: '#6B7280',
+  },
+  doseTimeValue: {
+    fontSize: 6,
+  },
+  doseTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 0.5,
+    borderTopColor: '#D1D5DB',
+    marginTop: 1,
+    paddingTop: 1,
+  },
+  doseTotalLabel: {
+    fontSize: 5,
+    color: '#9CA3AF',
+  },
+  doseTotalValue: {
+    fontSize: 5,
   },
   footer: {
     marginTop: 15,
@@ -386,6 +414,9 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
                         );
                       }
 
+                      // Check if this dose has multiple dose times
+                      const hasDoseTimes = dose.doseTimes && dose.doseTimes.length > 0;
+
                       return (
                         <View
                           key={dose.medicationId}
@@ -400,13 +431,53 @@ export const DoseCalendarPDF: React.FC<DoseCalendarPDFProps> = ({
                           <Text style={[styles.doseName, { color: colors.text }]}>
                             {dose.medicationName}:
                           </Text>
-                          <Text style={[styles.doseAmount, { color: colors.text }]}>
-                            {formatDose(dose.dose, dose.unit)}
-                          </Text>
-                          {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
-                            <Text style={styles.tabletBreakdown}>
-                              ({formatTabletBreakdownPDF(dose.tabletBreakdown)})
-                            </Text>
+
+                          {hasDoseTimes ? (
+                            // Multiple dose times display
+                            <>
+                              {dose.doseTimes!.map((dt) => (
+                                <View key={dt.time} style={styles.doseTimeRow}>
+                                  <Text style={[styles.doseTimeLabel, { color: colors.text }]}>
+                                    {DOSE_TIME_SHORT_LABELS[dt.time]}:
+                                  </Text>
+                                  <Text style={[styles.doseTimeValue, { color: colors.text }]}>
+                                    {formatDose(dt.dose, dose.unit)}
+                                  </Text>
+                                </View>
+                              ))}
+                              {dose.doseTimes!.length > 1 && (
+                                <View style={styles.doseTotalRow}>
+                                  <Text style={styles.doseTotalLabel}>Total:</Text>
+                                  <Text style={[styles.doseTotalValue, { color: colors.text }]}>
+                                    {formatDose(dose.dose, dose.unit)}
+                                  </Text>
+                                </View>
+                              )}
+                              {/* Show tablet breakdown for each dose time if available */}
+                              {hasPreparations && dose.doseTimes!.some(dt => dt.tabletBreakdown && dt.tabletBreakdown.length > 0) && (
+                                <>
+                                  {dose.doseTimes!.map((dt) => (
+                                    dt.tabletBreakdown && dt.tabletBreakdown.length > 0 && (
+                                      <Text key={`${dt.time}-breakdown`} style={styles.tabletBreakdown}>
+                                        {DOSE_TIME_SHORT_LABELS[dt.time]}: {formatTabletBreakdownPDF(dt.tabletBreakdown)}
+                                      </Text>
+                                    )
+                                  ))}
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            // Single dose display (original behavior)
+                            <>
+                              <Text style={[styles.doseAmount, { color: colors.text }]}>
+                                {formatDose(dose.dose, dose.unit)}
+                              </Text>
+                              {hasPreparations && dose.tabletBreakdown && dose.tabletBreakdown.length > 0 && (
+                                <Text style={styles.tabletBreakdown}>
+                                  ({formatTabletBreakdownPDF(dose.tabletBreakdown)})
+                                </Text>
+                              )}
+                            </>
                           )}
                         </View>
                       );

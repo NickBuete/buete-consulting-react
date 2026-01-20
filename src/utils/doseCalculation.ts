@@ -8,11 +8,38 @@ import type {
   TabletBreakdown,
   PreparationSummary,
   PreparationRequirement,
+  DoseTimeEntry,
+  DoseTimeValue,
 } from '../types/doseCalculator';
+import { DOSE_TIME_SHORT_LABELS } from '../types/doseCalculator';
 
 const MAX_ITERATIONS = 1000; // Safety limit to prevent infinite loops
 const DEFAULT_MAINTAIN_DAYS = 90; // Default duration for 'maintain' titration
 const MAX_UNITS_PER_DOSE = 4; // Maximum number of tablet units per dose
+
+/**
+ * Get total daily dose from dose times array
+ */
+export function getTotalDailyDose(doseTimes: DoseTimeEntry[]): number {
+  return doseTimes.reduce((sum, dt) => sum + dt.dose, 0);
+}
+
+/**
+ * Format dose times for display (e.g., "M:10mg L:5mg D:5mg")
+ */
+export function formatDoseTimes(doseTimes: DoseTimeEntry[], unit: MedicationUnit): string {
+  return doseTimes
+    .map(dt => `${DOSE_TIME_SHORT_LABELS[dt.time]}:${dt.dose}${unit}`)
+    .join(' ');
+}
+
+/**
+ * Format dose times compactly for calendar (e.g., "M:10 L:5 D:5")
+ */
+export function formatDoseTimesCompact(doseTimes: DoseTimeEntry[], unit: MedicationUnit): string {
+  return doseTimes.map(dt => `${DOSE_TIME_SHORT_LABELS[dt.time]}:${dt.dose}`).join(' ') + unit;
+}
+
 
 /**
  * Calculate the complete dose schedule for a medication based on its schedule type
@@ -39,6 +66,14 @@ function calculateLinearDoses(medication: MedicationSchedule): DoseEntry[] {
   const config = medication.linearConfig;
   if (!config) return [];
 
+  // Check if we're using multiple dose times
+  const doseTimesMode = config.doseTimesMode || 'single';
+
+  if (doseTimesMode === 'multiple' && config.startingDoseTimes && config.startingDoseTimes.length > 0) {
+    return calculateLinearDosesMultipleTimes(medication);
+  }
+
+  // Original single-dose logic
   const doseEntries: DoseEntry[] = [];
   let currentDose = config.startingDose;
   let currentDate = new Date(medication.startDate);
@@ -135,6 +170,141 @@ function calculateLinearDoses(medication: MedicationSchedule): DoseEntry[] {
 }
 
 /**
+ * Calculate doses for linear titration with multiple dose times
+ * All dose times titrate together (synchronized) by the same change amount
+ */
+function calculateLinearDosesMultipleTimes(medication: MedicationSchedule): DoseEntry[] {
+  const config = medication.linearConfig!;
+  const startingDoseTimes = config.startingDoseTimes!;
+
+  const doseEntries: DoseEntry[] = [];
+
+  // Track current dose for each dose time
+  let currentDoseTimes: DoseTimeEntry[] = startingDoseTimes.map(dt => ({
+    time: dt.time,
+    dose: dt.dose,
+  }));
+
+  let currentDate = new Date(medication.startDate);
+  let iterations = 0;
+
+  while (iterations < MAX_ITERATIONS) {
+    iterations++;
+
+    const intervalEndDate = addDays(currentDate, config.intervalDays);
+
+    // Add entries for each day in the interval
+    for (let i = 0; i < config.intervalDays; i++) {
+      const doseDate = addDays(currentDate, i);
+
+      if (medication.endDate && doseDate > medication.endDate) {
+        return addTabletBreakdowns(doseEntries, medication);
+      }
+
+      const totalDose = getTotalDailyDose(currentDoseTimes);
+
+      doseEntries.push({
+        date: doseDate,
+        dose: totalDose,
+        unit: medication.unit,
+        medicationId: medication.id,
+        medicationName: medication.medicationName,
+        doseTimes: currentDoseTimes.map(dt => ({ ...dt })), // Copy to avoid mutation
+      });
+    }
+
+    // Apply titration to all dose times
+    if (config.titrationDirection === 'increase') {
+      const nextDoseTimes = currentDoseTimes.map(dt => ({
+        ...dt,
+        dose: dt.dose + config.changeAmount,
+      }));
+
+      // Check if any dose time has reached maximum
+      const anyAtMax = config.maximumDose !== undefined &&
+        nextDoseTimes.some(dt => dt.dose >= config.maximumDose!);
+
+      if (anyAtMax) {
+        // Cap all doses at maximum and add final interval
+        currentDoseTimes = currentDoseTimes.map(dt => ({
+          ...dt,
+          dose: Math.min(dt.dose + config.changeAmount, config.maximumDose!),
+        }));
+        currentDate = intervalEndDate;
+
+        for (let i = 0; i < config.intervalDays; i++) {
+          const doseDate = addDays(currentDate, i);
+          if (medication.endDate && doseDate > medication.endDate) {
+            break;
+          }
+          const totalDose = getTotalDailyDose(currentDoseTimes);
+          doseEntries.push({
+            date: doseDate,
+            dose: totalDose,
+            unit: medication.unit,
+            medicationId: medication.id,
+            medicationName: medication.medicationName,
+            doseTimes: currentDoseTimes.map(dt => ({ ...dt })),
+          });
+        }
+        break;
+      }
+
+      currentDoseTimes = nextDoseTimes;
+    } else if (config.titrationDirection === 'decrease') {
+      const minimumDose = config.minimumDose ?? 0;
+      const nextDoseTimes = currentDoseTimes.map(dt => ({
+        ...dt,
+        dose: Math.max(dt.dose - config.changeAmount, minimumDose),
+      }));
+
+      // Check if all dose times have reached minimum
+      const allAtMin = nextDoseTimes.every(dt => dt.dose <= minimumDose);
+
+      if (allAtMin) {
+        currentDoseTimes = nextDoseTimes;
+        currentDate = intervalEndDate;
+
+        for (let i = 0; i < config.intervalDays; i++) {
+          const doseDate = addDays(currentDate, i);
+          if (medication.endDate && doseDate > medication.endDate) {
+            break;
+          }
+          const totalDose = getTotalDailyDose(currentDoseTimes);
+          doseEntries.push({
+            date: doseDate,
+            dose: totalDose,
+            unit: medication.unit,
+            medicationId: medication.id,
+            medicationName: medication.medicationName,
+            doseTimes: currentDoseTimes.map(dt => ({ ...dt })),
+          });
+        }
+        break;
+      }
+
+      currentDoseTimes = nextDoseTimes;
+    } else {
+      // 'maintain' - no change in dose
+      if (!medication.endDate) {
+        const maintainEndDate = addDays(medication.startDate, DEFAULT_MAINTAIN_DAYS);
+        if (intervalEndDate >= maintainEndDate) {
+          break;
+        }
+      }
+    }
+
+    currentDate = intervalEndDate;
+
+    if (medication.endDate && currentDate > medication.endDate) {
+      break;
+    }
+  }
+
+  return addTabletBreakdowns(doseEntries, medication);
+}
+
+/**
  * Calculate doses for cyclic dosing (X days on, Y days off)
  */
 function calculateCyclicDoses(medication: MedicationSchedule): DoseEntry[] {
@@ -149,6 +319,10 @@ function calculateCyclicDoses(medication: MedicationSchedule): DoseEntry[] {
   // Default to 90 days if no end date
   const endDate = medication.endDate || addDays(medication.startDate, DEFAULT_MAINTAIN_DAYS);
 
+  // Check if using multiple dose times
+  const doseTimesMode = config.doseTimesMode || 'single';
+  const hasDoseTimes = doseTimesMode === 'multiple' && config.doseTimes && config.doseTimes.length > 0;
+
   while (currentDate <= endDate && iterations < MAX_ITERATIONS) {
     iterations++;
 
@@ -156,14 +330,31 @@ function calculateCyclicDoses(medication: MedicationSchedule): DoseEntry[] {
     const dayInCycle = daysSinceStart % cycleLength;
     const isOnDay = dayInCycle < config.daysOn;
 
-    doseEntries.push({
-      date: new Date(currentDate),
-      dose: isOnDay ? config.dose : 0,
-      unit: medication.unit,
-      medicationId: medication.id,
-      medicationName: medication.medicationName,
-      isOffDay: !isOnDay,
-    });
+    if (hasDoseTimes) {
+      const doseTimes: DoseTimeEntry[] = isOnDay
+        ? config.doseTimes!.map(dt => ({ time: dt.time, dose: dt.dose }))
+        : config.doseTimes!.map(dt => ({ time: dt.time, dose: 0 }));
+      const totalDose = isOnDay ? getTotalDailyDose(doseTimes) : 0;
+
+      doseEntries.push({
+        date: new Date(currentDate),
+        dose: totalDose,
+        unit: medication.unit,
+        medicationId: medication.id,
+        medicationName: medication.medicationName,
+        isOffDay: !isOnDay,
+        doseTimes: doseTimes,
+      });
+    } else {
+      doseEntries.push({
+        date: new Date(currentDate),
+        dose: isOnDay ? config.dose : 0,
+        unit: medication.unit,
+        medicationId: medication.id,
+        medicationName: medication.medicationName,
+        isOffDay: !isOnDay,
+      });
+    }
 
     currentDate = addDays(currentDate, 1);
   }
@@ -185,6 +376,10 @@ function calculateDayOfWeekDoses(medication: MedicationSchedule): DoseEntry[] {
   // Default to 90 days if no end date
   const endDate = medication.endDate || addDays(medication.startDate, DEFAULT_MAINTAIN_DAYS);
 
+  // Check if using multiple dose times
+  const doseTimesMode = config.doseTimesMode || 'single';
+  const hasDoseTimes = doseTimesMode === 'multiple';
+
   // Map day index (0=Sunday, 1=Monday, ..., 6=Saturday) to config
   const getDoseForDay = (dayIndex: number): number | undefined => {
     switch (dayIndex) {
@@ -199,20 +394,63 @@ function calculateDayOfWeekDoses(medication: MedicationSchedule): DoseEntry[] {
     }
   };
 
+  // Get dose times for a specific day
+  const getDoseTimesForDay = (dayIndex: number): DoseTimeValue[] | undefined => {
+    switch (dayIndex) {
+      case 0: return config.sundayTimes;
+      case 1: return config.mondayTimes;
+      case 2: return config.tuesdayTimes;
+      case 3: return config.wednesdayTimes;
+      case 4: return config.thursdayTimes;
+      case 5: return config.fridayTimes;
+      case 6: return config.saturdayTimes;
+      default: return undefined;
+    }
+  };
+
   while (currentDate <= endDate && iterations < MAX_ITERATIONS) {
     iterations++;
 
     const dayIndex = getDay(currentDate);
-    const dose = getDoseForDay(dayIndex);
 
-    doseEntries.push({
-      date: new Date(currentDate),
-      dose: dose ?? 0,
-      unit: medication.unit,
-      medicationId: medication.id,
-      medicationName: medication.medicationName,
-      isOffDay: dose === undefined || dose === 0,
-    });
+    if (hasDoseTimes) {
+      const dayDoseTimes = getDoseTimesForDay(dayIndex);
+      if (dayDoseTimes && dayDoseTimes.length > 0) {
+        const doseTimes: DoseTimeEntry[] = dayDoseTimes.map(dt => ({ time: dt.time, dose: dt.dose }));
+        const totalDose = getTotalDailyDose(doseTimes);
+
+        doseEntries.push({
+          date: new Date(currentDate),
+          dose: totalDose,
+          unit: medication.unit,
+          medicationId: medication.id,
+          medicationName: medication.medicationName,
+          isOffDay: totalDose === 0,
+          doseTimes: doseTimes,
+        });
+      } else {
+        // No dose times for this day - treat as off day
+        doseEntries.push({
+          date: new Date(currentDate),
+          dose: 0,
+          unit: medication.unit,
+          medicationId: medication.id,
+          medicationName: medication.medicationName,
+          isOffDay: true,
+        });
+      }
+    } else {
+      const dose = getDoseForDay(dayIndex);
+
+      doseEntries.push({
+        date: new Date(currentDate),
+        dose: dose ?? 0,
+        unit: medication.unit,
+        medicationId: medication.id,
+        medicationName: medication.medicationName,
+        isOffDay: dose === undefined || dose === 0,
+      });
+    }
 
     currentDate = addDays(currentDate, 1);
   }
@@ -230,7 +468,14 @@ function calculateMultiPhaseDoses(medication: MedicationSchedule): DoseEntry[] {
   const doseEntries: DoseEntry[] = [];
   let currentDate = new Date(medication.startDate);
 
+  // Check if using multiple dose times
+  const doseTimesMode = config.doseTimesMode || 'single';
+
   for (const phase of config.phases) {
+    // Check if this phase has dose times defined
+    const phaseDoseTimes = phase.doseTimes;
+    const hasDoseTimes = doseTimesMode === 'multiple' && phaseDoseTimes && phaseDoseTimes.length > 0;
+
     for (let day = 0; day < phase.durationDays; day++) {
       const doseDate = new Date(currentDate);
 
@@ -239,14 +484,29 @@ function calculateMultiPhaseDoses(medication: MedicationSchedule): DoseEntry[] {
         return addTabletBreakdowns(doseEntries, medication);
       }
 
-      doseEntries.push({
-        date: doseDate,
-        dose: phase.dose,
-        unit: medication.unit,
-        medicationId: medication.id,
-        medicationName: medication.medicationName,
-        isOffDay: phase.dose === 0,
-      });
+      if (hasDoseTimes) {
+        const doseTimes: DoseTimeEntry[] = phaseDoseTimes!.map(dt => ({ time: dt.time, dose: dt.dose }));
+        const totalDose = getTotalDailyDose(doseTimes);
+
+        doseEntries.push({
+          date: doseDate,
+          dose: totalDose,
+          unit: medication.unit,
+          medicationId: medication.id,
+          medicationName: medication.medicationName,
+          isOffDay: totalDose === 0,
+          doseTimes: doseTimes,
+        });
+      } else {
+        doseEntries.push({
+          date: doseDate,
+          dose: phase.dose,
+          unit: medication.unit,
+          medicationId: medication.id,
+          medicationName: medication.medicationName,
+          isOffDay: phase.dose === 0,
+        });
+      }
 
       currentDate = addDays(currentDate, 1);
     }
@@ -276,6 +536,25 @@ function addTabletBreakdowns(doseEntries: DoseEntry[], medication: MedicationSch
       return entry;
     }
 
+    // Handle multiple dose times - calculate breakdown for each dose time
+    if (entry.doseTimes && entry.doseTimes.length > 0) {
+      const doseTimesWithBreakdown: DoseTimeEntry[] = entry.doseTimes.map(dt => {
+        if (dt.dose === 0) {
+          return dt;
+        }
+        const breakdown = calculateTabletBreakdown(dt.dose, preparations);
+        return {
+          ...dt,
+          tabletBreakdown: breakdown,
+        };
+      });
+      return {
+        ...entry,
+        doseTimes: doseTimesWithBreakdown,
+      };
+    }
+
+    // Single dose - original behavior
     const breakdown = calculateTabletBreakdown(entry.dose, preparations);
     return {
       ...entry,
@@ -529,7 +808,23 @@ export function calculatePreparationSummary(
   for (const entry of doseEntries) {
     if (entry.isOffDay || entry.dose === 0) continue;
 
-    if (entry.tabletBreakdown) {
+    // Handle multiple dose times
+    if (entry.doseTimes && entry.doseTimes.length > 0) {
+      for (const doseTime of entry.doseTimes) {
+        if (doseTime.dose === 0) continue;
+
+        if (doseTime.tabletBreakdown) {
+          for (const breakdown of doseTime.tabletBreakdown) {
+            const key = breakdown.preparation.id;
+            totals.set(key, (totals.get(key) || 0) + breakdown.quantity);
+          }
+        } else {
+          canAchieveAll = false;
+          warnings.push(`Cannot achieve ${doseTime.dose}${entry.unit} dose (${DOSE_TIME_SHORT_LABELS[doseTime.time]}) with available preparations`);
+        }
+      }
+    } else if (entry.tabletBreakdown) {
+      // Single dose mode
       for (const breakdown of entry.tabletBreakdown) {
         const key = breakdown.preparation.id;
         totals.set(key, (totals.get(key) || 0) + breakdown.quantity);
@@ -566,6 +861,7 @@ export function calculatePreparationSummary(
 
 /**
  * Get all unique doses from a medication schedule
+ * Includes doses from all dose times when in multiple mode
  */
 export function getUniqueDoses(medication: MedicationSchedule): number[] {
   const doses: number[] = [];
@@ -574,62 +870,115 @@ export function getUniqueDoses(medication: MedicationSchedule): number[] {
     case 'linear':
       if (medication.linearConfig) {
         const config = medication.linearConfig;
-        let dose = config.startingDose;
 
-        // Only proceed if we have a valid starting dose
-        if (dose > 0) {
-          doses.push(dose);
-        }
+        // Check if using multiple dose times
+        if (config.doseTimesMode === 'multiple' && config.startingDoseTimes && config.startingDoseTimes.length > 0) {
+          // Collect all starting doses from dose times
+          const startingDoses = config.startingDoseTimes.map(dt => dt.dose);
 
-        // Guard against infinite loops: changeAmount must be > 0 for titration
-        if (config.changeAmount > 0) {
-          if (config.titrationDirection === 'increase') {
-            // Need a maximum dose to prevent infinite loop when increasing
-            if (config.maximumDose !== undefined) {
-              while (dose < config.maximumDose) {
-                dose += config.changeAmount;
-                if (dose > config.maximumDose) {
-                  dose = config.maximumDose;
+          // For each dose time, calculate the titration range
+          for (const startDose of startingDoses) {
+            let dose = startDose;
+            if (dose > 0) doses.push(dose);
+
+            if (config.changeAmount > 0) {
+              if (config.titrationDirection === 'increase' && config.maximumDose !== undefined) {
+                while (dose < config.maximumDose) {
+                  dose += config.changeAmount;
+                  if (dose > config.maximumDose) dose = config.maximumDose;
+                  doses.push(dose);
+                  if (dose >= config.maximumDose) break;
                 }
-                doses.push(dose);
-                if (dose >= config.maximumDose) break;
+              } else if (config.titrationDirection === 'decrease') {
+                const minDose = config.minimumDose ?? 0;
+                while (dose > minDose) {
+                  dose -= config.changeAmount;
+                  if (dose < minDose) dose = minDose;
+                  doses.push(dose);
+                  if (dose <= minDose) break;
+                }
               }
             }
-          } else if (config.titrationDirection === 'decrease') {
-            const minDose = config.minimumDose ?? 0;
-            while (dose > minDose) {
-              dose -= config.changeAmount;
-              if (dose < minDose) {
-                dose = minDose;
+          }
+        } else {
+          // Original single dose logic
+          let dose = config.startingDose;
+
+          if (dose > 0) {
+            doses.push(dose);
+          }
+
+          if (config.changeAmount > 0) {
+            if (config.titrationDirection === 'increase') {
+              if (config.maximumDose !== undefined) {
+                while (dose < config.maximumDose) {
+                  dose += config.changeAmount;
+                  if (dose > config.maximumDose) {
+                    dose = config.maximumDose;
+                  }
+                  doses.push(dose);
+                  if (dose >= config.maximumDose) break;
+                }
               }
-              doses.push(dose);
-              if (dose <= minDose) break;
+            } else if (config.titrationDirection === 'decrease') {
+              const minDose = config.minimumDose ?? 0;
+              while (dose > minDose) {
+                dose -= config.changeAmount;
+                if (dose < minDose) {
+                  dose = minDose;
+                }
+                doses.push(dose);
+                if (dose <= minDose) break;
+              }
             }
           }
         }
-        // For 'maintain' direction, we just have the starting dose (already added above)
       }
       break;
 
     case 'cyclic':
       if (medication.cyclicConfig) {
-        doses.push(medication.cyclicConfig.dose);
+        const config = medication.cyclicConfig;
+        if (config.doseTimesMode === 'multiple' && config.doseTimes && config.doseTimes.length > 0) {
+          config.doseTimes.forEach(dt => { if (dt.dose > 0) doses.push(dt.dose); });
+        } else {
+          doses.push(config.dose);
+        }
       }
       break;
 
     case 'dayOfWeek':
       if (medication.dayOfWeekConfig) {
         const config = medication.dayOfWeekConfig;
-        [config.monday, config.tuesday, config.wednesday, config.thursday,
-          config.friday, config.saturday, config.sunday]
-          .forEach(d => { if (d !== undefined && d > 0) doses.push(d); });
+
+        if (config.doseTimesMode === 'multiple') {
+          // Collect doses from all day's dose times
+          const allDayTimes = [
+            config.mondayTimes, config.tuesdayTimes, config.wednesdayTimes,
+            config.thursdayTimes, config.fridayTimes, config.saturdayTimes, config.sundayTimes
+          ];
+          allDayTimes.forEach(dayTimes => {
+            if (dayTimes) {
+              dayTimes.forEach(dt => { if (dt.dose > 0) doses.push(dt.dose); });
+            }
+          });
+        } else {
+          [config.monday, config.tuesday, config.wednesday, config.thursday,
+            config.friday, config.saturday, config.sunday]
+            .forEach(d => { if (d !== undefined && d > 0) doses.push(d); });
+        }
       }
       break;
 
     case 'multiPhase':
       if (medication.multiPhaseConfig) {
-        medication.multiPhaseConfig.phases.forEach(phase => {
-          if (phase.dose > 0) doses.push(phase.dose);
+        const config = medication.multiPhaseConfig;
+        config.phases.forEach(phase => {
+          if (config.doseTimesMode === 'multiple' && phase.doseTimes && phase.doseTimes.length > 0) {
+            phase.doseTimes.forEach(dt => { if (dt.dose > 0) doses.push(dt.dose); });
+          } else {
+            if (phase.dose > 0) doses.push(phase.dose);
+          }
         });
       }
       break;
