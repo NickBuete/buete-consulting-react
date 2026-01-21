@@ -187,6 +187,17 @@ function calculateLinearDosesTogether(medication: MedicationSchedule, filteredSt
     dose: dt.dose,
   }));
 
+  // If increasing and all starting doses are 0, start from the first increment
+  if (config.titrationDirection === 'increase') {
+    const allZero = currentDoseTimes.every(dt => dt.dose === 0);
+    if (allZero && config.changeAmount > 0) {
+      currentDoseTimes = currentDoseTimes.map(dt => ({
+        time: dt.time,
+        dose: config.changeAmount,
+      }));
+    }
+  }
+
   let currentDate = new Date(medication.startDate);
   let iterations = 0;
 
@@ -308,12 +319,24 @@ function calculateLinearDosesSequential(medication: MedicationSchedule, filtered
     ? (config.titrationSequence ?? config.enabledDoseTimes ?? [])
     : ALL_DOSE_TIMES;
 
+  // If increasing and all starting doses are 0, start from the first increment on the first time
+  const isIncrease = config.titrationDirection === 'increase';
+  if (isIncrease) {
+    const allZero = Array.from(currentDoseTimes.values()).every(dose => dose === 0);
+    if (allZero && config.changeAmount > 0) {
+      // Set the first time in sequence to the change amount
+      const firstTime = sequence[0] as DoseTimeName;
+      if (currentDoseTimes.has(firstTime)) {
+        currentDoseTimes.set(firstTime, config.changeAmount);
+      }
+    }
+  }
+
   let currentSequenceIndex = 0;
   let currentDate = new Date(medication.startDate);
   let iterations = 0;
-  const firstTime = sequence[currentSequenceIndex % sequence.length] as DoseTimeName;
-  let incrementsOnCurrentTime = (currentDoseTimes.get(firstTime) ?? 0) > 0 ? 1 : 0;
-  const isIncrease = config.titrationDirection === 'increase';
+  const firstTimeInSeq = sequence[currentSequenceIndex % sequence.length] as DoseTimeName;
+  let incrementsOnCurrentTime = (currentDoseTimes.get(firstTimeInSeq) ?? 0) > 0 ? 1 : 0;
   const isDecrease = config.titrationDirection === 'decrease';
   const getMaxDoseForTime = (time: DoseTimeName): number | undefined =>
     config.maximumDoseTimes?.find(mdt => mdt.time === time)?.dose ?? config.maximumDose;
