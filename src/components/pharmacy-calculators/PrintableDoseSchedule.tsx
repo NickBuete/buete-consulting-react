@@ -4,6 +4,7 @@ interface ScheduleEntry {
   time: string;
   medication: string;
   dose: string;
+  volume?: string | null;
 }
 
 interface PrintableDoseScheduleProps {
@@ -11,6 +12,8 @@ interface PrintableDoseScheduleProps {
   childAge: string;
   weight: string;
   schedule: ScheduleEntry[];
+  paracetamolProduct?: string;
+  ibuprofenProduct?: string;
 }
 
 export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
@@ -18,10 +21,14 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
   childAge,
   weight,
   schedule,
+  paracetamolProduct,
+  ibuprofenProduct,
 }) => {
   if (schedule.length === 0) {
     return null;
   }
+
+  const hasVolume = schedule.some(entry => entry.volume);
 
   return (
     <div className="print-only">
@@ -41,6 +48,21 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
         </p>
       </div>
 
+      {/* Products Used */}
+      {(paracetamolProduct || ibuprofenProduct) && (
+        <div className="border-2 border-gray-900 p-3 mb-4">
+          <p className="font-semibold mb-1 font-heading text-sm">Products:</p>
+          <ul className="list-disc list-inside text-sm font-body space-y-1">
+            {paracetamolProduct && (
+              <li><strong>Paracetamol:</strong> {paracetamolProduct}</li>
+            )}
+            {ibuprofenProduct && (
+              <li><strong>Ibuprofen:</strong> {ibuprofenProduct}</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       {/* Schedule Table */}
       <table className="w-full border-collapse border-2 border-gray-900 mb-6">
         <thead>
@@ -54,8 +76,13 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
             <th className="border-2 border-gray-900 p-3 text-left font-heading font-semibold">
               Dose
             </th>
+            {hasVolume && (
+              <th className="border-2 border-gray-900 p-3 text-left font-heading font-semibold">
+                Volume
+              </th>
+            )}
             <th className="border-2 border-gray-900 p-3 text-center font-heading font-semibold">
-              Given ✓
+              Given
             </th>
           </tr>
         </thead>
@@ -68,9 +95,14 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
               <td className="border-2 border-gray-900 p-3 font-body">
                 {entry.medication}
               </td>
-              <td className="border-2 border-gray-900 p-3 font-semibold font-body">
+              <td className="border-2 border-gray-900 p-3 font-body">
                 {entry.dose}
               </td>
+              {hasVolume && (
+                <td className="border-2 border-gray-900 p-3 font-semibold font-body">
+                  {entry.volume || '-'}
+                </td>
+              )}
               <td className="border-2 border-gray-900 p-3 text-center">
                 <div className="inline-block w-6 h-6 border-2 border-gray-900"></div>
               </td>
@@ -86,7 +118,6 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
           <li>Check product concentration before administering each dose</li>
           <li>Mark the "Given" box after administering each dose</li>
           <li>Do not exceed maximum daily doses</li>
-          <li>Give ibuprofen with food to minimize stomach upset</li>
         </ul>
       </div>
 
@@ -96,8 +127,9 @@ export const PrintableDoseSchedule: React.FC<PrintableDoseScheduleProps> = ({
         <ul className="list-disc list-inside space-y-1 text-sm font-body">
           <li>Paracetamol: Maximum 4 doses per day (max 1g per dose, 4g per day)</li>
           <li>Ibuprofen: Maximum 3 doses per day (max 400mg per dose)</li>
-          <li>This is a guide only - verify all doses with AMH Children's Dosing Companion</li>
-          <li>Adjust schedule based on child's response and clinical assessment</li>
+          <li>This is a guide only - verify all doses with your Doctor or Pharmacist</li>
+          <li>Adjust schedule based on child's response and ongoing symptoms</li>
+          <li>If symptoms persist longer than 48 hours consult a healthcare provider</li>
         </ul>
       </div>
 
