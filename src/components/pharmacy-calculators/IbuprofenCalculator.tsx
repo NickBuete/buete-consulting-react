@@ -104,9 +104,8 @@ export const IbuprofenCalculator: React.FC = () => {
               <SelectValue placeholder="Select concentration (mg/mL)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="20">20 mg/mL (Infant drops)</SelectItem>
+              <SelectItem value="20">20 mg/mL (Infant & Childrens suspension)</SelectItem>
               <SelectItem value="40">40 mg/mL (Children's suspension)</SelectItem>
-              <SelectItem value="100">100 mg/5mL (20 mg/mL - oral suspension)</SelectItem>
               {/* User can add more Australian products as needed */}
             </SelectContent>
           </Select>

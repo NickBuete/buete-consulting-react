@@ -14,6 +14,7 @@ import {
   CreatinineCalculator,
   UnitConverter,
   BSACalculator,
+  BMICalculator,
 } from "../../components/pharmacy-calculators";
 
 
@@ -185,6 +186,7 @@ const PharmacyToolsPage: React.FC = () => {
             <CreatinineCalculator />
             <UnitConverter />
             <BSACalculator />
+            <BMICalculator />
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle className="font-heading flex items-center gap-3">

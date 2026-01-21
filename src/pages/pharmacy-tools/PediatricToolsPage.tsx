@@ -5,7 +5,6 @@ import {
   IbuprofenCalculator,
   DoseScheduler,
 } from "../../components/pharmacy-calculators";
-import { BSACalculator } from "../../components/pharmacy-calculators/BSACalculator";
 
 const PediatricToolsPage: React.FC = () => {
   return (
@@ -24,12 +23,11 @@ const PediatricToolsPage: React.FC = () => {
             </h2>
             <p className="text-lg text-gray-700 max-w-2xl mx-auto font-body">
               Calculate accurate pediatric doses using weight-based formulas and evidence-based guidelines.
-              These tools support safe prescribing for common pediatric medications.
+              These tools may assist clinicians checking common pediatric medications.
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <BSACalculator />
             <ParacetamolCalculator />
             <IbuprofenCalculator />
             <div className="md:col-span-2">

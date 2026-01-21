@@ -103,9 +103,10 @@ export const ParacetamolCalculator: React.FC = () => {
               <SelectValue placeholder="Select concentration (mg/mL)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="24">24 mg/mL (Infant drops)</SelectItem>
-              <SelectItem value="48">48 mg/mL (Paediatric suspension)</SelectItem>
-              <SelectItem value="50">50 mg/mL (Children's liquid)</SelectItem>
+              <SelectItem value="100">100 mg/mL (Infant drops)</SelectItem>
+              <SelectItem value="50">50 mg/mL (Babies/Kids liquid)</SelectItem>
+              <SelectItem value="24">24 mg/mL (Children's 1-5 years)</SelectItem>
+              <SelectItem value="48">48 mg/mL (Children's 5-12 years)</SelectItem>
               {/* User can add more Australian products as needed */}
             </SelectContent>
           </Select>
