@@ -10,6 +10,7 @@ import {
   Button,
 } from "../ui";
 import { PrintableDoseSchedule } from "./PrintableDoseSchedule";
+import { printDoseSchedule } from "./dose-scheduler/print";
 
 interface ScheduleEntry {
   time: string;
@@ -83,65 +84,12 @@ export const DoseScheduler: React.FC = () => {
   }, [weight, paracetamolFirstDose, ibuprofenFirstDose]);
 
   const handlePrint = () => {
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    // Get the printable schedule HTML
     const printContent = document.getElementById('printable-dose-schedule');
     if (!printContent) return;
-
-    // Write the HTML with styles
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Medication Schedule - ${childName || 'Patient'}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              margin: 0;
-            }
-            .print-only {
-              display: block;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            th, td {
-              border: 2px solid #000;
-              padding: 12px;
-              text-align: left;
-            }
-            th {
-              background-color: #f3f4f6;
-              font-weight: bold;
-            }
-            .text-center {
-              text-align: center;
-            }
-            @media print {
-              body {
-                padding: 10px;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    printDoseSchedule({
+      childName,
+      contentHtml: printContent.innerHTML,
+    });
   };
 
   return (
