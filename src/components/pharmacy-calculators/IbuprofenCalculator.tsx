@@ -165,12 +165,10 @@ export const IbuprofenCalculator: React.FC = () => {
               children under 12, 2400 mg for 12 and older)
             </li>
             <li>
-              <strong>Verify dosing</strong> with AMH Children's Dosing Companion
-              or local guidelines
+              <strong>Verify dosing</strong> with product information, your Doctor or Pharmacist
             </li>
-            <li>Ibuprofen should be taken with food to minimize GI upset</li>
-            <li>
-              Avoid ibuprofen in children with dehydration, asthma, or renal
+            <li>  
+              Avoid ibuprofen in children with dehydration or kidney
               impairment
             </li>
             <li>Do not use in active bleeding or poorly controlled asthma</li>
@@ -181,7 +179,6 @@ export const IbuprofenCalculator: React.FC = () => {
           <p className="font-semibold mb-1">Clinical Notes:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Ibuprofen dosing: 10 mg/kg per dose (max 400 mg per dose)</li>
-            <li>Always give with food to minimize stomach upset</li>
             <li>May be alternated with paracetamol for improved fever/pain control</li>
             <li>
               Consult specialist for pain management in neonates or complex cases

@@ -148,9 +148,8 @@ export const PediatricDoseCalculator: React.FC = () => {
               <strong>Do not exceed maximum daily doses</strong> for either medication
             </li>
             <li>
-              <strong>Verify dosing</strong> with AMH Children's Dosing Companion or local guidelines
+              <strong>Verify dosing</strong> with product information, your Doctor or Pharmacist
             </li>
-            <li>Ibuprofen should be taken with food to minimize GI upset</li>
             <li>Avoid ibuprofen in children with dehydration, asthma, or renal impairment</li>
             <li>These are general dosing guidelines - always consider individual patient factors</li>
           </ul>

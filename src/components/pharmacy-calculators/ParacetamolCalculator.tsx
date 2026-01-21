@@ -159,21 +159,20 @@ export const ParacetamolCalculator: React.FC = () => {
           <ul className="list-disc list-inside space-y-1">
             <li>
               <strong>Always check product concentration</strong> before
-              administering (e.g., 100 mg/mL vs 200 mg/5 mL)
+              administering
             </li>
             <li>
               <strong>Do not exceed maximum daily dose</strong> of 4000 mg (4g)
             </li>
             <li>
-              <strong>Verify dosing</strong> with AMH Children's Dosing Companion
-              or local guidelines
+              <strong>Verify dosing</strong> with product information, your Doctor or Pharmacist
             </li>
             <li>
               Be aware of combination products containing paracetamol to avoid
               overdose
             </li>
             <li>
-              Use with caution in hepatic impairment or malnutrition
+              Use with caution in liver impairment
             </li>
           </ul>
         </div>
@@ -182,7 +181,6 @@ export const ParacetamolCalculator: React.FC = () => {
           <p className="font-semibold mb-1">Clinical Notes:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Paracetamol dosing: 15 mg/kg per dose (max 1 g per dose)</li>
-            <li>Can be given orally or rectally</li>
             <li>May be alternated with ibuprofen for improved fever/pain control</li>
             <li>
               Consult specialist for pain management in neonates or complex cases
