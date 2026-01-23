@@ -461,25 +461,26 @@ export const ParkinsonsTitrationTool: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Change every
+                          Change every (days)
                         </label>
-                        <select
+                        <input
+                          type="number"
+                          min={1}
+                          max={28}
                           value={med.titrationConfig?.intervalDays || 7}
-                          onChange={e =>
-                            updateMedication(index, {
-                              titrationConfig: {
-                                ...med.titrationConfig!,
-                                intervalDays: parseInt(e.target.value),
-                              },
-                            })
-                          }
+                          onChange={e => {
+                            const value = parseInt(e.target.value);
+                            if (value >= 1 && value <= 28) {
+                              updateMedication(index, {
+                                titrationConfig: {
+                                  ...med.titrationConfig!,
+                                  intervalDays: value,
+                                },
+                              });
+                            }
+                          }}
                           className="w-full border border-gray-300 rounded px-3 py-2"
-                        >
-                          <option value={3}>3 days</option>
-                          <option value={5}>5 days</option>
-                          <option value={7}>7 days (1 week)</option>
-                          <option value={14}>14 days (2 weeks)</option>
-                        </select>
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
