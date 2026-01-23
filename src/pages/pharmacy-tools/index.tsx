@@ -183,6 +183,30 @@ const PharmacyToolsPage: React.FC = () => {
                 </p>
               </CardContent>
             </Card>
+            <Card className="md:col-span-2 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200">
+              <CardHeader>
+                <CardTitle className="font-heading flex items-center gap-3">
+                  <span className="text-2xl">🧠</span>
+                  Parkinson's Titration Planner
+                </CardTitle>
+                <CardDescription className="font-body">
+                  Advanced medication titration planner for Parkinson's disease. Supports multi-medication regimens,
+                  cross-titrations, up to 8 daily doses, and Australian PBS-listed preparations with pre-set halving rules.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link to={ROUTES.PARKINSONS_TITRATION}>
+                  <Button size="lg" className="gap-2">
+                    Open Parkinson's Titration Planner →
+                  </Button>
+                </Link>
+                <p className="mt-4 text-sm text-gray-600 font-body">
+                  <strong>Features:</strong> Multi-medication support with hold-steady and titrating modes,
+                  cross-titration synchronization, sequential dose adjustments, weekly/daily views with completion tracking,
+                  and Levodopa Equivalent Dose (LED) calculations.
+                </p>
+              </CardContent>
+            </Card>
             <CreatinineCalculator />
             <UnitConverter />
             <BSACalculator />
