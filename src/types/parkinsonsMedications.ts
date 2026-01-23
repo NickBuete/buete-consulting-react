@@ -441,6 +441,29 @@ export interface CrossTitrationLink {
   };
 }
 
+// Day of week for blister pack alignment
+export type WeekStartDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Sunday, 1=Monday, etc.
+
+export const WEEK_DAY_LABELS: Record<WeekStartDay, string> = {
+  0: 'Sunday',
+  1: 'Monday',
+  2: 'Tuesday',
+  3: 'Wednesday',
+  4: 'Thursday',
+  5: 'Friday',
+  6: 'Saturday',
+};
+
+export const WEEK_DAY_SHORT_LABELS: Record<WeekStartDay, string> = {
+  0: 'Sun',
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat',
+};
+
 export interface PDRegimen {
   id: string;
   name: string;                      // e.g., "Dopamine Agonist to Levodopa Switch"
@@ -466,6 +489,9 @@ export interface PDRegimen {
   // Global settings
   allowHalves: boolean;
   maxTabletsPerDose: number;
+
+  // Blister pack settings
+  weekStartDay: WeekStartDay;        // 0=Sunday, 1=Monday, etc. for blister pack alignment
 
   // Calculated combined schedule (populated by calculator)
   calculatedSchedule?: PDRegimenDayDose[];

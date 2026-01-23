@@ -18,12 +18,14 @@ import {
   DEFAULT_PD_TIME_SLOTS,
   createEmptySlotDoses,
   getNextMedicationColor,
+  WEEK_DAY_LABELS,
   type PDRegimen,
   type PDRegimenMedication,
   type PDMedication,
   type PDPreparation,
   type PDTimeSlot,
   type RegimenTemplate,
+  type WeekStartDay,
 } from '../../../types/parkinsonsMedications';
 
 type WizardStep = 'template' | 'time-slots' | 'medications' | 'doses' | 'cross-titration' | 'review';
@@ -54,6 +56,7 @@ export const ParkinsonsTitrationTool: React.FC = () => {
   const endDate = useMemo(() => endDateStr ? parseISO(endDateStr) : undefined, [endDateStr]);
   const [allowHalves, setAllowHalves] = useState(true);
   const [maxTabletsPerDose, setMaxTabletsPerDose] = useState(3);
+  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1); // Default Monday
 
   // Medications state
   const [medications, setMedications] = useState<PDRegimenMedication[]>([]);
@@ -74,7 +77,8 @@ export const ParkinsonsTitrationTool: React.FC = () => {
     crossTitrationLinks: [], // TODO: Add cross-titration UI
     allowHalves,
     maxTabletsPerDose,
-  }), [regimenName, selectedTemplate, timeSlots, startDate, endDate, medications, allowHalves, maxTabletsPerDose]);
+    weekStartDay,
+  }), [regimenName, selectedTemplate, timeSlots, startDate, endDate, medications, allowHalves, maxTabletsPerDose, weekStartDay]);
 
   // Calculate schedule
   const calculatedSchedule = useMemo(() => {
@@ -322,7 +326,7 @@ export const ParkinsonsTitrationTool: React.FC = () => {
             {/* Global settings */}
             <div className="p-4 bg-gray-50 rounded-lg space-y-4">
               <h4 className="font-medium text-gray-700">Global Settings</h4>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -343,6 +347,19 @@ export const ParkinsonsTitrationTool: React.FC = () => {
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Week starts on:</label>
+                  <select
+                    value={weekStartDay}
+                    onChange={e => setWeekStartDay(parseInt(e.target.value) as WeekStartDay)}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  >
+                    {([0, 1, 2, 3, 4, 5, 6] as WeekStartDay[]).map(day => (
+                      <option key={day} value={day}>{WEEK_DAY_LABELS[day]}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-gray-500">(for blister packs)</span>
                 </div>
               </div>
             </div>
