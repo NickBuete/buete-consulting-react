@@ -17,11 +17,7 @@ import type {
   PDTitrationConfig,
   TitrationDirection,
 } from '../../types/parkinsonsMedications';
-import {
-  LEVODOPA_EQUIVALENT_FACTORS,
-  calculateTotalDose,
-  calculateTotalTablets,
-} from '../../types/parkinsonsMedications';
+import { LEVODOPA_EQUIVALENT_FACTORS } from '../../types/parkinsonsMedications';
 
 const MAX_ITERATIONS = 1000;
 const DEFAULT_DURATION_DAYS = 90;
@@ -209,7 +205,7 @@ function applyCrossTitrationSync(
   // Find all days where the increasing medication changes
   const increaseDays = findChangeDaysInSchedule(increasingSchedule, 'increase');
 
-  for (const { date: increaseDate, index: increaseIndex } of increaseDays) {
+  for (const { date: increaseDate } of increaseDays) {
     let decreaseDateIndex: number;
 
     switch (link.syncMode) {
@@ -392,8 +388,9 @@ function calculateCombinedTotals(
 }
 
 /**
- * Check if titration can continue
+ * Check if titration can continue (reserved for future use with target doses)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function canContinueTitrating(
   currentSlotDoses: PDSlotDose[],
   config: PDTitrationConfig

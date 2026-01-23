@@ -49,7 +49,8 @@ export const ParkinsonsTitrationTool: React.FC = () => {
   const [regimenName, setRegimenName] = useState('');
   const [timeSlots, setTimeSlots] = useState<PDTimeSlot[]>(DEFAULT_PD_TIME_SLOTS.slice(0, 4));
   const [startDateStr, setStartDateStr] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [endDateStr, setEndDateStr] = useState<string | undefined>();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [endDateStr, _setEndDateStr] = useState<string | undefined>();
 
   // Parsed dates for calculations
   const startDate = useMemo(() => parseISO(startDateStr), [startDateStr]);
